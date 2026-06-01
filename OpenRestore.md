@@ -1,34 +1,39 @@
 # OpenRestore
 
-OpenRestore is an open, reproducible benchmark for musical audio restoration. It curates open-licensed clean audio, generates controlled and organic degradation chains, evaluates restoration systems with standardized reconstruction and perceptual metrics, and publishes versioned datasets, baselines, reports, and a public leaderboard.
+OpenRestore is an open, reproducible benchmark for musical audio restoration. It curates high-quality clean audio, generates controlled and organic degradation chains, evaluates restoration systems with reconstruction and perceptual metrics, and publishes datasets, baselines, reports, and a public leaderboard.
 
 Internal application link: [CHORD-VITA application](https://docs.google.com/document/d/1jHbahFTKmkAgQGIGbRLSNHwxb-EY-tgN)
 
 ## Executive Summary
 
-Musical audio restoration research is fragmented across denoising, dereverberation, declipping, bandwidth extension, codec repair, remastering, and general audio cleanup. Existing benchmarks are useful but usually focus on one degradation family, one source type, or a challenge-specific task. OpenRestore will provide a shared infrastructure for comparing restoration systems on complete musical audio clips with controlled degradations and more organic multi-step degradation chains, while keeping the data, metadata, metrics, and release process aligned with FAIR and Open Research Data practices.
+Musical audio restoration research is fragmented across denoising, dereverberation, declipping, bandwidth extension, codec repair, remastering, and general audio cleanup. OpenRestore will provide a shared benchmark for comparing restoration systems on complete musical audio clips, using deterministic degradations, high-quality source material, reproducible evaluation, and transparent metadata.
 
-The first release should be deliberately narrow: paired clean and degraded musical clips, deterministic degradation recipes, public train and validation splits, a hidden evaluation split, at least one simple DSP baseline, one learning-based baseline, and a static leaderboard generated from organizer-run container evaluations. Later releases can add richer musical domains, subjective listening tests, and specialized restoration tracks.
+The benchmark should stay focused: one degraded mixed musical signal in, one restored signal out. Participants submit runnable containers, not restored evaluation audio. Organizers run those containers on a hidden evaluation split and publish scores on a leaderboard with an OpenRestore-train-only main track and a separate external-data track.
 
-## Project Goals
+## What We Are Building
 
-- Build an open-licensed dataset of clean and degraded musical audio pairs.
-- Define a reproducible degradation pipeline with versioned modules, parameters, seeds, and checksums.
-- Provide local and reproducible evaluation tools for development and leaderboard submissions.
-- Publish baseline systems and baseline outputs so users can validate the benchmark pipeline.
-- Release all public artifacts with stable metadata, citations, and long-term archival records.
-- Make the project usable by researchers, artists, archives, and model builders with open-source tooling and transparent data provenance.
+OpenRestore is a benchmark, not a single model. It consists of:
 
-## Scope
+- A high-quality clean audio source pool centered on SDD, with BBC Sound Effects used for ambience, sound effects, and organic degradation material.
+- A deterministic degradation pipeline that creates paired clean/degraded examples.
+- A JSONL manifest format close to the current restoration pipeline schema.
+- Public train and validation splits for development.
+- A hidden organizer-only evaluation split for official leaderboard scoring.
+- A container-based submission workflow.
+- Metrics covering reconstruction, perceptual quality, embedding similarity, distributional quality, and degradation-specific AAE diagnostics.
+- Baselines that make leaderboard scores interpretable.
+- A lightweight release process with public artifacts, DOI snapshots, and a static leaderboard.
 
-### Benchmark Scope
+## Benchmark Contract
+
+### Task
 
 OpenRestore should focus on clip-level musical audio restoration across any musical domain:
 
 - Input: one degraded musical audio clip, usually a full mixed signal rather than separated stems.
 - Output: one restored audio clip with the same duration, sample rate, and channel count.
 - Ground truth: the clean source clip used to create the degradation.
-- Domains: high-quality musical material first, primarily from SDD; sound effects and ambience can be included when they support organic degradation or a separate sound-effect restoration subset.
+- Domains: high-quality musical material first, primarily from SDD; sound effects and ambience can support organic degradation or a separate sound-effect restoration subset.
 - Clip length: support native clips up to 120 seconds, with fixed 10-second and 30-second windows for fast training, evaluation, and ablation runs.
 - Sample rate: choose one canonical rate, preferably 44.1 kHz or 48 kHz stereo, with explicit conversion rules for sources that are mono or use a different rate.
 
@@ -39,28 +44,20 @@ OpenRestore should focus on clip-level musical audio restoration across any musi
 - Prompt-to-audio generation or music aesthetic scoring as a main task.
 - Non-reproducible degradation steps. Every benchmark degradation should be implemented with open-source code, open assets, and recorded parameters.
 
-## Positioning And Related Work
+### Key Decisions
 
-OpenRestore should learn from related benchmarks without duplicating them.
-
-| Project | What It Contributes | Implication For OpenRestore |
-| --- | --- | --- |
-| [Music Source Restoration / RawStems](https://arxiv.org/abs/2505.21827) | Defines music source restoration as recovery of unprocessed sources from degraded or professionally processed mixtures; introduces RawStems annotations. | Use its degradation families, instrument grouping, and evaluation ideas as references, while keeping OpenRestore focused on one input signal and one restored output. |
-| [MSRBench](https://arxiv.org/abs/2510.10995) and [MSR Challenge](https://msrchallenge.com/) | Provides a benchmark for music source restoration with raw-processed pairs and real-world degradations; challenge reports use metrics such as Multi-Mel-SNR, Zimtohrli, and FAD-CLAP. | Treat as the closest music-restoration benchmark. OpenRestore should be simpler: single musical clip in, restored musical clip out. |
-| [SonicMaster](https://arxiv.org/abs/2508.03448) and [SonicMaster Dataset](https://huggingface.co/datasets/amaai-lab/SonicMasterDataset) | Trains an all-in-one music restoration and mastering model using paired degraded/high-quality music generated with degradation groups such as equalization, dynamics, reverb, amplitude, and stereo. | Use its taxonomy and prompt-conditioned restoration framing as a strong starting point, while keeping OpenRestore recipes transparent and reproducible. |
-| [Audio Degradation Toolbox](https://qmro.qmul.ac.uk/xmlui/handle/123456789/6061) | Provides an early open toolbox for controlled music degradations, including chained degradations intended to mimic real-world conditions. | Directly supports the OpenRestore idea of deterministic modules plus organic multi-step chains. Reimplement or modernize concepts in Python rather than depending on the original Matlab stack. |
-| [ODAQ: Open Dataset of Audio Quality](https://arxiv.org/abs/2401.00197) and [expanded ODAQ](https://arxiv.org/abs/2504.00742) | Provides open audio stimuli with expert and later expanded listener quality ratings across controlled processing classes. | Useful for validating perceptual metrics and for designing listening-test protocols; not a restoration benchmark by itself. |
-| [A2SB](https://arxiv.org/abs/2501.11311) | A high-resolution music restoration model for 44.1 kHz bandwidth extension and audio inpainting. | Important baseline family for bandwidth loss, missing segments, and long-audio restoration behavior. |
-| [Apollo](https://arxiv.org/abs/2409.08514) and [Stochastic Restoration GAN](https://arxiv.org/abs/2207.01667) | Focus on restoring heavily compressed musical audio and codec artifacts. | Useful references for the codec-loss track, especially where reconstruction and perceptual quality may disagree. |
-| [AudioSR](https://arxiv.org/abs/2309.07314), [FlashSR](https://arxiv.org/abs/2501.10807), and [UniverSR](https://arxiv.org/abs/2510.00771) | Versatile audio super-resolution systems that target music, speech, and sound effects across low sample rates. | Useful baseline candidates for bandwidth-extension degradations, though OpenRestore should report music-specific results separately. |
-| [Smule Renaissance Small / Extreme Degradation Bench](https://arxiv.org/abs/2510.21659) | Introduces an efficient vocal restoration model and a benchmark of singing and speech recordings captured under severe multi-degradation conditions. | Relevant for organic degradation design and singing/vocal subsets, while OpenRestore remains broader than vocals. |
-| [Microsoft DNS Challenge](https://github.com/microsoft/DNS-Challenge) | Mature challenge infrastructure for speech enhancement, with datasets, baselines, and subjective evaluation protocols. | Borrow challenge mechanics, submission discipline, and subjective-test thinking. Speech restoration can be a later track. |
-| [Clarity Challenge](https://claritychallenge.org/) | Hearing-aid enhancement challenges with structured train/dev/eval splits and perceptual/intelligibility metrics. | Borrow split discipline and clear task definitions, especially if OpenRestore adds speech or hearing-aid tracks. |
-| [Stable Audio 3](https://arxiv.org/abs/2605.17991), [ACE-Step](https://arxiv.org/abs/2506.00045), [ACE-Step 1.5](https://arxiv.org/abs/2602.00744) | Modern open or partially open music/audio generation and editing systems. | Useful for future baselines or augmentation, but not part of the core restoration benchmark. |
+- Build a single-clip musical restoration benchmark: one degraded mixed signal in, one restored signal out.
+- Use SDD as the primary music source, with BBC Sound Effects reserved for high-quality ambience, sound effects, and organic degradation material.
+- Keep the official evaluation split hidden, but drawn from the same documented source policy; avoid surprise-domain evaluation.
+- Use container-first submissions: participants submit inference code plus weights, and organizers run restoration on the hidden evaluation split.
+- Make the main leaderboard OpenRestore-train-only, with a separate external-data track for models trained on additional datasets.
+- Treat AudioMD as an optional XML preservation export, not as the native JSON metadata format.
+- Keep required metrics focused on one-to-one reconstruction and perceptual quality, with experimental metrics in optional reports.
+- Keep all degradations open-source, reproducible, and fully specified in metadata.
 
 ## Dataset Strategy
 
-OpenRestore should prioritize a small number of high-quality reference datasets over a broad pool of uneven sources. OpenRestore should start from the same kind of evaluation material used by Stable Audio 3: professionally produced or carefully curated audio, long enough to evaluate musical structure, and clean enough that restoration metrics measure the degradation rather than defects in the source.
+OpenRestore should prioritize a small number of high-quality reference datasets over a broad pool of uneven sources. The benchmark should start from the same kind of evaluation material used by Stable Audio 3: professionally produced or carefully curated audio, long enough to evaluate musical structure, and clean enough that restoration metrics measure the degradation rather than defects in the source.
 
 Stable Audio 3 evaluates instrumental music on the Song Describer Dataset (SDD) and sound effects on the BBC Sound Effects Dataset. In that setup, SDD is filtered to instrumental, coherent, non-ambiguous prompts, producing 424 music-caption pairs. BBC Sound Effects is filtered into duration subsets up to 120 seconds, 30 seconds, 10 seconds, and 5 seconds; the paper notes that BBC is preferred over AudioCaps because its reference audio is professionally produced and full-bandwidth.
 
@@ -89,7 +86,7 @@ Stable Audio 3 evaluates instrumental music on the Song Describer Dataset (SDD) 
 
 ## Data Model
 
-`index.jsonl` is the authoritative inventory. It maps stable item IDs to storage locations, source metadata, degradation metadata, split assignment, and checksums.
+`index.jsonl` is the authoritative inventory. It maps stable item IDs to storage locations, source metadata, segment metadata, degradation metadata, split assignment, prompt information, and rights metadata.
 
 Recommended storage:
 
@@ -100,9 +97,9 @@ Recommended storage:
 
 Do not call the project sidecar "AudioMD JSON". [AudioMD](https://www.loc.gov/standards/amdvmd/) is a Library of Congress XML technical metadata schema. OpenRestore should define its own JSON item metadata and optionally provide an AudioMD-compatible XML export for preservation partners.
 
-Recommended `index.jsonl` row shape:
+### Recommended JSONL Row
 
-OpenRestore should keep the row close to the current restoration pipeline format. The important design choice is that every row represents one degraded example derived from one clean source segment. This makes training, evaluation, prompt conditioning, and degradation-specific reporting straightforward.
+OpenRestore should keep the row close to the current restoration pipeline format. Every row represents one degraded example derived from one clean source segment. This makes training, evaluation, prompt conditioning, and degradation-specific reporting straightforward.
 
 ```json
 {
@@ -164,7 +161,7 @@ OpenRestore should keep the row close to the current restoration pipeline format
 }
 ```
 
-Field groups:
+### Field Groups
 
 | Group | Fields | Purpose |
 | --- | --- | --- |
@@ -208,7 +205,7 @@ Every degradation must be deterministic from `(clean audio, recipe config, modul
 
 The benchmark should report results separately by family and severity. A single global score is useful for ranking, but it must not hide which degradations a model handles poorly.
 
-## Evaluation Protocol
+## Evaluation And Leaderboard
 
 ### Splits
 
@@ -234,7 +231,7 @@ Public train/validation scores can be shown as diagnostics, but official ranking
 4. Run the OpenRestore CLI locally on public validation examples to produce a development `scores.json`.
 5. Submit an OCI/Docker container containing the inference code and either bundled weights or a declared weight-download mechanism that works when the organizers run the container.
 
-### Leaderboard Evaluation
+### Organizer Evaluation
 
 - Accept a runnable OCI/Docker container, not restored audio files as the primary submission. The container must expose a documented inference command that reads degraded audio and item metadata from an input directory and writes restored audio to an output directory.
 - The submitted container must include all inference code. Model weights should either be included in the image or downloaded from a declared, versioned URL during setup/run, with checksums recorded in the submission manifest.
@@ -243,11 +240,11 @@ Public train/validation scores can be shown as diagnostics, but official ranking
 - Store submission manifest, container digest, logs, metrics, output checksums, and restored outputs for audit.
 - Publish `leaderboard.json` and a static leaderboard page with separate OpenRestore-train-only and external-data tracks.
 
-### Metrics
+## Metrics
 
 OpenRestore should report metrics in separate families rather than collapse everything into one opaque score. The official leaderboard can still define a primary aggregate, but every submission should expose the underlying metric table by degradation family, severity, source subset, and clip duration.
 
-Required metrics:
+### Required Metrics
 
 | Family | Metrics | Comparison | Purpose |
 | --- | --- | --- | --- |
@@ -294,7 +291,7 @@ Initial AAE descriptors:
 
 SonicMaster reports degradation-specific behavior with AAE for its degradation groups instead of relying only on a single global score. OpenRestore should follow that principle, but keep the implementation transparent: each AAE descriptor must be open-source, versioned, tested on controlled degradations, and reported separately from perceptual metrics.
 
-Optional metrics:
+### Optional Metrics
 
 - Additional psychoacoustic or learned perceptual metrics if they are available through open implementations.
 - Subjective listening tests using pairwise A/B, MUSHRA-style panels, or expert ratings.
@@ -364,33 +361,9 @@ Important fields:
 
 The container must be runnable without manual intervention beyond pulling the image and, if declared, downloading fixed-version weights.
 
-## Release And Sustainability Plan
+## Implementation Plan
 
-OpenRestore should use a lightweight release process that is easy to maintain. The goal is not to build a complex archival infrastructure; the goal is to make each public release reproducible, citable, and easy to download.
-
-Core release layers:
-
-| Layer | Use |
-| --- | --- |
-| Git repository | Canonical source for code, degradation configs, schemas, evaluation scripts, baseline code, documentation, and leaderboard generation. |
-| Hugging Face Datasets | Public distribution of train/validation metadata, public audio assets when licensing allows, dataset cards, and loading examples. |
-| Zenodo | Frozen release archive with DOI for papers, reports, and grant deliverables. Archive the exact manifests, configs, schemas, evaluation scripts, baseline definitions, and public metadata used for a release. |
-| Static website | Documentation and leaderboard generated from versioned files such as `leaderboard.json`, submission manifests, and release notes. GitLab Pages or GitHub Pages is enough. |
-| Organizer private storage | Hidden evaluation audio, clean references, evaluation manifests, container logs, restored outputs, and audit checksums. These are not public, but they must be backed up and versioned internally. |
-
-Each release should include:
-
-- Public `index.jsonl` files for train/validation.
-- Dataset card and source-license summary.
-- Degradation recipes and versioned degradation code.
-- Evaluation code, metric versions, and baseline definitions.
-- Baseline scores on public validation and hidden evaluation.
-- Leaderboard snapshot and release notes.
-- Checksums for all public artifacts.
-
-Keep optional infrastructure optional. RenkuLab, DaSCH, or other preservation platforms can be added later if a funder, partner, or archive requirement makes them useful, but they should not be required for the benchmark to run.
-
-## Repository Layout
+### Repository Layout
 
 The repository should separate public benchmark code from generated data. Audio shards, model weights, hidden evaluation files, and restored outputs should live in release/storage locations, not directly in the Git repository.
 
@@ -512,7 +485,7 @@ outputs/
 weights/
 ```
 
-## CI And Quality Gates
+### CI And Quality Gates
 
 - Validate `index.jsonl` and submission manifests against JSON Schema.
 - Verify that every referenced storage key exists.
@@ -522,6 +495,32 @@ weights/
 - Run unit tests for degradation modules and metric aggregation.
 - Rebuild the static leaderboard from `leaderboard.json`.
 - Generate release statistics: duration by split, domain, source dataset, license, degradation family, and severity.
+
+## Release And Sustainability Plan
+
+OpenRestore should use a lightweight release process that is easy to maintain. The goal is not to build a complex archival infrastructure; the goal is to make each public release reproducible, citable, and easy to download.
+
+Core release layers:
+
+| Layer | Use |
+| --- | --- |
+| Git repository | Canonical source for code, degradation configs, schemas, evaluation scripts, baseline code, documentation, and leaderboard generation. |
+| Hugging Face Datasets | Public distribution of train/validation metadata, public audio assets when licensing allows, dataset cards, and loading examples. |
+| Zenodo | Frozen release archive with DOI for papers, reports, and grant deliverables. Archive the exact manifests, configs, schemas, evaluation scripts, baseline definitions, and public metadata used for a release. |
+| Static website | Documentation and leaderboard generated from versioned files such as `leaderboard.json`, submission manifests, and release notes. GitLab Pages or GitHub Pages is enough. |
+| Organizer private storage | Hidden evaluation audio, clean references, evaluation manifests, container logs, restored outputs, and audit checksums. These are not public, but they must be backed up and versioned internally. |
+
+Each release should include:
+
+- Public `index.jsonl` files for train/validation.
+- Dataset card and source-license summary.
+- Degradation recipes and versioned degradation code.
+- Evaluation code, metric versions, and baseline definitions.
+- Baseline scores on public validation and hidden evaluation.
+- Leaderboard snapshot and release notes.
+- Checksums for all public artifacts.
+
+Keep optional infrastructure optional. RenkuLab, DaSCH, or other preservation platforms can be added later if a funder, partner, or archive requirement makes them useful, but they should not be required for the benchmark to run.
 
 ## Roadmap
 
@@ -597,16 +596,24 @@ weights/
 | Storage and bandwidth cost | Use shards, compression where appropriate, mirrors, checksums, and staged releases. |
 | Leaderboard gaming | Require runnable containers, training-data disclosure, container digests, fixed weight checksums, output validation, audit logs, and per-family reporting. |
 
-## Key Decisions
+## Positioning And Related Work
 
-- Build a single-clip musical restoration benchmark: one degraded mixed signal in, one restored signal out.
-- Use SDD as the primary music source, with BBC Sound Effects reserved for high-quality ambience, sound effects, and organic degradation material.
-- Keep the official evaluation split hidden, but drawn from the same documented source policy; avoid surprise-domain evaluation.
-- Use container-first submissions: participants submit inference code plus weights, and organizers run restoration on the hidden evaluation split.
-- Make the main leaderboard OpenRestore-train-only, with a separate external-data track for models trained on additional datasets.
-- Treat AudioMD as an optional XML preservation export, not as the native JSON metadata format.
-- Keep required metrics focused on one-to-one reconstruction and perceptual quality, with experimental metrics in optional reports.
-- Keep all degradations open-source, reproducible, and fully specified in metadata.
+OpenRestore should learn from related benchmarks without duplicating them.
+
+| Project | What It Contributes | Implication For OpenRestore |
+| --- | --- | --- |
+| [Music Source Restoration / RawStems](https://arxiv.org/abs/2505.21827) | Defines music source restoration as recovery of unprocessed sources from degraded or professionally processed mixtures; introduces RawStems annotations. | Use its degradation families, instrument grouping, and evaluation ideas as references, while keeping OpenRestore focused on one input signal and one restored output. |
+| [MSRBench](https://arxiv.org/abs/2510.10995) and [MSR Challenge](https://msrchallenge.com/) | Provides a benchmark for music source restoration with raw-processed pairs and real-world degradations; challenge reports use metrics such as Multi-Mel-SNR, Zimtohrli, and FAD-CLAP. | Treat as the closest music-restoration benchmark. OpenRestore should be simpler: single musical clip in, restored musical clip out. |
+| [SonicMaster](https://arxiv.org/abs/2508.03448) and [SonicMaster Dataset](https://huggingface.co/datasets/amaai-lab/SonicMasterDataset) | Trains an all-in-one music restoration and mastering model using paired degraded/high-quality music generated with degradation groups such as equalization, dynamics, reverb, amplitude, and stereo. | Use its taxonomy, prompt-conditioned restoration framing, and AAE-style degradation diagnostics as starting points, while keeping OpenRestore recipes transparent and reproducible. |
+| [Audio Degradation Toolbox](https://qmro.qmul.ac.uk/xmlui/handle/123456789/6061) | Provides an early open toolbox for controlled music degradations, including chained degradations intended to mimic real-world conditions. | Directly supports deterministic modules plus organic multi-step chains. Reimplement or modernize concepts in Python rather than depending on the original Matlab stack. |
+| [ODAQ: Open Dataset of Audio Quality](https://arxiv.org/abs/2401.00197) and [expanded ODAQ](https://arxiv.org/abs/2504.00742) | Provides open audio stimuli with expert and later expanded listener quality ratings across controlled processing classes. | Useful for validating perceptual metrics and for designing listening-test protocols; not a restoration benchmark by itself. |
+| [A2SB](https://arxiv.org/abs/2501.11311) | A high-resolution music restoration model for 44.1 kHz bandwidth extension and audio inpainting. | Important baseline family for bandwidth loss, missing segments, and long-audio restoration behavior. |
+| [Apollo](https://arxiv.org/abs/2409.08514) and [Stochastic Restoration GAN](https://arxiv.org/abs/2207.01667) | Focus on restoring heavily compressed musical audio and codec artifacts. | Useful references for the codec-loss track, especially where reconstruction and perceptual quality may disagree. |
+| [AudioSR](https://arxiv.org/abs/2309.07314), [FlashSR](https://arxiv.org/abs/2501.10807), and [UniverSR](https://arxiv.org/abs/2510.00771) | Versatile audio super-resolution systems that target music, speech, and sound effects across low sample rates. | Useful baseline candidates for bandwidth-extension degradations, though OpenRestore should report music-specific results separately. |
+| [Smule Renaissance Small / Extreme Degradation Bench](https://arxiv.org/abs/2510.21659) | Introduces an efficient vocal restoration model and a benchmark of singing and speech recordings captured under severe multi-degradation conditions. | Relevant for organic degradation design and singing/vocal subsets, while OpenRestore remains broader than vocals. |
+| [Microsoft DNS Challenge](https://github.com/microsoft/DNS-Challenge) | Mature challenge infrastructure for speech enhancement, with datasets, baselines, and subjective evaluation protocols. | Borrow challenge mechanics, submission discipline, and subjective-test thinking. Speech restoration can be a later track. |
+| [Clarity Challenge](https://claritychallenge.org/) | Hearing-aid enhancement challenges with structured train/dev/eval splits and perceptual/intelligibility metrics. | Borrow split discipline and clear task definitions, especially if OpenRestore adds speech or hearing-aid tracks. |
+| [Stable Audio 3](https://arxiv.org/abs/2605.17991), [ACE-Step](https://arxiv.org/abs/2506.00045), [ACE-Step 1.5](https://arxiv.org/abs/2602.00744) | Modern open or partially open music/audio generation and editing systems. | Useful for source selection, evaluation precedent, and future baselines, but not part of the core restoration benchmark. |
 
 ## References
 
