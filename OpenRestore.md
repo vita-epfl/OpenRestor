@@ -12,7 +12,7 @@ The benchmark should stay focused: one degraded mixed musical signal in, one res
 
 ## What We Are Building
 
-OpenRestore is a benchmark, not a single model. It consists of:
+OpenRestore is a benchmark, not a single model. Two source collections anchor the plan: the Song Describer Dataset (SDD), a captioned collection of freely licensed music recordings, and BBC Sound Effects, a professionally produced library of sound effects and ambience. It consists of:
 
 - A high-quality clean audio source pool centered on SDD, with BBC Sound Effects used for ambience, sound effects, and organic degradation material.
 - A deterministic degradation pipeline that creates paired clean/degraded examples.
@@ -54,10 +54,13 @@ OpenRestore should focus on clip-level musical audio restoration across any musi
 - Treat AudioMD as an optional XML preservation export, not as the native JSON metadata format.
 - Keep required metrics focused on one-to-one reconstruction and perceptual quality, with experimental metrics in optional reports.
 - Keep all degradations open-source, reproducible, and fully specified in metadata.
+- Prioritize real-world organic degradation profiles over a broad inherited list of lab-style effects.
 
 ## Dataset Strategy
 
 OpenRestore should prioritize a small number of high-quality reference datasets over a broad pool of uneven sources. The benchmark should start from the same kind of evaluation material used by Stable Audio 3: professionally produced or carefully curated audio, long enough to evaluate musical structure, and clean enough that restoration metrics measure the degradation rather than defects in the source.
+
+Dataset reality check: most music audio systems are trained on private scraped, licensed, or internal music collections that are not reproducible as public benchmark sources. Stable Audio is one of the few visible cases that trains and evaluates against a small set of higher-quality curated datasets. Beyond SDD and BBC Sound Effects, OpenRestore has not identified a stronger public dataset candidate for v1. The important difference is that OpenRestore creates paired clean/degraded examples from the selected source audio, so the benchmark can evaluate restoration directly instead of relying on naturally degraded recordings with unknown clean references.
 
 Stable Audio 3 evaluates instrumental music on the Song Describer Dataset (SDD) and sound effects on the BBC Sound Effects Dataset. In that setup, SDD is filtered to instrumental, coherent, non-ambiguous prompts, producing 424 music-caption pairs. BBC Sound Effects is filtered into duration subsets up to 120 seconds, 30 seconds, 10 seconds, and 5 seconds; the paper notes that BBC is preferred over AudioCaps because its reference audio is professionally produced and full-bandwidth.
 
@@ -74,7 +77,7 @@ Stable Audio 3 evaluates instrumental music on the Song Describer Dataset (SDD) 
 - Use SDD as the main musical reference set unless a specific source fails the license or quality audit.
 - Use BBC Sound Effects selectively for high-quality ambience, environmental beds, and sound-effect restoration, not as a substitute for music.
 - Keep broad, uneven, or weakly curated audio collections out of the default source pool unless the project later needs scale or a specific missing condition.
-- If more music is needed after SDD, add it only through a second curated high-quality source with clear audio quality, metadata, and licensing. Candidate expansion sources should be evaluated one by one rather than imported wholesale.
+- If more music is needed after SDD, add it only through a second curated high-quality source with clear audio quality, metadata, and licensing. Candidate expansion sources should be evaluated one by one rather than imported wholesale; do not spend v1 scope chasing marginal datasets just to make the source list longer.
 
 ### Curation Rules
 
@@ -181,7 +184,9 @@ For public releases, avoid machine-specific absolute paths such as `/work/vita/.
 
 ## Degradation Pipeline
 
-Every degradation must be deterministic from `(clean audio, recipe config, module versions, seed)`. Each output must record the applied degradation families and compact parameters in `degradation_tracking`, with full recipe/config files versioned alongside the dataset release. The benchmark should include both isolated degradations for diagnosis and organic chains that feel like real musical damage: a track played through a room, captured by a device, compressed by a platform, clipped by gain staging, or mixed with ambience before being restored.
+Every degradation must be deterministic from `(clean audio, recipe config, module versions, seed)`. Each output must record the applied degradation families and compact parameters in `degradation_tracking`, with full recipe/config files versioned alongside the dataset release. The v1 benchmark should move away from copying a fixed historical panel such as the 19 SonicMaster-style degradations as its main target. Those primitive families remain useful for diagnostics, but the official emphasis should be organic chains that feel like real musical damage: a track played through a room, captured by a device, compressed by a platform, clipped by gain staging, or mixed with ambience before being restored.
+
+The current composite prototypes already point in the right direction: `crackle`, `highpass`, `hum`, `low_sr`, `noise`, `pitch_instability`, `soft_clip`, and `telephone`. OpenRestore should expand that idea into named, reproducible real-world profiles so users can evaluate themselves against conditions that resemble actual restoration work.
 
 ### Degradation Families
 
@@ -196,8 +201,36 @@ Every degradation must be deterministic from `(clean audio, recipe config, modul
 | Bandwidth and codecs | MP3, AAC, Opus, EnCodec or DAC-style neural codecs where available | Prefer FFmpeg and open codec implementations. Record codec, bitrate, sample rate, and encoder version. |
 | Organic multi-step chains | Room coloration plus noise, codec plus saturation, playback-through-speaker simulation, worn-media style chains, mobile-recording style chains | Compose open-source modules into realistic sequences that resemble naturally accumulated degradation rather than isolated lab effects. |
 
+### Real-World Degradation Inventory
+
+The first public inventory should contain 20 named profiles. Each profile should have fixed severity bands, isolated diagnostic descriptors where possible, and at least one organic chain recipe that combines the relevant primitive modules.
+
+| ID | Real-World Condition | Typical Components | What It Tests |
+| --- | --- | --- | --- |
+| `room_rir` | Reverberant room recording | Measured or simulated RIR, early reflections, late decay, wet/dry control | Dereverberation without destroying musical sustain. |
+| `far_field_distance` | Distant microphone or audience recording | Distance attenuation, air absorption, reduced direct-to-reverb ratio, room tone | Restoring presence and clarity from far-field capture. |
+| `off_axis_mic` | Off-axis microphone coloration | Directional mic EQ, high-frequency loss, comb filtering | Correcting microphone placement problems. |
+| `consumer_mic` | Phone, laptop, or cheap recorder capture | Narrow response, AGC, self-noise, mild clipping, mono or near-mono capture | Robustness to non-studio recording devices. |
+| `speaker_playback` | Playback through consumer speakers before capture | Speaker EQ, cabinet resonances, nonlinear driver saturation, room coupling | Undoing playback-chain coloration. |
+| `background_ambience` | Room, street, venue, or field ambience under the music | Open ambience beds, level automation, spectral masking | Separating music from natural environmental beds. |
+| `crowd_bleed` | Live audience or venue contamination | Crowd murmur, applause bursts, stage bleed, diffuse reverb | Handling concert and bootleg-style interference. |
+| `broadband_noise` | Hiss, fan, tape, or general broadband noise | Colored noise mixtures, SNR targets, slow level drift | Denoising without over-smoothing music. |
+| `electrical_hum` | Ground loop or electrical buzz | 50/60 Hz fundamentals, harmonic stacks, time-varying amplitude | Removing tonal interference while preserving bass. |
+| `clicks_crackle` | Dust, static, vinyl, connector, or damaged-transfer crackle | Sparse clicks, dense crackle, burst events, random timing | Repairing short impulsive artifacts. |
+| `dropouts_glitches` | Buffer underruns, packet loss, or bad digital transfer | Short mutes, repeats, discontinuities, zeroed blocks | Inpainting missing or discontinuous audio. |
+| `gain_clipping` | Bad gain staging or overloaded input | Soft clipping, hard clipping, hidden clipping, clipped transients | Declip and reconstruct peaks. |
+| `saturation_overdrive` | Preamp, tape, speaker, or analog-style overload | Waveshaping, harmonic distortion, level-dependent coloration | Removing nonlinear distortion without flattening energy. |
+| `overcompression_limiter` | Excessive compression, limiting, or AGC | Low dynamic range, pumping, transient loss, loudness normalization | Restoring dynamics and transients. |
+| `bandwidth_loss` | High-pass, low-pass, or poor EQ transfer | High-pass, low-pass, shelving loss, resonant notches | Recovering missing lows/highs and correcting muffling. |
+| `telephone_band` | Telephone or radio-style narrowband audio | 300-3400 Hz bandpass, companding, codec/noise layer | Restoring intelligibility and bandwidth from narrowband signals. |
+| `low_sample_rate` | Low sample rate capture or bad resampling | Downsampling, anti-alias variation, aliasing, upsampled output | Bandwidth extension and alias robustness. |
+| `lossy_codec` | Single lossy encoding pass | MP3, AAC, Opus, bitrate ladder, encoder metadata | Removing codec artifacts and pre-echo. |
+| `transcode_chain` | Repeated platform uploads or messaging-app transfers | Multiple codec generations, resampling, loudness normalization, stereo changes | Repairing accumulated distribution-platform damage. |
+| `pitch_speed_instability` | Unstable playback clock, tape wow/flutter, or turntable drift | Slow wow, fast flutter, random pitch drift, timing modulation | Stabilizing pitch and timing without warping musical expression. |
+
 ### Recipe Design
 
+- `profile`: one of the named real-world degradation profiles above, implemented as a reproducible chain with documented severity bands.
 - `single`: one degradation family at a controlled severity.
 - `chain`: ordered combinations of two or more degradations.
 - `organic`: sampled chains intended to resemble naturally accumulated musical degradation, such as room playback, microphone capture, device compression, background ambience, mild saturation, and codec loss.
@@ -543,9 +576,10 @@ Keep optional infrastructure optional. RenkuLab, DaSCH, or other preservation pl
 
 ### 3. Implement Degradations And Tracking
 
-- Implement deterministic degradation modules for EQ, dynamics, reverb, amplitude, stereo, noise, filters, tape-like effects, codecs, neural codecs, and organic profiles.
+- Implement the 20 real-world degradation profiles first, starting from the existing composite prototypes: `crackle`, `highpass`, `hum`, `low_sr`, `noise`, `pitch_instability`, `soft_clip`, and `telephone`.
+- Implement the primitive modules needed by those profiles: RIR/reverb, distance and microphone response, EQ/filtering, noise and ambience mixing, hum, crackle/clicks, clipping/saturation, compression/limiting, sample-rate loss, codec loss, dropouts/glitches, and pitch/speed instability.
 - Store compact per-item metadata in `degradation_tracking` and keep full recipe/config files versioned with the release.
-- Create isolated degradation recipes for diagnosis and organic multi-step recipes for realistic restoration.
+- Create isolated recipes only for diagnosis and AAE validation; keep the main v1 benchmark focused on organic multi-step profiles that resemble real restoration cases.
 - Validate each degradation on a small fixed fixture set so outputs are reproducible across releases.
 
 ### 4. Implement Metrics And Reports
