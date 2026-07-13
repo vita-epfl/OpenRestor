@@ -8,16 +8,16 @@ Internal application link: [CHORD-VITA application](https://docs.google.com/docu
 
 Musical audio restoration research is fragmented across denoising, dereverberation, declipping, bandwidth extension, codec repair, remastering, and general audio cleanup. OpenRestore will provide a shared benchmark for comparing restoration systems on complete musical audio clips, using deterministic degradations, high-quality source material, reproducible evaluation, and transparent metadata.
 
-The benchmark should stay focused: one degraded mixed musical signal in, one restored signal out. Participants submit runnable containers, not restored evaluation audio. Organizers run those containers on a hidden evaluation split and publish scores on a leaderboard with an OpenRestore-train-only main track and a separate external-data track.
+The benchmark should stay focused: one degraded mixed musical signal in, one restored signal out. Participants submit runnable containers, not restored evaluation audio. Organizers run those containers on a hidden evaluation split and publish scores on a leaderboard with an approved-training-pool main track and a separate external-data track.
 
 ## What We Are Building
 
-OpenRestore is a benchmark, not a single model. Two source collections anchor the plan: the Song Describer Dataset (SDD), a captioned collection of freely licensed music recordings, and BBC Sound Effects, a professionally produced library of sound effects and ambience. It consists of:
+OpenRestore is a benchmark, not a single model. The OpenRestore public benchmark source should be SDD: its recordings are split into public train, public validation, and public test subsets. The official hidden evaluation set should come from a separate secret custom dataset that is not publicly released. The main training pool can also include the clean original audio from SonicMaster Dataset, filtered FMA, and MUSDB18-HQ mixture audio if they pass license and quality checks. Sound datasets can support degradations, but they are not benchmark music sources. It consists of:
 
-- A high-quality clean audio source pool centered on SDD, with BBC Sound Effects used for ambience, sound effects, and organic degradation material.
+- An SDD-based public benchmark source pool split into public train, validation, and public test subsets.
 - A deterministic degradation pipeline that creates paired clean/degraded examples.
 - A JSONL manifest format close to the current restoration pipeline schema.
-- Public train and validation splits for development.
+- Public train, validation, and test splits for development and diagnostics.
 - A hidden organizer-only evaluation split for official leaderboard scoring.
 - A container-based submission workflow.
 - Metrics covering reconstruction, perceptual quality, embedding similarity, distributional quality, and degradation-specific AAE diagnostics.
@@ -33,24 +33,17 @@ OpenRestore should focus on clip-level musical audio restoration across any musi
 - Input: one degraded musical audio clip, usually a full mixed signal rather than separated stems.
 - Output: one restored audio clip with the same duration, sample rate, and channel count.
 - Ground truth: the clean source clip used to create the degradation.
-- Domains: high-quality musical material first, primarily from SDD; sound effects and ambience can support organic degradation or a separate sound-effect restoration subset.
-- Clip length: support native clips up to 120 seconds, with fixed 10-second and 30-second windows for fast training, evaluation, and ablation runs.
-- Sample rate: choose one canonical rate, preferably 44.1 kHz or 48 kHz stereo, with explicit conversion rules for sources that are mono or use a different rate.
-
-### Out Of Scope
-
-- Stem separation as the main task. The benchmark restores one degraded musical signal into one improved musical signal.
-- Speech-only enhancement as a primary track. Speech can be revisited later if the project expands beyond music.
-- Prompt-to-audio generation or music aesthetic scoring as a main task.
-- Non-reproducible degradation steps. Every benchmark degradation should be implemented with open-source code, open assets, and recorded parameters.
+- Domains: high-quality music only. Sound-effect datasets are not benchmark sources; they may only be used as optional degradation/noise material.
+- Clip length: each dataset item is a clean 30-second music clip paired with one or more degraded 30-second versions.
+- Sample rate: 44.1 kHz.
 
 ### Key Decisions
 
 - Build a single-clip musical restoration benchmark: one degraded mixed signal in, one restored signal out.
-- Use SDD as the primary music source, with BBC Sound Effects reserved for high-quality ambience, sound effects, and organic degradation material.
-- Keep the official evaluation split hidden, but drawn from the same documented source policy; avoid surprise-domain evaluation.
+- Use SDD as the OpenRestore public benchmark source for train, validation, and public test; the dataset is made of clean 30-second music clips and their degraded 30-second versions.
+- Keep the official evaluation split hidden and organizer-only, using a separate secret custom dataset curated under the same documented source policy; avoid surprise-domain evaluation.
 - Use container-first submissions: participants submit inference code plus weights, and organizers run restoration on the hidden evaluation split.
-- Make the main leaderboard OpenRestore-train-only, with a separate external-data track for models trained on additional datasets.
+- Make the main leaderboard use only the approved OpenRestore training pool: SDD train split, the clean original audio from SonicMaster Dataset, filtered FMA, and MUSDB18-HQ mixture audio if accepted; keep a separate external-data track for anything else.
 - Treat AudioMD as an optional XML preservation export, not as the native JSON metadata format.
 - Keep required metrics focused on one-to-one reconstruction and perceptual quality, with experimental metrics in optional reports.
 - Keep all degradations open-source, reproducible, and fully specified in metadata.
@@ -58,34 +51,76 @@ OpenRestore should focus on clip-level musical audio restoration across any musi
 
 ## Dataset Strategy
 
-OpenRestore should prioritize a small number of high-quality reference datasets over a broad pool of uneven sources. The benchmark should start from the same kind of evaluation material used by Stable Audio 3: professionally produced or carefully curated audio, long enough to evaluate musical structure, and clean enough that restoration metrics measure the degradation rather than defects in the source.
+OpenRestore should prioritize high-quality music datasets over broad pools of uneven audio. The benchmark item is always a paired example: a clean 30-second music clip and one or more degraded 30-second versions generated from it. Sound-effect datasets should not define the benchmark source distribution.
 
-Dataset reality check: most music audio systems are trained on private scraped, licensed, or internal music collections that are not reproducible as public benchmark sources. Stable Audio is one of the few visible cases that trains and evaluates against a small set of higher-quality curated datasets. Beyond SDD and BBC Sound Effects, OpenRestore has not identified a stronger public dataset candidate for v1. The important difference is that OpenRestore creates paired clean/degraded examples from the selected source audio, so the benchmark can evaluate restoration directly instead of relying on naturally degraded recordings with unknown clean references.
+Dataset reality check: most music audio systems are trained on private scraped, licensed, or internal music collections that are not reproducible as public benchmark sources. Stable Audio is one of the few visible cases that trains and evaluates against a small set of higher-quality curated datasets. Beyond SDD, OpenRestore has not identified a stronger public music dataset candidate for the initial benchmark scope. The important difference is that OpenRestore creates paired clean/degraded examples from the selected source audio, so the benchmark can evaluate restoration directly instead of relying on naturally degraded recordings with unknown clean references.
 
-Stable Audio 3 evaluates instrumental music on the Song Describer Dataset (SDD) and sound effects on the BBC Sound Effects Dataset. In that setup, SDD is filtered to instrumental, coherent, non-ambiguous prompts, producing 424 music-caption pairs. BBC Sound Effects is filtered into duration subsets up to 120 seconds, 30 seconds, 10 seconds, and 5 seconds; the paper notes that BBC is preferred over AudioCaps because its reference audio is professionally produced and full-bandwidth.
+Stable Audio 3 evaluates instrumental music on the Song Describer Dataset (SDD). OpenRestore should use SDD as the public benchmark source because it provides curated music recordings with human-written captions and 120-second source tracks from which deterministic 30-second train, validation, and test windows can be derived.
 
-### Primary Sources
+### Benchmark Datasets
 
-| Source | Role In OpenRestore | Why It Fits | Caveat |
-| --- | --- | --- | --- |
-| [Song Describer Dataset (SDD)](https://github.com/mulab-mir/song-describer-dataset) | Primary music source and main restoration benchmark material. Use the highest-quality compatible subset as the default target. | Human-written captions, freely licensed music recordings, 120-second tracks, and direct precedent in Stable Audio 3 evaluation. | Filter carefully: remove incoherent captions, ambiguous prompts, poor-quality audio, and any item whose source license is not compatible with redistribution. |
-| [BBC Sound Effects](https://sound-effects.bbcrewind.co.uk/) | High-quality sound-effect and ambience source. Use for organic degradation beds, room/field ambience, transient events, and optionally a separate sound-effect restoration subset. | Professional full-bandwidth recordings, broad real-world sound coverage, and direct precedent in Stable Audio 3 evaluation. | BBC licensing is research/education/personal by default, with commercial licensing handled separately. Treat it as a research benchmark source unless the release policy confirms broader reuse. |
+| Role | Decision | Rationale |
+| --- | --- | --- |
+| Training pool | Use the SDD train split, the clean original audio from SonicMaster Dataset, a filtered FMA music subset, and MUSDB18-HQ if they pass quality and license checks. For MUSDB18-HQ, use only the full-song mixture as clean source audio; do not use bass, drums, other, or vocals stems as benchmark items in the main track. Do not use SonicMaster's degraded pairs as benchmark or leaderboard data. | SDD alone may be too small for training strong restoration models. SonicMaster is directly aligned with restoration, FMA can provide scale if filtering removes low-quality or unsuitable material, and MUSDB18-HQ adds real recorded mixed music when restricted to mixture audio. |
+| Public validation, and public test splits | Use SDD for public train, public validation, and public test. | SDD is curated music with captions and long source tracks. It is already used as a music evaluation source by Stable Audio 3 and can be split by source recording into deterministic clean/degraded 30-second pairs. |
+| Hidden evaluation split | Use a separate secret custom dataset that is not publicly released. | A private organizer-only evaluation set prevents leakage of official leaderboard audio while still letting the public benchmark stay reproducible on SDD. |
+
+### Degradation Material Sources
+
+| Role | Decision | Rationale |
+| --- | --- | --- |
+| Organic degradation material | Use sound datasets only as source material for degradation layers, not as clean benchmark audio. | BBC Sound Effects, Freesound, FSD50K, and MUSAN can provide ambience, noise, interference, or environmental beds for organic degradation chains that are mixed into clean music clips. |
+
+The OpenRestore public benchmark splits are made from SDD. We split SDD by source recording into public train, public validation, and public test subsets, then generate clean 30-second music clips and degraded 30-second versions for each split. Official leaderboard scoring uses a separate secret custom evaluation dataset that is not publicly released. The main leaderboard training pool may include the SDD train split, the clean original audio from SonicMaster Dataset, a filtered FMA music subset, and MUSDB18-HQ mixture audio. SonicMaster's degraded pairs are not reused as benchmark or leaderboard data, and MUSDB18-HQ stems are not used as benchmark items in the main track. Degradation-source datasets are used only to synthesize degraded audio and are not part of the clean benchmark distribution. Any other training source belongs in the separate external-data track unless we explicitly revise the benchmark contract.
 
 ### Source Policy
 
 - Do not make the benchmark a grab bag of every available audio dataset.
-- Use SDD as the main musical reference set unless a specific source fails the license or quality audit.
-- Use BBC Sound Effects selectively for high-quality ambience, environmental beds, and sound-effect restoration, not as a substitute for music.
-- Keep broad, uneven, or weakly curated audio collections out of the default source pool unless the project later needs scale or a specific missing condition.
-- If more music is needed after SDD, add it only through a second curated high-quality source with clear audio quality, metadata, and licensing. Candidate expansion sources should be evaluated one by one rather than imported wholesale; do not spend v1 scope chasing marginal datasets just to make the source list longer.
+- Use SDD as the OpenRestore public benchmark source for train, validation, and public test splits unless a specific source fails the license or quality audit.
+- Use a separate secret custom dataset for the organizer-only hidden evaluation split.
+- Use only the clean original audio from SonicMaster Dataset, filtered FMA, and MUSDB18-HQ mixture audio as approved training sources if their license and quality checks fit the benchmark. Do not reuse SonicMaster's degraded set as benchmark or leaderboard data, and do not use MUSDB18-HQ stems as benchmark items in the main track.
+- Use sound datasets only for degradation material, not as benchmark source music.
+- Put any training source outside the approved pool in the external-data track.
 
 ### Curation Rules
 
 - Keep only items with clear source records, creator or dataset attribution, and redistribution terms compatible with the selected release mode.
 - Prefer high-fidelity stereo recordings with full bandwidth, stable loudness, no watermarks, no obvious mastering defects, and no broken metadata.
-- Preserve original long clips where possible, then derive deterministic 10-second and 30-second evaluation windows with metadata linking each window to its source clip.
+- Preserve original long clips where possible, then derive deterministic 30-second windows with metadata linking each window to its source clip.
 - Normalize format deterministically: sample rate, channel count, loudness target, peak headroom, and file encoding.
 - Split by stable grouped identifiers, not random windows, so the same source recording cannot appear across train, validation, and evaluation.
+
+### License And Quality Audit
+
+Every candidate source should pass a documented audit before it enters either the public benchmark source pool, the approved training pool, or the degradation-material pool. The audit should produce a versioned decision record with dataset name, version, access URL, review date, reviewer, intended role in OpenRestore, and final status: `accepted`, `accepted with filtering`, `internal-only`, or `rejected`.
+
+#### License Audit
+
+- Record the exact governing terms: dataset card, repository license, source-site terms, per-track terms, and any separate attribution requirements.
+- Verify whether OpenRestore may download, transform, store, redistribute, and publicly mirror the audio, metadata, and derived degraded versions.
+- Distinguish clearly between rights for internal organizer use, public benchmark release, and participant redistribution. A dataset may be acceptable for internal hidden evaluation yet not for public hosting.
+- Check whether commercial use, model training, sublicensing, or public competition use is restricted.
+- Check whether attribution must be preserved per item, per collection, or in a dataset-level notice.
+- Reject sources with ambiguous provenance, contradictory license signals, or terms that cannot support the dataset's intended OpenRestore role.
+- If only part of a dataset is usable, mark it `accepted with filtering` and define the exact inclusion rule in code and metadata.
+
+#### Quality Audit
+
+- Confirm that the source audio is real recorded music for benchmark/training roles, not synthesized, MIDI-rendered, or obviously AI-generated audio unless a later track explicitly allows that material.
+- Check technical format: sample rate, bandwidth, codec history, mono/stereo layout, clipping, truncation, corrupted files, and gross metadata errors.
+- Screen for audible defects in the clean source: watermarks, heavy codec artifacts, severe background noise, intrusive room coloration, distortion, dropouts, or non-musical contamination that would make the source unsuitable as clean reference audio.
+- For mixed-music sources, verify task fit: the audio should behave like a real full mix. For MUSDB18-HQ, only the `mixture` track qualifies for the main benchmark/training pool; stems are excluded from the main track.
+- For SonicMaster, verify that only the clean original audio is ingested into the approved training pool; its degraded pairs must remain excluded from benchmark and leaderboard data.
+- Run a small structured listening review on sampled items from each candidate dataset and document common failure modes and estimated reject rates.
+- Run lightweight automated checks where possible: duration bounds, silence ratio, clipped-sample ratio, loudness distribution, channel consistency, checksum validity, and duplicate or near-duplicate detection against existing OpenRestore sources.
+- If a dataset passes only after filtering, freeze the filtering rules in code so future releases reproduce the same inclusion logic.
+
+#### Audit Outcome Rules
+
+- `accepted`: the dataset can be used for its declared role without additional content filtering beyond routine preprocessing.
+- `accepted with filtering`: the dataset is usable only after explicit item-level or subset-level exclusions that are recorded in code and manifests.
+- `internal-only`: the dataset may be used for organizer-side hidden evaluation or internal experiments, but not redistributed in the public benchmark release.
+- `rejected`: the dataset is excluded because its license, provenance, audio quality, or task fit is incompatible with OpenRestore.
 
 ## Data Model
 
@@ -93,16 +128,16 @@ Stable Audio 3 evaluates instrumental music on the Song Describer Dataset (SDD) 
 
 Recommended storage:
 
-- `index.jsonl` remains the authoritative manifest, but its storage URIs and optional fields depend on the selected source dataset and release mode. SDD-derived clips, BBC-derived clips, public development data, and hidden evaluation data may therefore use different physical storage backends while sharing one schema.
-- Internal canonical storage: HDF5 shards, WebDataset tar shards, or plain audio plus manifests, chosen after prototyping I/O with SDD/BBC and the expected evaluation workflow.
-- Public mirror: dataset card, metadata, public train/validation assets, and an export format that supports reproducible local development.
+- `index.jsonl` remains the authoritative manifest, but its storage URIs and optional fields depend on the selected source dataset and release mode. SDD-derived train, validation, and public test clips and the secret evaluation clips may use different physical storage backends while sharing one schema.
+- Internal canonical storage: HDF5 shards, WebDataset tar shards, or plain audio plus manifests, chosen after prototyping I/O with SDD and the expected evaluation workflow.
+- Public mirror: dataset card, metadata, public train/validation/test assets, and an export format that supports reproducible local development.
 - Archival release: manifests, metadata, checksums, degradation configs, evaluation scripts, and redistributable audio covered by the selected release terms.
 
 Do not call the project sidecar "AudioMD JSON". [AudioMD](https://www.loc.gov/standards/amdvmd/) is a Library of Congress XML technical metadata schema. OpenRestore should define its own JSON item metadata and optionally provide an AudioMD-compatible XML export for preservation partners.
 
 ### Recommended JSONL Row
 
-OpenRestore should keep the row close to the current restoration pipeline format. Every row represents one degraded example derived from one clean source segment. This makes training, evaluation, prompt conditioning, and degradation-specific reporting straightforward.
+OpenRestore should keep the row close to the current restoration pipeline format. Every row represents one degraded 30-second example derived from one clean 30-second music segment. This makes training, evaluation, prompt conditioning, and degradation-specific reporting straightforward.
 
 ```json
 {
@@ -184,49 +219,125 @@ For public releases, avoid machine-specific absolute paths such as `/work/vita/.
 
 ## Degradation Pipeline
 
-Every degradation must be deterministic from `(clean audio, recipe config, module versions, seed)`. Each output must record the applied degradation families and compact parameters in `degradation_tracking`, with full recipe/config files versioned alongside the dataset release. The v1 benchmark should move away from copying a fixed historical panel such as the 19 SonicMaster-style degradations as its main target. Those primitive families remain useful for diagnostics, but the official emphasis should be organic chains that feel like real musical damage: a track played through a room, captured by a device, compressed by a platform, clipped by gain staging, or mixed with ambience before being restored.
+Every degradation must be deterministic from `(clean audio, recipe config, module versions, seed)`. Each output must record the applied degradation families and compact parameters in `degradation_tracking`, with full recipe/config files versioned alongside the dataset release. The benchmark should move away from copying a fixed historical panel such as the 19 SonicMaster-style degradations as its main target. Those primitive families remain useful for diagnostics, but the official emphasis should be organic chains that feel like real musical damage: a track played through a room, captured by a device, compressed by a platform, clipped by gain staging, or mixed with ambience before being restored.
 
 The current composite prototypes already point in the right direction: `crackle`, `highpass`, `hum`, `low_sr`, `noise`, `pitch_instability`, `soft_clip`, and `telephone`. OpenRestore should expand that idea into named, reproducible real-world profiles so users can evaluate themselves against conditions that resemble actual restoration work.
 
-### Degradation Families
+### Degradation Taxonomy
 
-| Family | Examples | Implementation Notes |
+OpenRestore should organize degradation metadata into three levels:
+
+1. Primitive causal degradation families describe the physical, signal-processing, or distribution mechanism that damaged the audio.
+2. Real-world degradation profiles describe named, reproducible conditions built from one or more causal families.
+3. Perceptual diagnostic descriptors describe what listeners or diagnostic models perceive in the degraded signal.
+
+Each generated item should store all three levels where possible: causal family IDs for metric grouping, profile IDs for user-facing benchmark slices, and perceptual descriptor IDs for diagnostics and prompt-conditioned analysis.
+
+#### Primitive Causal Degradation Families
+
+| ID | Scope | Implementation Notes |
 | --- | --- | --- |
-| Spectral and EQ | Low-pass, high-pass, shelving, peaking, band-stop, telephone band, microphone response EQ | Use SciPy filters, FIR/IIR recipes, or measured impulse responses with documented provenance. |
-| Dynamics | Compression, limiting, transient softening, pumping, over-normalization | Implement with open DSP code and fixed parameter ranges. |
-| Nonlinear distortion | Soft clipping, hard clipping, saturation, waveshaping, bit depth reduction | Include both mild and severe settings; store true pre/post peak levels. |
-| Noise and interference | Hiss, hum, broadband noise, crowd or room ambience, clicks, crackle, dropouts | Use open-licensed noise sources; store SNR and event timing. |
-| Room and acoustics | Synthetic reverb, measured room impulse responses, early reflections | Use open IRs where possible; Pyroomacoustics or equivalent for simulation. |
-| Stereo and spatial | Stereo collapse, narrowing, channel imbalance, one-sided channel loss, phase issues | Include mono compatibility checks and channel correlation metrics. |
-| Bandwidth and codecs | MP3, AAC, Opus, EnCodec or DAC-style neural codecs where available | Prefer FFmpeg and open codec implementations. Record codec, bitrate, sample rate, and encoder version. |
-| Organic multi-step chains | Room coloration plus noise, codec plus saturation, playback-through-speaker simulation, worn-media style chains, mobile-recording style chains | Compose open-source modules into realistic sequences that resemble naturally accumulated degradation rather than isolated lab effects. |
+| `spectral_transfer_eq` | Static or slowly varying coloration from EQ, transfer functions, resonances, comb filtering, shelves, peaks, notches, and tonal balance shifts. | Use SciPy filters, FIR/IIR recipes, or measured transfer functions with documented provenance. |
+| `bandwidth_limitation` | Missing or restricted frequency range from low-pass, high-pass, band-pass, downsampling, telephone band, or poor capture/playback bandwidth. | Store cutoff estimates, transition bands, resampling method, and anti-alias settings. |
+| `dynamics_envelope` | Compression, limiting, AGC, transient softening, pumping, expansion errors, or over-normalization. | Implement with open DSP code and fixed parameter ranges; store time constants and loudness changes. |
+| `gain_loudness` | Gain staging, level mismatch, low level, peak normalization, loudness normalization, or hidden clipping risk. | Store pre/post LUFS, peak, true peak, headroom, and gain values. |
+| `nonlinear_distortion` | Soft clipping, hard clipping, saturation, waveshaping, bit depth reduction, harmonic distortion, or overloaded analog stages. | Include mild and severe settings; store true pre/post peak levels and distortion parameters. |
+| `additive_noise_interference` | Hiss, hum, broadband noise, room tone, crowd bleed, ambience, buzz, or other additive contaminants. | Use open-licensed sources; store SNR, source IDs, spectral shape, and event timing. |
+| `transient_defects` | Clicks, crackle, pops, burst artifacts, impulsive corruption, or softened transients. | Store event times, densities, durations, amplitudes, and generation source. |
+| `dropouts_discontinuities` | Mutes, packet loss, buffer underruns, repeated blocks, missing spans, discontinuities, or zeroed samples. | Store dropout spans, repeat windows, crossfade policy, and gap statistics. |
+| `room_acoustics` | Reverberation, early reflections, late decay, room modes, direct-to-reverberant ratio, and distance cues. | Use open IRs where possible; Pyroomacoustics or equivalent for simulation. |
+| `device_microphone_speaker` | Microphone, recorder, speaker, cabinet, phone, laptop, headphone leak, or consumer playback/capture chain behavior. | Model response curves, AGC, self-noise, mono capture, driver saturation, and device-specific bandwidth. |
+| `stereo_spatial_phase` | Stereo collapse, narrowing, channel imbalance, one-sided channel loss, phase issues, mid/side changes, or mono compatibility problems. | Include channel correlation, mid/side energy, balance, and phase-coherence diagnostics. |
+| `codec_transcoding` | MP3, AAC, Opus, platform processing, resampling, loudness normalization, or repeated conventional codec generations. | Prefer FFmpeg and open encoders; record codec, bitrate, sample rate, encoder version, and pass count. |
+| `neural_codec_model_artifacts` | EnCodec, DAC-style codecs, neural vocoders, generative restoration artifacts, hallucinated texture, or model-specific warble. | Track model name, checkpoint, bitrate/tokens, sampling settings, and artifact detectors separately from conventional codecs. |
+| `temporal_pitch_instability` | Wow, flutter, clock drift, tape speed instability, turntable drift, timing modulation, or pitch wobble. | Store modulation rates, depth, random-walk parameters, and resampling method. |
+| `source_mix_balance` | Vocal/instrument imbalance, source dominance shifts, backing-track masking, or mix elements moved too far forward/back. | Use source-aware diagnostics where available; keep separate from generic EQ or loudness. |
+| `organic_multistep_chain` | Realistic accumulated damage composed from multiple causal families, such as room playback, mic capture, ambience, saturation, and codec loss. | Store ordered child operations and make every component independently reproducible. |
 
-### Real-World Degradation Inventory
+#### Real-World Degradation Profiles
 
 The first public inventory should contain 20 named profiles. Each profile should have fixed severity bands, isolated diagnostic descriptors where possible, and at least one organic chain recipe that combines the relevant primitive modules.
 
-| ID | Real-World Condition | Typical Components | What It Tests |
-| --- | --- | --- | --- |
-| `room_rir` | Reverberant room recording | Measured or simulated RIR, early reflections, late decay, wet/dry control | Dereverberation without destroying musical sustain. |
-| `far_field_distance` | Distant microphone or audience recording | Distance attenuation, air absorption, reduced direct-to-reverb ratio, room tone | Restoring presence and clarity from far-field capture. |
-| `off_axis_mic` | Off-axis microphone coloration | Directional mic EQ, high-frequency loss, comb filtering | Correcting microphone placement problems. |
-| `consumer_mic` | Phone, laptop, or cheap recorder capture | Narrow response, AGC, self-noise, mild clipping, mono or near-mono capture | Robustness to non-studio recording devices. |
-| `speaker_playback` | Playback through consumer speakers before capture | Speaker EQ, cabinet resonances, nonlinear driver saturation, room coupling | Undoing playback-chain coloration. |
-| `background_ambience` | Room, street, venue, or field ambience under the music | Open ambience beds, level automation, spectral masking | Separating music from natural environmental beds. |
-| `crowd_bleed` | Live audience or venue contamination | Crowd murmur, applause bursts, stage bleed, diffuse reverb | Handling concert and bootleg-style interference. |
-| `broadband_noise` | Hiss, fan, tape, or general broadband noise | Colored noise mixtures, SNR targets, slow level drift | Denoising without over-smoothing music. |
-| `electrical_hum` | Ground loop or electrical buzz | 50/60 Hz fundamentals, harmonic stacks, time-varying amplitude | Removing tonal interference while preserving bass. |
-| `clicks_crackle` | Dust, static, vinyl, connector, or damaged-transfer crackle | Sparse clicks, dense crackle, burst events, random timing | Repairing short impulsive artifacts. |
-| `dropouts_glitches` | Buffer underruns, packet loss, or bad digital transfer | Short mutes, repeats, discontinuities, zeroed blocks | Inpainting missing or discontinuous audio. |
-| `gain_clipping` | Bad gain staging or overloaded input | Soft clipping, hard clipping, hidden clipping, clipped transients | Declip and reconstruct peaks. |
-| `saturation_overdrive` | Preamp, tape, speaker, or analog-style overload | Waveshaping, harmonic distortion, level-dependent coloration | Removing nonlinear distortion without flattening energy. |
-| `overcompression_limiter` | Excessive compression, limiting, or AGC | Low dynamic range, pumping, transient loss, loudness normalization | Restoring dynamics and transients. |
-| `bandwidth_loss` | High-pass, low-pass, or poor EQ transfer | High-pass, low-pass, shelving loss, resonant notches | Recovering missing lows/highs and correcting muffling. |
-| `telephone_band` | Telephone or radio-style narrowband audio | 300-3400 Hz bandpass, companding, codec/noise layer | Restoring intelligibility and bandwidth from narrowband signals. |
-| `low_sample_rate` | Low sample rate capture or bad resampling | Downsampling, anti-alias variation, aliasing, upsampled output | Bandwidth extension and alias robustness. |
-| `lossy_codec` | Single lossy encoding pass | MP3, AAC, Opus, bitrate ladder, encoder metadata | Removing codec artifacts and pre-echo. |
-| `transcode_chain` | Repeated platform uploads or messaging-app transfers | Multiple codec generations, resampling, loudness normalization, stereo changes | Repairing accumulated distribution-platform damage. |
-| `pitch_speed_instability` | Unstable playback clock, tape wow/flutter, or turntable drift | Slow wow, fast flutter, random pitch drift, timing modulation | Stabilizing pitch and timing without warping musical expression. |
+| ID | Display Name | Typical Components | Causal Factors | Perceptual Descriptors | What It Tests |
+| --- | --- | --- | --- | --- | --- |
+| `room_rir` | Room RIR | Measured or simulated RIR, early reflections, late decay, wet/dry control. | `room_acoustics`, `spectral_transfer_eq` | `reverberant`, `smeared`, `unclear` | Dereverberation without destroying musical sustain. |
+| `far_field_distance` | Far-field distance | Distance attenuation, air absorption, reduced direct-to-reverb ratio, room tone. | `room_acoustics`, `gain_loudness`, `spectral_transfer_eq` | `distant`, `muffled`, `unclear`, `quiet` | Restoring presence and clarity from far-field capture. |
+| `off_axis_mic` | Off-axis mic | Directional mic EQ, high-frequency loss, comb filtering. | `device_microphone_speaker`, `spectral_transfer_eq`, `bandwidth_limitation` | `dark`, `muffled`, `thin`, `unclear` | Correcting microphone placement problems. |
+| `consumer_mic` | Consumer mic | Narrow response, AGC, self-noise, mild clipping, mono or near-mono capture. | `device_microphone_speaker`, `bandwidth_limitation`, `dynamics_envelope`, `additive_noise_interference`, `stereo_spatial_phase` | `lo_fi`, `noisy`, `narrow`, `mono`, `distorted` | Robustness to non-studio recording devices. |
+| `speaker_playback` | Speaker playback | Speaker EQ, cabinet resonances, nonlinear driver saturation, room coupling. | `device_microphone_speaker`, `spectral_transfer_eq`, `nonlinear_distortion`, `room_acoustics` | `boomy`, `muddy`, `distorted`, `reverberant` | Undoing playback-chain coloration. |
+| `background_ambience` | Background ambience | Open ambience beds, level automation, spectral masking. | `additive_noise_interference`, `source_mix_balance`, `spectral_transfer_eq` | `noisy`, `muddy`, `unclear`, `smeared` | Separating music from natural environmental beds. |
+| `crowd_bleed` | Crowd bleed | Crowd murmur, applause bursts, stage bleed, diffuse reverb. | `additive_noise_interference`, `room_acoustics`, `transient_defects`, `source_mix_balance` | `noisy`, `reverberant`, `unclear`, `smeared` | Handling concert and bootleg-style interference. |
+| `broadband_noise` | Broadband noise | Colored noise mixtures, SNR targets, slow level drift. | `additive_noise_interference` | `noisy`, `unclear`, `lo_fi` | Denoising without over-smoothing music. |
+| `electrical_hum` | Electrical hum | 50/60 Hz fundamentals, harmonic stacks, time-varying amplitude. | `additive_noise_interference`, `spectral_transfer_eq` | `noisy`, `muddy`, `unclear` | Removing tonal interference while preserving bass. |
+| `clicks_crackle` | Clicks and crackle | Sparse clicks, dense crackle, burst events, random timing. | `transient_defects`, `additive_noise_interference` | `noisy`, `lo_fi`, `unclear` | Repairing short impulsive artifacts. |
+| `dropouts_glitches` | Dropouts and glitches | Short mutes, repeats, discontinuities, zeroed blocks. | `dropouts_discontinuities`, `transient_defects`, `codec_transcoding` | `smeared`, `unclear`, `lo_fi` | Inpainting missing or discontinuous audio. |
+| `gain_clipping` | Gain clipping | Soft clipping, hard clipping, hidden clipping, clipped transients. | `gain_loudness`, `nonlinear_distortion`, `transient_defects` | `clipped`, `harsh`, `distorted` | Declip and reconstruct peaks. |
+| `saturation_overdrive` | Saturation and overdrive | Waveshaping, harmonic distortion, level-dependent coloration. | `nonlinear_distortion`, `gain_loudness`, `spectral_transfer_eq` | `distorted`, `harsh`, `bright`, `clipped` | Removing nonlinear distortion without flattening energy. |
+| `overcompression_limiter` | Overcompression and limiter | Low dynamic range, pumping, transient loss, loudness normalization. | `dynamics_envelope`, `gain_loudness`, `transient_defects` | `overcompressed`, `pumping`, `lack_punch`, `quiet` | Restoring dynamics and transients. |
+| `bandwidth_loss` | Bandwidth loss | High-pass, low-pass, shelving loss, resonant notches. | `bandwidth_limitation`, `spectral_transfer_eq` | `dark`, `muffled`, `thin`, `narrow` | Recovering missing lows/highs and correcting muffling. |
+| `telephone_band` | Telephone band | 300-3400 Hz bandpass, companding, codec/noise layer. | `bandwidth_limitation`, `codec_transcoding`, `additive_noise_interference`, `dynamics_envelope` | `narrow`, `thin`, `muffled`, `lo_fi` | Restoring intelligibility and bandwidth from narrowband signals. |
+| `low_sample_rate` | Low sample rate | Downsampling, anti-alias variation, aliasing, upsampled output. | `bandwidth_limitation`, `codec_transcoding`, `neural_codec_model_artifacts` | `lo_fi`, `muffled`, `thin`, `smeared` | Bandwidth extension and alias robustness. |
+| `lossy_codec` | Lossy codec | MP3, AAC, Opus, bitrate ladder, encoder metadata. | `codec_transcoding`, `bandwidth_limitation`, `stereo_spatial_phase` | `smeared`, `lo_fi`, `unclear`, `narrow` | Removing codec artifacts and pre-echo. |
+| `transcode_chain` | Transcode chain | Multiple codec generations, resampling, loudness normalization, stereo changes. | `codec_transcoding`, `bandwidth_limitation`, `gain_loudness`, `stereo_spatial_phase` | `lo_fi`, `smeared`, `collapsed`, `unclear` | Repairing accumulated distribution-platform damage. |
+| `pitch_speed_instability` | Pitch and speed instability | Slow wow, fast flutter, random pitch drift, timing modulation. | `temporal_pitch_instability` | `smeared`, `unclear`, `lo_fi` | Stabilizing pitch and timing without warping musical expression. |
+
+#### Perceptual Diagnostic Descriptors
+
+Perceptual descriptors are symptom labels, not causal explanations. They can be emitted by listening review, prompt metadata, automated diagnostics, or model-facing conditioning. The core descriptor vocabulary should include:
+
+| Descriptor | Diagnostic Meaning |
+| --- | --- |
+| `boomy` | Excessive low-frequency resonance or room buildup. |
+| `muddy` | Low-mid masking, weak separation, or indistinct musical layers. |
+| `bright` | Excessive high-frequency energy. |
+| `harsh` | Aggressive upper-mid/high-frequency energy or brittle distortion. |
+| `dark` | Reduced high-frequency energy or closed tonal balance. |
+| `muffled` | Missing clarity or high-frequency detail, often from bandwidth loss or off-axis capture. |
+| `unclear` | Reduced intelligibility, definition, or source separation. |
+| `smeared` | Loss of transient, temporal, stereo, reverb, or codec detail. |
+| `narrow` | Restricted bandwidth or stereo width. |
+| `thin` | Lack of low-frequency or low-mid body. |
+| `clipped` | Audible overload, flat-topping, or clipped peaks. |
+| `distorted` | Nonlinear, harmonic, gritty, or overloaded sound. |
+| `overcompressed` | Reduced dynamic contrast or flattened envelope. |
+| `pumping` | Audible compressor/limiter gain movement. |
+| `lack_punch` | Softened attacks or reduced transient impact. |
+| `reverberant` | Excessive room decay, reflections, or wetness. |
+| `distant` | Far-field or low-presence capture. |
+| `mono` | Mono or near-mono presentation. |
+| `collapsed` | Stereo image reduced, phase-damaged, or center-heavy. |
+| `vocal_forward` | Vocal too prominent relative to the mix. |
+| `quiet` | Low playback level or low loudness. |
+| `lo_fi` | Overall reduced fidelity, often from devices, codecs, or bandwidth loss. |
+| `noisy` | Audible additive noise, hum, ambience, crowd bleed, or crackle. |
+
+Additional descriptors may be used when needed for compatibility with imported labels or listening notes, but they should remain separate from the core vocabulary until they are validated.
+
+#### SonicMaster Compatibility Mapping
+
+SonicMaster-style classes should map into OpenRestore's causal families and perceptual descriptors rather than define the benchmark taxonomy. This preserves comparability with prior work while keeping the official profile inventory focused on real-world restoration.
+
+| SonicMaster Class | Causal Families | Perceptual Descriptors |
+| --- | --- | --- |
+| `reverb_big_room` | `room_acoustics`, `spectral_transfer_eq` | `reverberant`, `distant`, `unclear` |
+| `reverb_small` | `room_acoustics` | `boxy`, `early_reflections` |
+| `reverb_real` | `room_acoustics`, `device_microphone_speaker` | `natural_room`, `reverberant` |
+| `reverb_mix` | `room_acoustics`, `gain_loudness` | `too_wet`, `unclear` |
+| `boom` | `spectral_transfer_eq`, `room_acoustics` | `boomy`, `bass_heavy`, `resonant` |
+| `muddiness` | `spectral_transfer_eq`, `room_acoustics`, `dynamics_envelope` | `muddy`, `unclear`, `masked` |
+| `loss_of_clarity` | `spectral_transfer_eq`, `stereo_spatial_phase`, `codec_transcoding`, `room_acoustics` | `unclear`, `smeared`, `masked` |
+| `too_much_brightness` | `spectral_transfer_eq`, `nonlinear_distortion` | `bright`, `harsh` |
+| `too_much_darks` | `spectral_transfer_eq`, `bandwidth_limitation` | `dark`, `muffled` |
+| `warmness` | `spectral_transfer_eq`, `nonlinear_distortion`, `dynamics_envelope` | `warm`, `thick` |
+| `airy_lack_high_frequencies` | `bandwidth_limitation`, `spectral_transfer_eq` | `dull`, `missing_air`, `muffled` |
+| `xband` | `bandwidth_limitation`, `spectral_transfer_eq` | `narrowband`, `thin` |
+| `clipping` | `nonlinear_distortion`, `gain_loudness` | `clipped`, `harsh`, `distorted` |
+| `compression` | `dynamics_envelope`, `gain_loudness` | `overcompressed`, `flat`, `pumping` |
+| `punch` | `dynamics_envelope`, `transient_defects` | `lack_punch`, `softened_transients` |
+| `microphone_simulation` | `device_microphone_speaker`, `spectral_transfer_eq`, `bandwidth_limitation`, `additive_noise_interference`, `nonlinear_distortion`, `stereo_spatial_phase` | `colored`, `lo_fi`, `narrow`, `noisy` |
+| `stereo_to_mono` | `stereo_spatial_phase` | `mono`, `narrow`, `collapsed` |
+| `too_much_vocals` | `source_mix_balance` | `vocal_forward`, `mix_imbalanced` |
+| `low_volume` | `gain_loudness` | `quiet`, `low_level` |
 
 ### Recipe Design
 
@@ -243,24 +354,25 @@ The benchmark should report results separately by family and severity. A single 
 ### Splits
 
 - `train`: public clean and degraded pairs for model development.
-- `validation`: public clean and degraded pairs for local debugging, ablations, and reproducible development reports.
+- `validation`: public clean and degraded pairs for local debugging and ablations.
+- `test`: public clean and degraded pairs for reproducible diagnostic reports before official submission.
 - `evaluation`: hidden clean and degraded pairs used only by the organizers for official leaderboard scoring. Participants do not receive the audio or item list before evaluation.
 
 ### Leaderboard Policy
 
 OpenRestore should be container-first and organizer-evaluated. Participants should not submit restored audio for the official leaderboard. They submit a runnable OCI/Docker container; the organizers run it on the hidden evaluation split, generate the restored audio, compute the metrics, and publish the result.
 
-The main leaderboard should be `OpenRestore-train-only`: models may train on the public OpenRestore training split, but not on validation or evaluation audio. Submissions trained with additional datasets should be allowed only in a clearly separated `external-data` track.
+The main leaderboard should use only the approved OpenRestore training pool: SDD train split, the clean original audio from SonicMaster Dataset, filtered FMA, and MUSDB18-HQ mixture audio if accepted. Models must not train on validation, test, or evaluation audio. Submissions trained with any other datasets should be allowed only in a clearly separated `external-data` track.
 
-The hidden evaluation split should prevent training on the exact benchmark clips, but it should not be a surprise-domain test. Prefer held-out SDD/BBC material and, if needed, additional high-quality open-licensed or project-recorded audio that follows the same documented curation rules. Secret clips are fair; secret domains are likely to create an unfair distribution shift.
+The hidden evaluation split should prevent training on the exact benchmark clips, but it should not be a surprise-domain test. Prefer a secret custom dataset made of high-quality open-licensed or project-recorded music that follows the same documented curation rules as the public benchmark. Secret clips are fair; secret domains are likely to create an unfair distribution shift.
 
-Public train/validation scores can be shown as diagnostics, but official ranking should come from the hidden evaluation split.
+Public train/validation/test scores can be shown as diagnostics, but official ranking should come from the hidden evaluation split.
 
 ### Local User Workflow
 
 1. Download the public versioned dataset release and metadata.
-2. Train a model using the public `train` split, or declare additional training data for the separate external-data track.
-3. Tune and debug on `validation`.
+2. Train a model using the approved training pool: SDD `train`, the clean original audio from SonicMaster Dataset, filtered FMA, and MUSDB18-HQ mixture audio if accepted. Declare any other training data for the separate external-data track.
+3. Tune and debug on `validation`, then optionally run a final public diagnostic check on `test`.
 4. Run the OpenRestore CLI locally on public validation examples to produce a development `scores.json`.
 5. Submit an OCI/Docker container containing the inference code and either bundled weights or a declared weight-download mechanism that works when the organizers run the container.
 
@@ -271,7 +383,7 @@ Public train/validation scores can be shown as diagnostics, but official ranking
 - Organizers run the container on the hidden `evaluation` split, generate the restored audio themselves, and compute all metrics from clean, degraded, and restored audio.
 - Validate duration, sample rate, channel count, loudness bounds, file naming, item IDs, and absence of invalid samples before scoring.
 - Store submission manifest, container digest, logs, metrics, output checksums, and restored outputs for audit.
-- Publish `leaderboard.json` and a static leaderboard page with separate OpenRestore-train-only and external-data tracks.
+- Publish `leaderboard.json` and a static leaderboard page with separate approved-training-pool and external-data tracks.
 
 ## Metrics
 
@@ -344,7 +456,7 @@ OpenRestore should publish each baseline as runnable code or a runnable containe
 
 Later, OpenRestore can add stronger reference models aligned with current generative-audio research: audio-to-audio diffusion and Schrodinger-bridge restorers such as A2SB, latent diffusion or diffusion-transformer audio models, flow-matching or rectified-flow audio models, foundation audio models with inpainting or audio-to-audio conditioning, and specialist generative restorers for declipping, dereverberation, bandwidth extension, and codec artifact reduction. These should be added only when their licenses, training data, task assumptions, and inference requirements are clear.
 
-Publish baseline scores for public train/validation diagnostics and for the hidden evaluation split. In the leaderboard, these baselines should appear as fixed reference rows, not as competing teams.
+Publish baseline scores for public train/validation/test diagnostics and for the hidden evaluation split. In the leaderboard, these baselines should appear as fixed reference rows, not as competing teams.
 
 ## Submission Manifest
 
@@ -362,15 +474,15 @@ authors:
 contact: ...
 code_url: ...
 code_commit: ...
-container_image: registry.example.org/openrestore/example:1.0.0
+container_image: registry.example.org/openrestore/example:<release>
 container_digest: sha256:...
-openrestore_version: 1.0.0
+openrestore_release: <release>
 weights:
   mode: bundled-or-download
   uri: https://example.org/model-weights.ckpt
   sha256: ...
 training_data:
-  - OpenRestore train 1.0.0
+  - OpenRestore train <release>
   - external data, declared with licenses if entering the external-data track
 inference_command: >
   python -m openrestore_infer --input /input --metadata /input/index.jsonl --output /output
@@ -387,7 +499,7 @@ Important fields:
 | --- | --- |
 | `container_image` and `container_digest` | The exact Docker/OCI image the organizers will run. The digest prevents the image from silently changing. |
 | `weights` | Whether the model weights are inside the image or downloaded at runtime. If downloaded, the URL and checksum must be fixed. |
-| `training_data` | What data was used to train the model. The main leaderboard should be OpenRestore-train-only; external data belongs in a separate track. |
+| `training_data` | What data was used to train the model. The main leaderboard uses the approved training pool; any other data belongs in a separate external-data track. |
 | `inference_command` | The exact command the organizers run inside the container. It must read degraded audio from `/input` and write restored audio to `/output`. |
 | `hardware_requested` | The compute environment needed to run evaluation within a reasonable time. |
 | `method_summary` | A short public explanation of the method shown beside the leaderboard entry. |
@@ -538,18 +650,18 @@ Core release layers:
 | Layer | Use |
 | --- | --- |
 | Git repository | Canonical source for code, degradation configs, schemas, evaluation scripts, baseline code, documentation, and leaderboard generation. |
-| Hugging Face Datasets | Public distribution of train/validation metadata, public audio assets when licensing allows, dataset cards, and loading examples. |
+| Hugging Face Datasets | Public distribution of train/validation/test metadata, public audio assets when licensing allows, dataset cards, and loading examples. |
 | Zenodo | Frozen release archive with DOI for papers, reports, and grant deliverables. Archive the exact manifests, configs, schemas, evaluation scripts, baseline definitions, and public metadata used for a release. |
 | Static website | Documentation and leaderboard generated from versioned files such as `leaderboard.json`, submission manifests, and release notes. GitLab Pages or GitHub Pages is enough. |
 | Organizer private storage | Hidden evaluation audio, clean references, evaluation manifests, container logs, restored outputs, and audit checksums. These are not public, but they must be backed up and versioned internally. |
 
 Each release should include:
 
-- Public `index.jsonl` files for train/validation.
+- Public `index.jsonl` files for train/validation/test.
 - Dataset card and source-license summary.
 - Degradation recipes and versioned degradation code.
 - Evaluation code, metric versions, and baseline definitions.
-- Baseline scores on public validation and hidden evaluation.
+- Baseline scores on public validation/test and hidden evaluation.
 - Leaderboard snapshot and release notes.
 - Checksums for all public artifacts.
 
@@ -560,18 +672,22 @@ Keep optional infrastructure optional. RenkuLab, DaSCH, or other preservation pl
 ### 1. Freeze The Benchmark Contract
 
 - Define the task precisely: one degraded musical clip in, one restored clip out.
-- Fix the split policy: public `train`, public `validation`, hidden organizer-only `evaluation`.
-- Fix the leaderboard policy: container-first submissions, OpenRestore-train-only main track, separate external-data track.
+- Fix the split policy: public `train`, public `validation`, public `test`, hidden organizer-only `evaluation`.
+- Fix the leaderboard policy: container-first submissions, approved-training-pool main track, separate external-data track.
 - Choose canonical audio settings: sample rate, channel handling, segment lengths, loudness normalization, and output validation rules.
 - Finalize the JSONL row schema around the current fields: source metadata, segment metadata, HDF5 paths, prompts, `degradation_tracking`, `hidden_clipping`, split, and rights metadata.
 
 ### 2. Build The Dataset Pipeline
 
 - Implement SDD ingestion with quality, metadata, and license checks.
-- Implement BBC Sound Effects ingestion for ambience, organic degradation material, and optional sound-effect restoration subsets.
-- Segment long sources into deterministic 10-second and 30-second windows while preserving links to the original source recording.
+- Split SDD by source recording into public train, public validation, and public test subsets.
+- Define and curate a separate secret custom evaluation dataset for organizer-only scoring.
+- Implement ingestion of the clean original audio from SonicMaster Dataset, filtered FMA, and MUSDB18-HQ mixture audio as approved training-pool sources if their license and quality checks pass. Do not ingest SonicMaster's degraded set as benchmark or leaderboard data, and do not use MUSDB18-HQ stems as benchmark items in the main track.
+- Implement optional sound-dataset ingestion only for organic degradation material such as ambience, noise, or interference.
+- Segment long music sources into deterministic 30-second windows while preserving links to the original source recording.
 - Build HDF5 shards and portable `index.jsonl` manifests with release-relative paths.
-- Generate public train/validation splits and a hidden evaluation split from source-level groups.
+- Generate public train/validation/test splits from SDD source-level groups.
+- Generate the hidden evaluation split from the secret custom dataset.
 - Produce dataset statistics: duration, source dataset, degradation family, prompt coverage, license status, sample rate, channels, and segment length.
 
 ### 3. Implement Degradations And Tracking
@@ -579,7 +695,7 @@ Keep optional infrastructure optional. RenkuLab, DaSCH, or other preservation pl
 - Implement the 20 real-world degradation profiles first, starting from the existing composite prototypes: `crackle`, `highpass`, `hum`, `low_sr`, `noise`, `pitch_instability`, `soft_clip`, and `telephone`.
 - Implement the primitive modules needed by those profiles: RIR/reverb, distance and microphone response, EQ/filtering, noise and ambience mixing, hum, crackle/clicks, clipping/saturation, compression/limiting, sample-rate loss, codec loss, dropouts/glitches, and pitch/speed instability.
 - Store compact per-item metadata in `degradation_tracking` and keep full recipe/config files versioned with the release.
-- Create isolated recipes only for diagnosis and AAE validation; keep the main v1 benchmark focused on organic multi-step profiles that resemble real restoration cases.
+- Create isolated recipes only for diagnosis and AAE validation; keep the main benchmark focused on organic multi-step profiles that resemble real restoration cases.
 - Validate each degradation on a small fixed fixture set so outputs are reproducible across releases.
 
 ### 4. Implement Metrics And Reports
@@ -607,7 +723,7 @@ Keep optional infrastructure optional. RenkuLab, DaSCH, or other preservation pl
 
 ### 7. Publish The First Release
 
-- Publish public train/validation metadata and redistributable audio assets where licensing allows.
+- Publish public train/validation/test metadata and redistributable audio assets where licensing allows.
 - Publish degradation configs, schemas, evaluation code, metric versions, baseline code, and baseline scores.
 - Archive the release on Zenodo with a DOI.
 - Publish the documentation and static leaderboard site.
@@ -617,7 +733,7 @@ Keep optional infrastructure optional. RenkuLab, DaSCH, or other preservation pl
 
 - Add listening tests once objective metrics and baselines are stable.
 - Add stronger generative-audio baselines, such as audio-to-audio diffusion, Schrodinger-bridge, flow-matching, or foundation-model restorers, when licenses and training assumptions are clear.
-- Add specialized tracks only when needed: remastering, bandwidth extension, codec repair, device-capture restoration, or sound-effect restoration.
+- Add specialized music tracks only when needed: remastering, bandwidth extension, codec repair, or device-capture restoration.
 - Publish periodic benchmark reports with frozen leaderboard snapshots.
 
 ## Risks And Mitigations
@@ -688,6 +804,11 @@ OpenRestore should learn from related benchmarks without duplicating them.
 - Song Describer Dataset paper: <https://arxiv.org/abs/2311.10057>
 - BBC Sound Effects: <https://sound-effects.bbcrewind.co.uk/>
 - BBC Sound Effects licensing: <https://sound-effects.bbcrewind.co.uk/licensing>
+- Free Music Archive dataset: <https://github.com/mdeff/fma>
+- FMA dataset paper: <https://arxiv.org/abs/1612.01840>
+- Freesound datasets: <https://labs.freesound.org/datasets/>
+- FSD50K: <https://fsannotator.upf.edu/fsd/release/FSD50K/>
+- MUSAN: <https://www.openslr.org/17/>
 - ACE-Step: <https://arxiv.org/abs/2506.00045>
 - ACE-Step 1.5: <https://arxiv.org/abs/2602.00744>
 - Hugging Face Dataset Cards: <https://huggingface.co/docs/hub/datasets-cards>
