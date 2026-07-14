@@ -1,6 +1,6 @@
 # OpenRestore Split Implementation Roadmap
 
-This roadmap splits the OpenRestore implementation into research/audio responsibilities and Information Technology ("IT") backend engineering responsibilities. It is written for a small collaborative team where the research engineer owns the scientific validity, audio processing, evaluation design, and baseline behavior, while IT/software engineers own robust infrastructure, packaging, services, automation, storage, and release mechanics.
+This roadmap splits the OpenRestore implementation into the runnable research/audio pipeline and the hosted Information Technology ("IT") platform around it. It is written for a small collaborative team where the research engineer owns what will be hosted: the scientific validity, audio processing, dataset generation, degradation code, metric code, baselines, schemas, command-line tools, and reproducible local pipeline. IT/software engineers own how that runnable pipeline is hosted, secured, deployed, monitored, scaled, stored, and exposed to users.
 
 OpenRestore is a benchmark rather than a single restoration model. The critical shared contract is simple: each item is a 30-second 44.1 kHz musical clip with one degraded input, one clean reference, deterministic degradation metadata, and a portable manifest row. Public train/validation/test data are based on the Song Describer Dataset ("SDD"). Official leaderboard scoring uses a hidden organizer-only evaluation set.
 
@@ -8,13 +8,17 @@ OpenRestore is a benchmark rather than a single restoration model. The critical 
 
 | Area | Research/audio engineer owns | IT/software engineers own | Shared decision points |
 | --- | --- | --- | --- |
-| Benchmark definition | Task scope, audio format, degradation taxonomy, metric interpretation, source acceptance criteria | Encoding those rules into schemas, validation, Continuous Integration ("CI") checks, and documentation builds | Final benchmark contract and release acceptance criteria |
-| Dataset curation | Audio quality audit, listening review, SDD segmentation policy, hidden evaluation curation, approved training-pool rules | Download/cache tooling, storage layout, manifests, shard generation, checksums, access controls | Dataset versions, licensing status, public vs private release boundaries |
-| Degradations | Digital Signal Processing ("DSP") algorithms, real-world profiles, severity bands, perceptual descriptors, reproducibility tests | Batch orchestration, config plumbing, job execution, artifact tracking | Config format, seed policy, metadata written per item |
-| Metrics | Metric selection, audio metric implementations, Average Absolute Error ("AAE") descriptors, baseline interpretation | Scoring pipeline, result schemas, aggregation jobs, report export, leaderboard JavaScript Object Notation ("JSON") | Primary score, per-family reports, failure handling |
-| Baselines | No-restoration, simple DSP, small learned model design/training/evaluation | Container packaging, reproducible runs, artifact publishing | Baseline release gates and score sanity checks |
-| Submission evaluation | Scientific constraints for valid output and fair evaluation | Container runner, sandboxing, timeouts, logs, storage, submission manifests | Inference interface and invalid-output policy |
-| Release | Dataset card content, benchmark report, scientific claims, citation details | Website, static leaderboard, Digital Object Identifier ("DOI") packaging, Continuous Integration/Continuous Delivery ("CI/CD"), mirrors | Public release checklist |
+| Benchmark definition | Task scope, audio format, degradation taxonomy, metric interpretation, source acceptance criteria, and runnable validation rules | Host the agreed contract in services, documentation, submission forms, and automated checks | Final benchmark contract and release acceptance criteria |
+| Dataset curation and generation | Audits, split policy, ingestion code, segmentation code, quality checks, manifests, and local dataset build command | Hosted storage, access control, backups, mirrors, data-transfer tooling, and private evaluation storage | Dataset versions, licensing status, public vs private release boundaries |
+| Degradations | DSP algorithms, profile recipes, severity bands, deterministic runner, metadata, and reproducibility tests | Hosted batch execution, compute scheduling, logs, artifact storage, and monitoring around the runner | Config format, seed policy, metadata written per item |
+| Metrics and reports | Metric implementations, AAE descriptors, score schemas, aggregation logic, report generator, and local scoring command | Hosted scoring jobs, result storage, cache management, report publishing, and leaderboard data serving | Primary score, per-family reports, failure handling |
+| Baselines | Baseline methods, training/inference code, example runs, and runnable baseline containers or scripts | Container registry, artifact hosting, scheduled reruns, and public baseline result publication | Baseline release gates and score sanity checks |
+| Submission evaluation | Local evaluator interface, output validity rules, submission manifest schema, and example participant container | Hosted container runner, sandboxing, timeouts, credentials, logs, private outputs, and operational security | Inference interface and invalid-output policy |
+| Release | Dataset card content, benchmark report, scientific claims, release artifacts, and reproducible release command | Website, static leaderboard, DOI packaging, CI/CD, mirrors, storage quotas, and uptime | Public release checklist |
+
+## Handoff Rule
+
+The research/audio deliverable is a runnable local pipeline: documented commands, configs, schemas, tests, example data, and optional containers that can build datasets, generate degradations, run baselines, score outputs, and produce release artifacts. IT should not be responsible for inventing or rewriting the scientific/audio pipeline. IT is responsible for hosting that pipeline: storage, credentials, runners, scheduling, monitoring, deployment, backups, public pages, and private evaluation security.
 
 ## Phase 0 - Project Contracts And Repository Skeleton
 
@@ -22,19 +26,16 @@ Goal: freeze the minimum viable benchmark contract before implementation becomes
 
 ### Research/audio engineer tasks
 
-- [ ] Finalize the benchmark task: one degraded mixed musical clip in, one restored clip out.
-- [ ] Confirm canonical audio settings:
-  - [ ] 30-second clips.
-  - [ ] 44.1 kHz sample rate.
-  - [ ] Stereo preferred, with explicit mono handling rules.
-  - [ ] Output must preserve duration, sample rate, channel count, and item identifier ("ID").
-- [ ] Finalize the 20 real-world degradation profiles and their initial severity bands.
-- [ ] Decide which metrics are required for the first release and which stay experimental.
-- [ ] Define the scientific meaning of the main leaderboard track and external-data track.
-
-### IT/software engineer tasks
-
-- [ ] Create the Python package/repository skeleton:
+- [x] Finalize the benchmark task: one degraded mixed musical clip in, one restored clip out.
+- [x] Confirm canonical audio settings:
+  - [x] 30-second clips.
+  - [x] 44.1 kHz sample rate.
+  - [x] Stereo preferred, with explicit mono handling rules.
+  - [x] Output must preserve duration, sample rate, channel count, and item identifier ("ID").
+- [x] Finalize the 20 real-world degradation profiles and their initial severity bands.
+- [x] Decide which metrics are required for the first release and which stay experimental.
+- [x] Define the scientific meaning of the main leaderboard track and external-data track.
+- [ ] Create the Python package/repository skeleton that IT will later host:
   - [ ] `openrestore/data`
   - [ ] `openrestore/degradations`
   - [ ] `openrestore/metrics`
@@ -47,17 +48,32 @@ Goal: freeze the minimum viable benchmark contract before implementation becomes
   - [ ] `tests`
   - [ ] `docker`
   - [ ] `site`
-- [ ] Add packaging and developer tooling:
+- [ ] Add local packaging and developer tooling for the runnable pipeline:
   - [ ] `pyproject.toml`
   - [ ] formatter/linter configuration
   - [ ] test runner
-  - [ ] basic CI
+  - [ ] basic CI configuration that IT can wire into hosted CI/CD
 - [ ] Implement JSON Schema validation harnesses for:
   - [ ] `index.jsonl`
   - [ ] degradation tracking
   - [ ] submission manifests
   - [ ] scores
   - [ ] leaderboard entries
+
+### IT/software engineer tasks
+
+- [ ] Confirm the target hosting environment for the runnable pipeline:
+  - [ ] internal server, Kubernetes, GitLab runner, cloud runner, or another agreed platform
+  - [ ] CPU/GPU availability
+  - [ ] storage quotas
+  - [ ] expected job duration limits
+- [ ] Define deployment requirements for the pipeline package:
+  - [ ] container registry location
+  - [ ] secrets and credential handling
+  - [ ] environment variables
+  - [ ] logs and monitoring expectations
+  - [ ] backup policy
+- [ ] Define how IT will run the delivered command-line tools in hosted CI/CD and scheduled jobs.
 
 ### Shared deliverables
 
@@ -93,28 +109,23 @@ Goal: build a trustworthy data pipeline before generating large degraded release
   - [ ] loudness/headroom normalization
   - [ ] channel conversion policy
 - [ ] Run structured listening review on sampled clips and document failure modes.
+- [ ] Implement the runnable dataset pipeline that IT will host:
+  - [ ] dataset ingestion commands
+  - [ ] deterministic splitting command
+  - [ ] 30-second segmentation command
+  - [ ] manifest writer
+  - [ ] shard writer/reader
+  - [ ] checksum generation and verification
+  - [ ] automated audio quality checks
+  - [ ] dataset statistics report command
 
 ### IT/software engineer tasks
 
-- [ ] Implement dataset access and local cache tooling.
-- [ ] Implement ingestion modules that can be run reproducibly from config:
-  - [ ] SDD ingestion
-  - [ ] optional training-pool ingestion
-  - [ ] degradation-material ingestion
-  - [ ] hidden evaluation ingestion, with private storage separation
-- [ ] Implement portable manifest generation with release-relative paths.
-- [ ] Implement stable source-level split assignment.
-- [ ] Implement shard writing and reading, initially using the storage backend selected by the team.
-- [ ] Implement checksum generation and verification.
-- [ ] Implement automated audio quality checks:
-  - [ ] duration bounds
-  - [ ] sample rate
-  - [ ] channel count
-  - [ ] silence ratio
-  - [ ] clipped-sample ratio
-  - [ ] loudness distribution
-  - [ ] decode failures
-  - [ ] duplicate or near-duplicate candidates where practical
+- [ ] Provide hosted storage locations for public, private, release, and temporary dataset artifacts.
+- [ ] Implement access control for private evaluation data and restricted source datasets.
+- [ ] Provide transfer/sync tooling so the runnable dataset pipeline can read inputs and write outputs in hosted storage.
+- [ ] Configure backups, retention, quotas, and checksums for hosted dataset artifacts.
+- [ ] Run the research-owned dataset pipeline in the hosted environment and report infrastructure failures separately from pipeline failures.
 
 ### Shared deliverables
 
@@ -170,32 +181,26 @@ Goal: generate deterministic, realistic degraded musical audio with complete met
 - [ ] Define compact `degradation_tracking` values and full recipe metadata for every operation.
 - [ ] Create controlled audio fixtures to test reproducibility and expected perceptual effect.
 - [ ] Listen to representative outputs and tune parameter ranges so artifacts are realistic but not impossible.
+- [ ] Build the runnable degradation command that IT will host:
+  - [ ] config loading
+  - [ ] deterministic seeds
+  - [ ] batch processing
+  - [ ] degraded audio shard writing
+  - [ ] `index.jsonl` updates
+  - [ ] per-item recipe references
+  - [ ] checksums
+  - [ ] local progress logs and error reports
+- [ ] Add reproducibility tests for the degradation pipeline:
+  - [ ] same input/config/seed produces identical metadata and stable audio checksums within the accepted tolerance
+  - [ ] changing the seed changes sampled parameters where expected
 
 ### IT/software engineer tasks
 
-- [ ] Build config-driven degradation execution:
-  - [ ] deterministic seeds
-  - [ ] recipe loading
-  - [ ] batch processing
-  - [ ] progress logging
-  - [ ] resumable jobs
-  - [ ] error reporting
-- [ ] Implement artifact writing:
-  - [ ] degraded audio shards
-  - [ ] updated `index.jsonl`
-  - [ ] per-item recipe references
-  - [ ] checksums
-- [ ] Add unit and integration tests around determinism:
-  - [ ] same input/config/seed produces identical metadata and stable audio checksums within the accepted tolerance
-  - [ ] changing the seed changes sampled parameters where expected
-- [ ] Add parallel execution support for large dataset builds.
-- [ ] Add validation that every degraded row has:
-  - [ ] clean reference path
-  - [ ] degraded path
-  - [ ] profile ID
-  - [ ] causal family IDs
-  - [ ] severity
-  - [ ] prompt or descriptor metadata where applicable
+- [ ] Provide hosted compute for running the research-owned degradation command at release scale.
+- [ ] Configure job scheduling, retries, logs, and monitoring around degradation runs.
+- [ ] Store degraded shards, manifests, checksums, and logs in the agreed hosted artifact locations.
+- [ ] Provide enough parallel execution capacity for large dataset builds without changing the degradation code.
+- [ ] Report infrastructure failures, quota failures, and timeout failures separately from scientific/pipeline failures.
 
 ### Shared deliverables
 
@@ -240,23 +245,23 @@ Goal: make scores scientifically meaningful and operationally reproducible.
   - [ ] stereo/spatial
   - [ ] codec/transmission, marked experimental until robust
 - [ ] Define metric caveats and interpretation rules for the benchmark report.
-
-### IT/software engineer tasks
-
-- [ ] Build the scoring pipeline:
+- [ ] Build the runnable scoring and reporting pipeline that IT will host:
   - [ ] read clean/degraded/restored audio
   - [ ] validate file correspondence
   - [ ] compute selected metrics
-  - [ ] cache expensive embeddings/statistics
+  - [ ] cache expensive embeddings/statistics locally when possible
   - [ ] aggregate metrics by profile, family, severity, split, and source subset
-- [ ] Implement `scores.json` schema and validation.
-- [ ] Implement report generation:
-  - [ ] summary tables
-  - [ ] per-degradation breakdowns
-  - [ ] degraded baseline vs restored improvement
-  - [ ] failure-rate and invalid-output reporting
-- [ ] Add CI tests for metric code on tiny fixtures.
-- [ ] Add runtime controls for heavy metrics that may require Graphics Processing Units ("GPUs") or external model downloads.
+  - [ ] write `scores.json`
+  - [ ] generate summary and per-degradation reports
+  - [ ] report failure rates and invalid outputs
+
+### IT/software engineer tasks
+
+- [ ] Host the research-owned scoring command for public and hidden evaluation jobs.
+- [ ] Provide GPU-capable workers if selected metrics require them.
+- [ ] Manage caches for external metric models, embeddings, and reference statistics in the hosted environment.
+- [ ] Store scores, reports, logs, and intermediate metric artifacts in hosted storage.
+- [ ] Publish generated reports and leaderboard-ready JSON artifacts to the agreed internal or public location.
 
 ### Shared deliverables
 
@@ -284,14 +289,16 @@ Goal: make the leaderboard interpretable from the first release.
   - [ ] document architecture, training data, loss functions, and limitations
   - [ ] report per-profile strengths and weaknesses
 - [ ] Use baseline outputs to detect broken degradations or misleading metrics.
+- [ ] Package every baseline as runnable local code, with container recipes where useful.
+- [ ] Add baseline run commands for public validation/test.
+- [ ] Produce baseline outputs, logs, checksums, and scores for the first release candidate.
 
 ### IT/software engineer tasks
 
-- [ ] Package every baseline as runnable code and optionally as containers.
-- [ ] Add baseline run scripts for public validation/test.
-- [ ] Store baseline outputs, logs, checksums, and scores.
-- [ ] Add baseline entries to the static leaderboard format.
-- [ ] Ensure baselines can be rerun from a clean checkout plus documented data access.
+- [ ] Host baseline containers, weights, restored outputs, scores, and logs in the agreed artifact storage.
+- [ ] Configure hosted reruns of the research-owned baseline commands when a release candidate changes.
+- [ ] Publish baseline results to the leaderboard site or internal review page.
+- [ ] Ensure hosted baseline reruns use the exact release data, container digest, and command supplied by the research pipeline.
 
 ### Shared deliverables
 
@@ -323,26 +330,21 @@ Goal: support official hidden evaluation without exposing evaluation audio.
   - [ ] approved-training-pool main track
   - [ ] external-data track
 - [ ] Review evaluation logs and metrics for anomalous submissions.
+- [ ] Implement the local organizer evaluation command that IT will host:
+  - [ ] parse and validate submission manifests
+  - [ ] run the declared inference command on fixture data
+  - [ ] validate outputs before scoring
+  - [ ] compute scores with the research-owned scoring pipeline
+  - [ ] write logs, checksums, and audit metadata
+- [ ] Provide an example participant container for interface testing.
 
 ### IT/software engineer tasks
 
-- [ ] Implement submission manifest parsing and validation.
-- [ ] Implement organizer-side container runner:
-  - [ ] pull image by digest
-  - [ ] mount input and output directories
-  - [ ] pass metadata path
-  - [ ] run declared command
-  - [ ] enforce timeouts and resource limits
-  - [ ] collect logs
-- [ ] Implement output validation before scoring.
-- [ ] Implement secure storage of:
-  - [ ] submission manifests
-  - [ ] container digests
-  - [ ] logs
-  - [ ] restored outputs
-  - [ ] output checksums
-  - [ ] metrics
-- [ ] Implement local example container so participants can test the interface.
+- [ ] Host the organizer evaluation command in a secure container execution environment.
+- [ ] Pull submitted images by digest and run them with the approved mounts, timeouts, and resource limits.
+- [ ] Manage secrets, network policy, private evaluation mounts, and output permissions.
+- [ ] Store submission manifests, container digests, logs, restored outputs, checksums, and metrics securely.
+- [ ] Expose operational status and failure logs to organizers without exposing hidden evaluation audio.
 
 ### Shared deliverables
 
@@ -363,10 +365,7 @@ Goal: publish a citable, reproducible first OpenRestore release.
 - [ ] Prepare baseline analysis and benchmark report.
 - [ ] Verify that public release claims match actual data, licenses, metrics, and baselines.
 - [ ] Prepare citation guidance and release notes.
-
-### IT/software engineer tasks
-
-- [ ] Build public artifact packaging:
+- [ ] Build the public release artifact bundle that IT will publish:
   - [ ] public manifests
   - [ ] public audio assets where redistribution is allowed
   - [ ] degradation configs
@@ -374,17 +373,18 @@ Goal: publish a citable, reproducible first OpenRestore release.
   - [ ] schemas
   - [ ] checksums
   - [ ] baseline definitions
-- [ ] Publish or prepare upload to:
+  - [ ] release validation command
+
+### IT/software engineer tasks
+
+- [ ] Publish the research-owned release artifact bundle to the agreed hosting targets:
   - [ ] Hugging Face Datasets
   - [ ] Zenodo
   - [ ] static project website
-- [ ] Build static leaderboard generation from `leaderboard.json`.
-- [ ] Set up release CI:
-  - [ ] schema validation
-  - [ ] checksum validation
-  - [ ] miniature dataset rebuild
-  - [ ] leaderboard rebuild
-  - [ ] documentation build
+  - [ ] internal private storage for hidden evaluation artifacts
+- [ ] Deploy the static leaderboard and documentation site generated by the runnable pipeline.
+- [ ] Wire the research-owned validation commands into hosted CI/CD.
+- [ ] Configure mirrors, backups, storage quotas, and uptime monitoring for public and private release assets.
 
 ### Shared deliverables
 
@@ -416,10 +416,10 @@ Goal: expand only after the core benchmark is stable.
 
 ### IT/software engineer tasks
 
-- [ ] Extend infrastructure for listening-test data collection if needed.
-- [ ] Add model registry or baseline artifact registry if baseline count grows.
+- [ ] Host listening-test collection tools if the research side delivers a protocol and runnable interface.
+- [ ] Host model and baseline artifact registries if the number of baselines grows.
 - [ ] Improve compute scheduling for expensive hidden evaluations.
-- [ ] Add richer leaderboard filtering, comparison, and version snapshots.
+- [ ] Deploy richer leaderboard filtering, comparison, and version snapshots from research-approved leaderboard data.
 
 ### Shared deliverables
 
@@ -491,14 +491,14 @@ Each participant container must:
 
 ## Suggested First 12-Week Implementation Plan
 
-| Weeks | Research/audio focus | IT/backend focus | Joint milestone |
+| Weeks | Research/audio focus | IT/hosting focus | Joint milestone |
 | --- | --- | --- | --- |
-| 1-2 | Freeze task, metrics shortlist, source audit templates, degradation profile definitions | Repository skeleton, schemas, validation Command-Line Interface ("CLI"), CI | Contract and skeleton ready |
-| 3-4 | SDD split rules, quality checks, listening review, first fixture clips | Ingestion pipeline, manifest writer, shard reader/writer | Miniature clean dataset builds |
-| 5-6 | First degradation modules and 5-8 profiles | Config-driven degradation runner and deterministic tests | Miniature degraded dataset builds |
-| 7-8 | Core reconstruction metrics and initial AAE descriptors | Scoring pipeline, `scores.json`, aggregation report | No-restoration scores generated |
-| 9-10 | Simple DSP baseline, metric sanity checks | Baseline packaging, output validation, leaderboard JSON | Public validation report draft |
-| 11-12 | Small learned baseline plan or prototype, release text | Static docs/leaderboard, release packaging, checksums | v0.1 release candidate |
+| 1-2 | Freeze task, metrics shortlist, source audit templates, degradation profile definitions; create runnable package skeleton and schemas | Define hosting target, storage, secrets, runners, and CI/CD expectations | Contract, skeleton, and hosting contract ready |
+| 3-4 | Implement ingestion pipeline, manifest writer, shard reader/writer, quality checks, and first fixture clips | Provide hosted storage and data-transfer paths for inputs/outputs | Miniature clean dataset builds locally and can run in hosted storage |
+| 5-6 | Implement first degradation modules, 5-8 profiles, config-driven runner, and deterministic tests | Provide hosted batch compute, logs, and artifact storage | Miniature degraded dataset builds locally and in hosted runner |
+| 7-8 | Implement core metrics, initial AAE descriptors, scoring pipeline, `scores.json`, and aggregation report | Provide hosted scoring workers, caches, and report storage | No-restoration scores generated locally and hosted |
+| 9-10 | Implement simple DSP baseline, output validation, metric sanity checks, and leaderboard JSON generation | Host baseline artifacts and publish generated leaderboard data | Public validation report draft |
+| 11-12 | Prepare small learned baseline plan or prototype, release text, release bundle, and checksums | Deploy static docs/leaderboard and publish release bundle | v0.1 release candidate |
 
 ## Immediate Next Tasks
 
@@ -512,16 +512,16 @@ Each participant container must:
 
 ### IT should start with
 
-- [ ] Build the package skeleton and CI.
-- [ ] Implement JSON Schema validation for the manifest and submission files.
-- [ ] Implement ingestion and manifest-writing scaffolding.
-- [ ] Implement shard read/write abstraction.
-- [ ] Implement CLI entry points for dataset validation, degradation runs, scoring, and leaderboard generation.
+- [ ] Decide where the runnable pipeline will be hosted and executed.
+- [ ] Define storage locations for public artifacts, private evaluation data, temporary job outputs, and logs.
+- [ ] Define how containers, secrets, credentials, and environment variables will be managed.
+- [ ] Provide a hosted runner or job environment that can execute your CLI commands unchanged.
+- [ ] Define how generated reports, release bundles, and leaderboard files will be published.
 
 ### First joint review should answer
 
 - [ ] Are the manifest fields sufficient for both training and hidden evaluation?
 - [ ] Can the degradation recipes be reproduced from config plus seed?
-- [ ] Can the backend run a full miniature pipeline end to end?
+- [ ] Can the hosted runner execute the research-owned miniature pipeline end to end?
 - [ ] Do no-restoration scores behave as the expected lower bound?
 - [ ] Are public and hidden data paths cleanly separated?
