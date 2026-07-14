@@ -12,7 +12,7 @@ The benchmark should stay focused: one degraded mixed musical signal in, one res
 
 ## What We Are Building
 
-OpenRestore is a benchmark, not a single model. The OpenRestore public benchmark source should be SDD: its recordings are split into public train, public validation, and public test subsets. The official hidden evaluation set should come from a separate secret custom dataset that is not publicly released. The main training pool can also include the clean original audio from SonicMaster Dataset, filtered FMA, and MUSDB18-HQ mixture audio if they pass license and quality checks. Sound datasets can support degradations, but they are not benchmark music sources. It consists of:
+OpenRestore is a benchmark, not a single model. The OpenRestore public benchmark source should be SDD (Song Describer Dataset): its recordings are split into public train, public validation, and public test subsets. The official hidden evaluation set should come from a separate secret custom dataset that is not publicly released. The main training pool can also include the clean original audio from SonicMaster Dataset, filtered FMA, and MUSDB18-HQ mixture audio if they pass license and quality checks. Sound datasets can support degradations, but they are not benchmark music sources. It consists of:
 
 - An SDD-based public benchmark source pool split into public train, validation, and public test subsets.
 - A deterministic degradation pipeline that creates paired clean/degraded examples.
@@ -219,10 +219,6 @@ For public releases, avoid machine-specific absolute paths such as `/work/vita/.
 
 ## Degradation Pipeline
 
-Every degradation must be deterministic from `(clean audio, recipe config, module versions, seed)`. Each output must record the applied degradation families and compact parameters in `degradation_tracking`, with full recipe/config files versioned alongside the dataset release. The benchmark should move away from copying a fixed historical panel such as the 19 SonicMaster-style degradations as its main target. Those primitive families remain useful for diagnostics, but the official emphasis should be organic chains that feel like real musical damage: a track played through a room, captured by a device, compressed by a platform, clipped by gain staging, or mixed with ambience before being restored.
-
-The current composite prototypes already point in the right direction: `crackle`, `highpass`, `hum`, `low_sr`, `noise`, `pitch_instability`, `soft_clip`, and `telephone`. OpenRestore should expand that idea into named, reproducible real-world profiles so users can evaluate themselves against conditions that resemble actual restoration work.
-
 ### Degradation Taxonomy
 
 OpenRestore should organize degradation metadata into three levels:
@@ -393,7 +389,7 @@ OpenRestore should report metrics in separate families rather than collapse ever
 
 | Family | Metrics | Comparison | Purpose |
 | --- | --- | --- | --- |
-| Pairwise reconstruction | L1, L2, SNR, SI-SDR or SI-SNR, log-spectral distance (LSD), multi-resolution STFT distance, mel-spectral distance, LTAS distance | Restored vs clean; degraded vs clean as the baseline floor | Measures whether the restored waveform/spectrum moved closer to the known clean reference. |
+| Pairwise reconstruction | L1, L2, SNR, SI-SDR, SI-SNR, log-spectral distance (LSD), multi-resolution STFT distance, mel-spectral distance, LTAS distance | Restored vs clean; degraded vs clean as the baseline floor | Measures whether the restored waveform/spectrum moved closer to the known clean reference. |
 | Structural similarity | SSIM on log-mel or magnitude spectrograms; optional KL divergence between normalized spectral or embedding distributions | Restored vs clean; degraded vs clean | Captures spectro-temporal structure and distributional mismatch that simple L1/L2 may miss. |
 | Embedding similarity | CLAP audio embedding cosine similarity; optional CLAP audio-text consistency when captions are available | Restored vs clean, and restored vs source caption for SDD items | Checks whether restored audio remains semantically close to the target audio/content. |
 | Distributional audio quality | FAD restored vs clean; FAD-LAION restored vs clean; FAD-LAION restored vs FMA-Pop | Dataset-level only | Measures whether restored outputs match the clean evaluation distribution and whether they remain close to a broad high-quality music reference distribution. |
