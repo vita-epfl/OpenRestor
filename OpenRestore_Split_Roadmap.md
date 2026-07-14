@@ -2,7 +2,7 @@
 
 This roadmap splits the OpenRestore implementation into the runnable research/audio pipeline and the hosted Information Technology ("IT") platform around it. It is written for a small collaborative team where the research engineer owns what will be hosted: the scientific validity, audio processing, dataset generation, degradation code, metric code, baselines, schemas, command-line tools, and reproducible local pipeline. IT/software engineers own how that runnable pipeline is hosted, secured, deployed, monitored, scaled, stored, and exposed to users.
 
-OpenRestore is a benchmark rather than a single restoration model. The critical shared contract is simple: each item is a 30-second 44.1 kHz musical clip with one degraded input, one clean reference, deterministic degradation metadata, and a portable manifest row. Public train/validation/test data are based on the Song Describer Dataset ("SDD"). Official leaderboard scoring uses a hidden organizer-only evaluation set.
+OpenRestore is a benchmark rather than a single restoration model. The critical shared contract is simple: each item is a 30-second 44.1 kHz musical clip with one degraded input, one clean reference, deterministic degradation metadata, and a portable manifest row. Main-track training uses SonicMaster clean originals only. Validation uses held-out SonicMaster clean audio, the Song Describer Dataset ("SDD"), and Music Demixing Dataset 2018 High Quality ("MUSDB18-HQ") mixture audio. Public test uses held-out SonicMaster clean audio. Official leaderboard scoring uses a hidden organizer-only evaluation set.
 
 ## Ownership Summary
 
@@ -89,9 +89,10 @@ Goal: build a trustworthy data pipeline before generating large degraded release
 ### Research/audio engineer tasks
 
 - [ ] Perform source audits for each candidate dataset:
-  - [ ] SDD as public benchmark source.
+  - [ ] SonicMaster clean originals as the only main-track training source and as the public test source through source-separated held-out items.
+  - [ ] SDD as a validation source only.
+  - [ ] Music Demixing Dataset 2018 High Quality ("MUSDB18-HQ") mixtures as a validation source only.
   - [ ] Secret custom dataset as hidden evaluation source.
-  - [ ] SonicMaster clean originals, filtered Free Music Archive ("FMA"), and Music Demixing Dataset 2018 High Quality ("MUSDB18-HQ") mixtures as optional approved training-pool sources.
   - [ ] British Broadcasting Corporation ("BBC") Sound Effects, Freesound, Freesound Dataset 50K ("FSD50K"), and music, speech, and noise corpus ("MUSAN") as degradation material only.
 - [ ] For each dataset, produce a decision record:
   - [ ] dataset name and version
@@ -100,7 +101,8 @@ Goal: build a trustworthy data pipeline before generating large degraded release
   - [ ] license terms
   - [ ] redistribution status
   - [ ] quality notes
-- [ ] Define SDD source-level split rules so no recording leaks across train/validation/test.
+- [ ] Define SonicMaster source-level split rules so no recording leaks across train/validation/public test.
+- [ ] Define SDD and MUSDB18-HQ validation selection rules so validation items remain separate from main-track training.
 - [ ] Define deterministic 30-second segmentation rules:
   - [ ] window start policy
   - [ ] partial segment policy
@@ -128,9 +130,12 @@ Goal: build a trustworthy data pipeline before generating large degraded release
 
 ### Shared deliverables
 
-- [ ] `configs/datasets/sdd.yaml`
+- [ ] `configs/datasets/sonicmaster_clean.yaml`
+- [ ] `configs/datasets/sdd_validation.yaml`
+- [ ] `configs/datasets/musdb18_hq_validation.yaml`
 - [ ] dataset audit records
-- [ ] public train/validation/test split manifests
+- [ ] SonicMaster public train/validation/test split manifests
+- [ ] SDD and MUSDB18-HQ validation manifests
 - [ ] private evaluation manifest template
 - [ ] reproducible miniature dataset build
 - [ ] dataset statistics report
@@ -232,7 +237,7 @@ Goal: make scores scientifically meaningful and operationally reproducible.
 - [ ] Implement or integrate distributional and perceptual metrics:
   - [ ] Frechet Audio Distance ("FAD") restored vs clean
   - [ ] FAD with Large-scale Artificial Intelligence Open Network ("LAION") audio embeddings ("FAD-LAION") restored vs clean
-  - [ ] FAD-LAION against Free Music Archive Pop reference statistics ("FAD-LAION-FMA-Pop")
+  - [ ] FAD-LAION against a selected high-quality music reference distribution, if a suitable redistributable reference is approved
   - [ ] Meta Audiobox Aesthetics Content Enjoyment ("CE"), Content Usefulness ("CU"), Production Complexity ("PC"), and Production Quality ("PQ"), if practical for the release environment
 - [ ] Implement first AAE descriptors:
   - [ ] EQ/coloration
@@ -284,7 +289,7 @@ Goal: make the leaderboard interpretable from the first release.
   - [ ] transparent methods only
   - [ ] no hidden training data
 - [ ] Train or adapt a small learned baseline:
-  - [ ] use only public OpenRestore training data for the main-track version
+  - [ ] use only SonicMaster clean-original training data for the main-track version
   - [ ] document architecture, training data, loss functions, and limitations
   - [ ] report per-profile strengths and weaknesses
 - [ ] Use baseline outputs to detect broken degradations or misleading metrics.
@@ -326,7 +331,7 @@ Goal: support official hidden evaluation without exposing evaluation audio.
   - [ ] timeout behavior
   - [ ] how missing files affect scores
 - [ ] Define training-data disclosure rules for:
-  - [ ] approved-training-pool main track
+  - [ ] SonicMaster-clean-only main track
   - [ ] external-data track
 - [ ] Review evaluation logs and metrics for anomalous submissions.
 - [ ] Implement the local organizer evaluation command that IT will host:
