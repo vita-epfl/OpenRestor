@@ -1,0 +1,14 @@
+seed: 20260714
+sonicmaster_split:
+  train_fraction: 0.90
+  validation_fraction: 0.05
+  test_fraction: 0.05
+segmentation:
+  clip_seconds: 30
+  clips_per_source: 1
+  partial_segment_policy: reject
+  silence_rejection_min_rms: 0.003
+  canonical_sample_rate: 44100
+  canonical_channels: 2
+  normalization: loudnorm I=-18 LRA=11 TP=-1.0
+  channel_conversion: mono duplicated to stereo; multichannel downmixed to stereo by ffmpeg

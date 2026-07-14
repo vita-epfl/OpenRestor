@@ -1,0 +1,9 @@
+dataset: sonicmaster_clean
+version: local-clean-originals
+source_root: /mnt/ssd2/datasets/OpenRestoreDataset/SonicMasterDataset/clean
+role: main-track-training-and-public-evaluation
+fixed_split: unassigned
+license: verify against the SonicMaster release before redistribution
+redistribution: do not redistribute source audio until license review is complete
+quality_notes: Ingest only clean FLAC originals. Exclude train_sonicmaster, test_sonicmaster, HDF5 shards, and degradation metadata.
+min_source_seconds: 30

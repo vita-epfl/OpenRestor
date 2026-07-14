@@ -101,24 +101,24 @@ Goal: build a trustworthy data pipeline before generating large degraded release
   - [ ] license terms
   - [ ] redistribution status
   - [ ] quality notes
-- [ ] Define SonicMaster source-level split rules so no recording leaks across train/validation/public test.
-- [ ] Define SDD and MUSDB18-HQ validation selection rules so validation items remain separate from main-track training.
-- [ ] Define deterministic 30-second segmentation rules:
-  - [ ] window start policy
-  - [ ] partial segment policy
-  - [ ] silence rejection
-  - [ ] loudness/headroom normalization
-  - [ ] channel conversion policy
+- [x] Define SonicMaster source-level split rules so no recording leaks across train/validation/public test.
+- [x] Define SDD and MUSDB18-HQ validation selection rules so validation items remain separate from main-track training.
+- [x] Define deterministic 30-second segmentation rules:
+  - [x] window start policy
+  - [x] partial segment policy
+  - [x] silence rejection
+  - [x] loudness/headroom normalization
+  - [x] channel conversion policy
 - [ ] Run structured listening review on sampled clips and document failure modes.
-- [ ] Implement the runnable dataset pipeline that IT will host:
-  - [ ] dataset ingestion commands
-  - [ ] deterministic splitting command
-  - [ ] 30-second segmentation command
-  - [ ] manifest writer
-  - [ ] shard writer/reader
-  - [ ] checksum generation and verification
-  - [ ] automated audio quality checks
-  - [ ] dataset statistics report command
+- [x] Implement the runnable dataset pipeline that IT will host:
+  - [x] dataset ingestion commands
+  - [x] deterministic splitting command
+  - [x] 30-second segmentation command
+  - [x] manifest writer
+  - [x] shard writer/reader
+  - [x] checksum generation and verification
+  - [x] automated audio quality checks
+  - [x] dataset statistics report command
 
 ### IT/software engineer tasks
 
@@ -130,15 +130,15 @@ Goal: build a trustworthy data pipeline before generating large degraded release
 
 ### Shared deliverables
 
-- [ ] `configs/datasets/sonicmaster_clean.yaml`
-- [ ] `configs/datasets/sdd_validation.yaml`
-- [ ] `configs/datasets/musdb18_hq_validation.yaml`
-- [ ] dataset audit records
+- [x] `configs/datasets/sonicmaster_clean.yaml`
+- [x] `configs/datasets/sdd_validation.yaml`
+- [x] `configs/datasets/musdb18_hq_validation.yaml`
+- [x] dataset audit records
 - [ ] SonicMaster public train/validation/test split manifests
 - [ ] SDD and MUSDB18-HQ validation manifests
-- [ ] private evaluation manifest template
-- [ ] reproducible miniature dataset build
-- [ ] dataset statistics report
+- [x] private evaluation manifest template
+- [x] reproducible miniature dataset build
+- [x] dataset statistics report
 
 ## Phase 2 - Degradation Pipeline
 
