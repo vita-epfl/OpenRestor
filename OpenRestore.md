@@ -12,9 +12,9 @@ The benchmark should stay focused: one degraded mixed musical signal in, one res
 
 ## What We Are Building
 
-OpenRestore is a benchmark, not a single model. The OpenRestore public benchmark source should be SDD (Song Describer Dataset): its recordings are split into public train, public validation, and public test subsets. The official hidden evaluation set should come from a separate secret custom dataset that is not publicly released. The main training pool can also include the clean original audio from SonicMaster Dataset, filtered FMA, and MUSDB18-HQ mixture audio if they pass license and quality checks. Sound datasets can support degradations, but they are not benchmark music sources. It consists of:
+OpenRestore is a benchmark, not a single model. The main training source should be the clean original audio from SonicMaster Dataset only. Validation should cover held-out SonicMaster clean audio, SDD (Song Describer Dataset), and MUSDB18-HQ mixture audio. The public test source should be held-out SonicMaster clean audio, while the official hidden evaluation set should come from a separate secret custom dataset that is not publicly released. Sound datasets can support degradations, but they are not benchmark music sources. It consists of:
 
-- An SDD-based public benchmark source pool split into public train, validation, and public test subsets.
+- A SonicMaster-clean training source, held-out SonicMaster public test source, and validation sources spanning SonicMaster, SDD, and MUSDB18-HQ mixture audio.
 - A deterministic degradation pipeline that creates paired clean/degraded examples.
 - A JSONL manifest format close to the current restoration pipeline schema.
 - Public train, validation, and test splits for development and diagnostics.
@@ -40,10 +40,10 @@ OpenRestore should focus on clip-level musical audio restoration across any musi
 ### Key Decisions
 
 - Build a single-clip musical restoration benchmark: one degraded mixed signal in, one restored signal out.
-- Use SDD as the OpenRestore public benchmark source for train, validation, and public test; the dataset is made of clean 30-second music clips and their degraded 30-second versions.
+- Use SonicMaster clean originals only for training; use held-out SonicMaster, SDD, and MUSDB18-HQ mixture audio for validation; use held-out SonicMaster clean audio for the public test split.
 - Keep the official evaluation split hidden and organizer-only, using a separate secret custom dataset curated under the same documented source policy; avoid surprise-domain evaluation.
 - Use container-first submissions: participants submit inference code plus weights, and organizers run restoration on the hidden evaluation split.
-- Make the main leaderboard use only the approved OpenRestore training pool: SDD train split, the clean original audio from SonicMaster Dataset, filtered FMA, and MUSDB18-HQ mixture audio if accepted; keep a separate external-data track for anything else.
+- Make the main leaderboard use only the approved OpenRestore training source: SonicMaster clean originals; keep a separate external-data track for anything else.
 - Treat AudioMD as an optional XML preservation export, not as the native JSON metadata format.
 - Keep required metrics focused on one-to-one reconstruction and perceptual quality, with experimental metrics in optional reports.
 - Keep all degradations open-source, reproducible, and fully specified in metadata.
@@ -53,18 +53,18 @@ OpenRestore should focus on clip-level musical audio restoration across any musi
 
 OpenRestore should prioritize high-quality music datasets over broad pools of uneven audio. The benchmark item is always a paired example: a clean 30-second music clip and one or more degraded 30-second versions generated from it. Sound-effect datasets should not define the benchmark source distribution.
 
-Dataset reality check: most music audio systems are trained on private scraped, licensed, or internal music collections that are not reproducible as public benchmark sources. Stable Audio is one of the few visible cases that trains and evaluates against a small set of higher-quality curated datasets. Beyond SDD, OpenRestore has not identified a stronger public music dataset candidate for the initial benchmark scope. The important difference is that OpenRestore creates paired clean/degraded examples from the selected source audio, so the benchmark can evaluate restoration directly instead of relying on naturally degraded recordings with unknown clean references.
+Dataset reality check: most music audio systems are trained on private scraped, licensed, or internal music collections that are not reproducible as public benchmark sources. Stable Audio is one of the few visible cases that trains and evaluates against a small set of higher-quality curated datasets. OpenRestore should use SonicMaster clean originals as the only default training source because it provides the most useful public scale for v1. The important difference is that OpenRestore creates paired clean/degraded examples from the selected source audio, so the benchmark can evaluate restoration directly instead of relying on naturally degraded recordings with unknown clean references.
 
-Stable Audio 3 evaluates instrumental music on the Song Describer Dataset (SDD). OpenRestore should use SDD as the public benchmark source because it provides curated music recordings with human-written captions and 120-second source tracks from which deterministic 30-second train, validation, and test windows can be derived.
+Stable Audio 3 evaluates instrumental music on the Song Describer Dataset (SDD). OpenRestore should keep SDD as a validation source because it provides curated music recordings with human-written captions and 120-second source tracks from which deterministic 30-second validation windows can be derived. MUSDB18-HQ mixture audio should also be used as a small validation source for real mixed-music sanity checks.
 
 ### Benchmark Datasets
 
 | Role | Decision | Rationale |
 | --- | --- | --- |
-| Training pool | Use the SDD train split plus the clean original audio from SonicMaster Dataset as the default approved training pool, if SonicMaster passes license and quality checks. Do not use SonicMaster's degraded pairs as benchmark or leaderboard data. Keep filtered FMA as a later scale candidate, and keep MUSDB18-HQ out of the default training pool unless a later audit shows it adds enough value. | SDD anchors the public benchmark distribution but is small. SonicMaster clean originals provide the main training scale, while OpenRestore generates its own real-world degradations on top. Excluding SonicMaster's degraded pairs prevents the benchmark from inheriting their degradation design. |
-| Public validation and public test splits | Use SDD for the public benchmark validation and public test splits. Optionally add a held-out SonicMaster-clean-derived diagnostic validation/test subset, clearly labeled as in-distribution training-source diagnostics rather than the public benchmark identity. | SDD remains the clean public benchmark anchor. A held-out SonicMaster diagnostic split is useful for debugging training-source behavior, but it should not replace SDD or define the official public test distribution. |
-| Auxiliary diagnostics | Optionally use MUSDB18-HQ mixture audio as a small mixed-music diagnostic subset, not as a default training source or leaderboard-defining test set. Do not use bass, drums, other, or vocals stems as benchmark items in the main track. | MUSDB18-HQ is too small to materially scale training, but its real studio mixtures can still be useful as a sanity check for mixed-music robustness. |
-| Hidden evaluation split | Use a separate secret custom dataset that is not publicly released. | A private organizer-only evaluation set prevents leakage of official leaderboard audio while still letting the public benchmark stay reproducible on SDD. |
+| Training pool | Use only the clean original audio from SonicMaster Dataset as the default approved training source, if it passes license and quality checks. Do not use SonicMaster's degraded pairs as benchmark or leaderboard data. | SonicMaster clean originals provide the main public training scale for v1, while OpenRestore generates its own real-world degradations on top. Excluding SonicMaster's degraded pairs prevents the benchmark from inheriting their degradation design. |
+| Validation splits | Use held-out SonicMaster clean audio, SDD, and MUSDB18-HQ mixture audio for validation. Do not use SDD or MUSDB18-HQ for training in the main track. | SonicMaster validation measures in-distribution behavior, SDD checks transfer to the curated captioned music source used by Stable Audio, and MUSDB18-HQ provides a small real mixed-music sanity check. |
+| Public test split | Use held-out SonicMaster clean audio for the public test split. | The public test should match the default training source while remaining source-separated from training and validation items. |
+| Hidden evaluation split | Use a separate secret custom dataset that is not publicly released. | A private organizer-only evaluation set prevents leakage of official leaderboard audio while the public train, validation, and test splits remain reproducible from documented sources. |
 
 ### Degradation Material Sources
 
@@ -72,14 +72,15 @@ Stable Audio 3 evaluates instrumental music on the Song Describer Dataset (SDD).
 | --- | --- | --- |
 | Organic degradation material | Use sound datasets only as source material for degradation layers, not as clean benchmark audio. | BBC Sound Effects, Freesound, FSD50K, and MUSAN can provide ambience, noise, interference, or environmental beds for organic degradation chains that are mixed into clean music clips. |
 
-The OpenRestore public benchmark splits are made from SDD. We split SDD by source recording into public train, public validation, and public test subsets, then generate clean 30-second music clips and degraded 30-second versions for each split. Official leaderboard scoring uses a separate secret custom evaluation dataset that is not publicly released. The main approved training pool should include SDD train and SonicMaster clean originals, with source-balanced sampling so SonicMaster's larger size does not erase the SDD distribution. SonicMaster's degraded pairs are not reused as benchmark or leaderboard data. A held-out SonicMaster-clean-derived split can be published as an in-distribution diagnostic, while MUSDB18-HQ mixture audio can remain an optional small mixed-music diagnostic subset. Degradation-source datasets are used only to synthesize degraded audio and are not part of the clean benchmark distribution. Any other training source belongs in the separate external-data track unless we explicitly revise the benchmark contract.
+The OpenRestore main-track training source is SonicMaster clean originals only. We split SonicMaster clean originals by source recording into training, validation, and public test subsets, then generate clean 30-second music clips and degraded 30-second versions for each split. Validation also includes SDD and MUSDB18-HQ mixture audio to test transfer beyond SonicMaster. Official leaderboard scoring uses a separate secret custom evaluation dataset that is not publicly released. SonicMaster's degraded pairs are not reused as benchmark or leaderboard data, and MUSDB18-HQ stems are not used as benchmark items in the main track. Degradation-source datasets are used only to synthesize degraded audio and are not part of the clean benchmark distribution. Any other training source belongs in the separate external-data track unless we explicitly revise the benchmark contract.
 
 ### Source Policy
 
 - Do not make the benchmark a grab bag of every available audio dataset.
-- Use SDD as the OpenRestore public benchmark source for train, validation, and public test splits unless a specific source fails the license or quality audit.
+- Use SonicMaster clean originals as the only default main-track training source unless a specific license or quality audit blocks that role.
 - Use a separate secret custom dataset for the organizer-only hidden evaluation split.
-- Use SDD train and the clean original audio from SonicMaster Dataset as the default approved training sources if their license and quality checks fit the benchmark. Do not reuse SonicMaster's degraded set as benchmark or leaderboard data. Treat filtered FMA as a later scale candidate and MUSDB18-HQ mixture audio as an optional diagnostic subset rather than a default training source.
+- Use held-out SonicMaster clean audio, SDD, and MUSDB18-HQ mixture audio for validation. Use held-out SonicMaster clean audio for the public test split. Do not train main-track models on SDD or MUSDB18-HQ.
+- Do not reuse SonicMaster's degraded set as benchmark or leaderboard data.
 - Use sound datasets only for degradation material, not as benchmark source music.
 - Put any training source outside the approved pool in the external-data track.
 
@@ -110,8 +111,8 @@ Every candidate source should pass a documented audit before it enters either th
 - Confirm that the source audio is real recorded music for benchmark/training roles, not synthesized, MIDI-rendered, or obviously AI-generated audio unless a later track explicitly allows that material.
 - Check technical format: sample rate, bandwidth, codec history, mono/stereo layout, clipping, truncation, corrupted files, and gross metadata errors.
 - Screen for audible defects in the clean source: watermarks, heavy codec artifacts, severe background noise, intrusive room coloration, distortion, dropouts, or non-musical contamination that would make the source unsuitable as clean reference audio.
-- For mixed-music sources, verify task fit: the audio should behave like a real full mix. For MUSDB18-HQ, only the `mixture` track can be used, and only as an optional diagnostic subset unless the benchmark contract is revised; stems are excluded from the main track.
-- For SonicMaster, verify that only the clean original audio is ingested into the approved training pool or held-out diagnostic split; its degraded pairs must remain excluded from benchmark and leaderboard data.
+- For mixed-music sources, verify task fit: the audio should behave like a real full mix. For MUSDB18-HQ, only the `mixture` track can be used, and only for validation unless the benchmark contract is revised; stems are excluded from the main track.
+- For SonicMaster, verify that only the clean original audio is ingested into the approved training, validation, and public test splits; its degraded pairs must remain excluded from benchmark and leaderboard data.
 - Run a small structured listening review on sampled items from each candidate dataset and document common failure modes and estimated reject rates.
 - Run lightweight automated checks where possible: duration bounds, silence ratio, clipped-sample ratio, loudness distribution, channel consistency, checksum validity, and duplicate or near-duplicate detection against existing OpenRestore sources.
 - If a dataset passes only after filtering, freeze the filtering rules in code so future releases reproduce the same inclusion logic.
@@ -129,7 +130,7 @@ Every candidate source should pass a documented audit before it enters either th
 
 Recommended storage:
 
-- `index.jsonl` remains the authoritative manifest, but its storage URIs and optional fields depend on the selected source dataset and release mode. SDD-derived train, validation, and public test clips and the secret evaluation clips may use different physical storage backends while sharing one schema.
+- `index.jsonl` remains the authoritative manifest, but its storage URIs and optional fields depend on the selected source dataset and release mode. SonicMaster-derived train/validation/public test clips, SDD validation clips, MUSDB18-HQ validation clips, and secret evaluation clips may therefore use different physical storage backends while sharing one schema.
 - Internal canonical storage: HDF5 shards, WebDataset tar shards, or plain audio plus manifests, chosen after prototyping I/O with SDD and the expected evaluation workflow.
 - Public mirror: dataset card, metadata, public train/validation/test assets, and an export format that supports reproducible local development.
 - Archival release: manifests, metadata, checksums, degradation configs, evaluation scripts, and redistributable audio covered by the selected release terms.
@@ -359,7 +360,7 @@ The benchmark should report results separately by family and severity. A single 
 
 OpenRestore should be container-first and organizer-evaluated. Participants should not submit restored audio for the official leaderboard. They submit a runnable OCI/Docker container; the organizers run it on the hidden evaluation split, generate the restored audio, compute the metrics, and publish the result.
 
-The main leaderboard should use only the approved OpenRestore training pool: SDD train split, the clean original audio from SonicMaster Dataset, filtered FMA, and MUSDB18-HQ mixture audio if accepted. Models must not train on validation, test, or evaluation audio. Submissions trained with any other datasets should be allowed only in a clearly separated `external-data` track.
+The main leaderboard should use only the approved OpenRestore training source: SonicMaster clean originals. Models must not train on validation, test, or evaluation audio, including SDD validation or MUSDB18-HQ validation audio. Submissions trained with any other datasets should be allowed only in a clearly separated `external-data` track.
 
 The hidden evaluation split should prevent training on the exact benchmark clips, but it should not be a surprise-domain test. Prefer a secret custom dataset made of high-quality open-licensed or project-recorded music that follows the same documented curation rules as the public benchmark. Secret clips are fair; secret domains are likely to create an unfair distribution shift.
 
@@ -368,7 +369,7 @@ Public train/validation/test scores can be shown as diagnostics, but official ra
 ### Local User Workflow
 
 1. Download the public versioned dataset release and metadata.
-2. Train a model using the approved training pool: SDD `train`, the clean original audio from SonicMaster Dataset, filtered FMA, and MUSDB18-HQ mixture audio if accepted. Declare any other training data for the separate external-data track.
+2. Train a model using the approved main-track training source: SonicMaster clean originals only. Declare any other training data, including SDD or MUSDB18-HQ, for the separate external-data track.
 3. Tune and debug on `validation`, then optionally run a final public diagnostic check on `test`.
 4. Run the OpenRestore CLI locally on public validation examples to produce a development `scores.json`.
 5. Submit an OCI/Docker container containing the inference code and either bundled weights or a declared weight-download mechanism that works when the organizers run the container.
@@ -676,14 +677,14 @@ Keep optional infrastructure optional. RenkuLab, DaSCH, or other preservation pl
 
 ### 2. Build The Dataset Pipeline
 
-- Implement SDD ingestion with quality, metadata, and license checks.
-- Split SDD by source recording into public train, public validation, and public test subsets.
+- Implement ingestion of SonicMaster clean originals as the only default training source if its license and quality checks pass. Do not ingest SonicMaster's degraded set as benchmark or leaderboard data.
+- Split SonicMaster clean originals by source recording into public train, validation, and public test subsets.
+- Implement SDD and MUSDB18-HQ mixture ingestion for validation only, and do not use MUSDB18-HQ stems as benchmark items in the main track.
 - Define and curate a separate secret custom evaluation dataset for organizer-only scoring.
-- Implement ingestion of the clean original audio from SonicMaster Dataset, filtered FMA, and MUSDB18-HQ mixture audio as approved training-pool sources if their license and quality checks pass. Do not ingest SonicMaster's degraded set as benchmark or leaderboard data, and do not use MUSDB18-HQ stems as benchmark items in the main track.
 - Implement optional sound-dataset ingestion only for organic degradation material such as ambience, noise, or interference.
 - Segment long music sources into deterministic 30-second windows while preserving links to the original source recording.
 - Build HDF5 shards and portable `index.jsonl` manifests with release-relative paths.
-- Generate public train/validation/test splits from SDD source-level groups.
+- Generate the public train/validation/test splits from SonicMaster source-level groups, plus separate SDD and MUSDB18-HQ validation manifests.
 - Generate the hidden evaluation split from the secret custom dataset.
 - Produce dataset statistics: duration, source dataset, degradation family, prompt coverage, license status, sample rate, channels, and segment length.
 
