@@ -62,7 +62,7 @@ Stable Audio 3 evaluates instrumental music on the Song Describer Dataset (SDD).
 | Role | Decision | Rationale |
 | --- | --- | --- |
 | Training pool | Use the SDD train split, the clean original audio from SonicMaster Dataset, a filtered FMA music subset, and MUSDB18-HQ if they pass quality and license checks. For MUSDB18-HQ, use only the full-song mixture as clean source audio; do not use bass, drums, other, or vocals stems as benchmark items in the main track. Do not use SonicMaster's degraded pairs as benchmark or leaderboard data. | SDD alone may be too small for training strong restoration models. SonicMaster is directly aligned with restoration, FMA can provide scale if filtering removes low-quality or unsuitable material, and MUSDB18-HQ adds real recorded mixed music when restricted to mixture audio. |
-| Public validation, and public test splits | Use SDD for public train, public validation, and public test. | SDD is curated music with captions and long source tracks. It is already used as a music evaluation source by Stable Audio 3 and can be split by source recording into deterministic clean/degraded 30-second pairs. |
+| Public validation, and public test splits | Use a subset from SDD for public validation, and public test. | SDD is curated music with captions and long source tracks. It is already used as a music evaluation source by Stable Audio 3 and can be split by source recording into deterministic clean/degraded 30-second pairs. |
 | Hidden evaluation split | Use a separate secret custom dataset that is not publicly released. | A private organizer-only evaluation set prevents leakage of official leaderboard audio while still letting the public benchmark stay reproducible on SDD. |
 
 ### Degradation Material Sources
