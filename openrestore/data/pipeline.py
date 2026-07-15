@@ -285,6 +285,55 @@ def statistics(manifest_rows: Iterable[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def source_statistics(source_rows: Iterable[dict[str, Any]]) -> dict[str, Any]:
+    rows = list(source_rows)
+    groups = Counter((row["split"], row["dataset"]) for row in rows)
+    source_seconds = sum(float(row.get("duration_seconds", 0.0)) for row in rows)
+    clip_capacity = sum(
+        max(math.floor(float(row.get("duration_seconds", 0.0)) / CLIP_SECONDS), 0)
+        for row in rows
+    )
+    hours_by_dataset_and_split: dict[str, float] = {}
+    for split, dataset in sorted(groups):
+        seconds = sum(
+            float(row.get("duration_seconds", 0.0))
+            for row in rows
+            if row["split"] == split and row["dataset"] == dataset
+        )
+        hours_by_dataset_and_split[f"{dataset}/{split}"] = round(seconds / 3600, 3)
+    return {
+        "sources": len(rows),
+        "total_source_hours": round(source_seconds / 3600, 3),
+        "maximum_non_overlapping_30s_clips": clip_capacity,
+        "maximum_non_overlapping_30s_hours": round((clip_capacity * CLIP_SECONDS) / 3600, 3),
+        "by_split": dict(sorted(Counter(row["split"] for row in rows).items())),
+        "by_dataset": dict(sorted(Counter(row["dataset"] for row in rows).items())),
+        "by_dataset_and_split": {
+            f"{dataset}/{split}": count for (split, dataset), count in sorted(groups.items())
+        },
+        "source_hours_by_dataset_and_split": hours_by_dataset_and_split,
+        "sample_rates": {
+            str(key): value
+            for key, value in sorted(
+                Counter(row.get("sample_rate", "unknown") for row in rows).items()
+            )
+        },
+        "channels": {
+            str(key): value
+            for key, value in sorted(Counter(row.get("channels", "unknown") for row in rows).items())
+        },
+        "source_manifest_schema": "source-index-v1",
+    }
+
+
+def write_source_statistics(manifest: Path, output: Path, progress: bool = False) -> dict[str, Any]:
+    report = source_statistics(read_jsonl(manifest))
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    _log(progress, f"[source-stats] wrote statistics for {report['sources']} sources to {output}")
+    return report
+
+
 def write_statistics(manifest: Path, output: Path, progress: bool = False) -> dict[str, Any]:
     report = statistics(read_jsonl(manifest))
     output.parent.mkdir(parents=True, exist_ok=True)

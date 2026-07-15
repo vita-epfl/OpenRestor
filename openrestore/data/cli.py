@@ -6,7 +6,16 @@ import argparse
 from pathlib import Path
 
 from .core import load_yaml, read_jsonl
-from .pipeline import audit, combine_and_split, ingest, segment, verify_checksums, write_shards, write_statistics
+from .pipeline import (
+    audit,
+    combine_and_split,
+    ingest,
+    segment,
+    verify_checksums,
+    write_shards,
+    write_source_statistics,
+    write_statistics,
+)
 
 
 def _path(value: str) -> Path:
@@ -49,6 +58,10 @@ def build_parser() -> argparse.ArgumentParser:
     verify.add_argument("--root", type=_path, required=True)
     verify.add_argument("--checksums", type=_path, required=True)
     verify.add_argument("--quiet", action="store_true")
+    source_stats = commands.add_parser("source-stats")
+    source_stats.add_argument("--manifest", type=_path, required=True)
+    source_stats.add_argument("--output", type=_path, required=True)
+    source_stats.add_argument("--quiet", action="store_true")
     stats = commands.add_parser("stats")
     stats.add_argument("--manifest", type=_path, required=True)
     stats.add_argument("--output", type=_path, required=True)
@@ -92,6 +105,8 @@ def main() -> None:
         failures = verify_checksums(args.root, args.checksums, progress=progress)
         if failures:
             raise SystemExit("Checksum failures: " + ", ".join(failures))
+    elif args.command == "source-stats":
+        write_source_statistics(args.manifest, args.output, progress=progress)
     elif args.command == "stats":
         write_statistics(args.manifest, args.output, progress=progress)
 

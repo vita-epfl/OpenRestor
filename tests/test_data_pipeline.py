@@ -11,6 +11,7 @@ from openrestore.data.pipeline import (
     ingest,
     iter_shard,
     segment,
+    source_statistics,
     verify_checksums,
     write_shards,
     write_statistics,
@@ -63,6 +64,10 @@ class PhaseOnePipelineTests(TestCase):
             rows = combine_and_split([sonic_index, sdd_index, musdb_index], source_manifest, 42, 0.7, 0.15)
             self.assertTrue(all(row["split"] == "validation" for row in rows if row["dataset"] in {"sdd", "musdb18_hq"}))
             self.assertLessEqual({row["split"] for row in rows if row["dataset"] == "sonicmaster_clean"}, {"train", "validation", "test"})
+            source_report = source_statistics(rows)
+            self.assertEqual(source_report["sources"], len(rows))
+            self.assertEqual(source_report["by_dataset"]["sonicmaster_clean"], 12)
+            self.assertEqual(source_report["maximum_non_overlapping_30s_clips"], len(rows))
 
             audio_root = tmp_path / "clips"
             manifest = tmp_path / "index.jsonl"

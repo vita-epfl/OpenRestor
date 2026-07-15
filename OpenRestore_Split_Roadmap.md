@@ -134,8 +134,8 @@ Goal: build a trustworthy data pipeline before generating large degraded release
 - [x] `configs/datasets/sdd_validation.yaml`
 - [x] `configs/datasets/musdb18_hq_validation.yaml`
 - [x] dataset audit records
-- [ ] SonicMaster public train/validation/test split manifests
-- [ ] SDD and MUSDB18-HQ validation manifests
+- [x] SonicMaster public train/validation/test split manifests
+- [x] SDD and MUSDB18-HQ validation manifests
 - [x] private evaluation manifest template
 - [x] reproducible miniature dataset build
 - [x] dataset statistics report

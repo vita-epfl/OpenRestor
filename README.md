@@ -17,6 +17,7 @@ openrestore-data ingest --config configs/datasets/sonicmaster_clean.yaml --outpu
 openrestore-data ingest --config configs/datasets/sdd_validation.yaml --output build/indexes/sdd.jsonl
 openrestore-data ingest --config configs/datasets/musdb18_hq_validation.yaml --output build/indexes/musdb18_hq.jsonl
 openrestore-data split --indexes build/indexes/sonicmaster.jsonl build/indexes/sdd.jsonl build/indexes/musdb18_hq.jsonl --output build/sources.jsonl
+openrestore-data source-stats --manifest build/sources.jsonl --output build/source_statistics.json
 openrestore-data segment --sources build/sources.jsonl --output-root /path/to/openrestore-clips --manifest build/index.jsonl --checksums build/checksums.jsonl
 openrestore-data shard --output-root /path/to/openrestore-clips --manifest build/index.jsonl --shards-dir build/shards
 openrestore-data verify --root /path/to/openrestore-clips --checksums build/checksums.jsonl
