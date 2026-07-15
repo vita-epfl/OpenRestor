@@ -4,6 +4,9 @@ These records are the release gate for Phase 1. A source may be ingested locally
 license review is complete, but its clips must not be redistributed until the decision record is
 confirmed by the project owner.
 
+Use `docs/templates/dataset_decision_record.md` for full per-source decisions and
+`docs/templates/listening_review.md` for structured listening notes.
+
 | Dataset | Access | OpenRestore role | License / redistribution | Quality and selection decision |
 | --- | --- | --- | --- | --- |
 | SonicMaster clean originals | [Hugging Face release](https://huggingface.co/datasets/amaai-lab/SonicMasterDataset); local `SonicMasterDataset/clean` mirror | Main-track training; held-out validation and public test | Verify the upstream release terms before redistributing derived clips | Accept only `.flac` files below `clean/`. Existing HDF5 shards, degraded examples, prompts, and split labels are excluded. Split by source recording with a seeded hash. |
