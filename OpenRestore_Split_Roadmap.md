@@ -92,7 +92,7 @@ Goal: build a trustworthy data pipeline before generating large degraded release
   - [x] SonicMaster clean originals as the only main-track training source and as the public test source through source-separated held-out items.
   - [x] SDD as a validation source only.
   - [x] Music Demixing Dataset 2018 High Quality ("MUSDB18-HQ") mixtures as a validation source only.
-  - [ ] Secret custom dataset as hidden evaluation source.
+  - [x] Secret custom dataset as hidden evaluation source.
   - [ ] British Broadcasting Corporation ("BBC") Sound Effects, Freesound, Freesound Dataset 50K ("FSD50K"), and music, speech, and noise corpus ("MUSAN") as degradation material only.
 - [ ] For each dataset, produce a decision record:
   - [x] dataset name and version

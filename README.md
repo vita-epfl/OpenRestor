@@ -8,7 +8,8 @@ SonicMaster validation/test. SDD and MUSDB18-HQ mixture audio are validation-onl
 of this release.
 
 Install the local package with `python -m pip install -e .`. The commands below build public data
-into a directory outside the repository:
+into a directory outside the repository. Commands print progress by default; add `--quiet` for
+automated runs.
 
 ```bash
 openrestore-data audit --config configs/datasets/sonicmaster_clean.yaml --output build/audits/sonicmaster_clean.json

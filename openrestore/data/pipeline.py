@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import math
 import subprocess
+import sys
 import tarfile
 import wave
 from collections import Counter, defaultdict
@@ -18,30 +19,53 @@ CANONICAL_SAMPLE_RATE = 44_100
 CLIP_SECONDS = 30
 
 
+def _log(progress: bool, message: str) -> None:
+    if progress:
+        print(message, file=sys.stderr, flush=True)
+
+
 def _source_id(root: Path, audio_path: Path) -> str:
     return audio_path.relative_to(root).with_suffix("").as_posix().replace("/", "--")
 
 
-def ingest(config: dict[str, Any], output: Path, probe: bool = True) -> list[dict[str, Any]]:
+def ingest(
+    config: dict[str, Any],
+    output: Path,
+    probe: bool = True,
+    progress: bool = False,
+    progress_interval: int = 100,
+) -> list[dict[str, Any]]:
     root = Path(config["source_root"])
     if not root.is_dir():
         raise FileNotFoundError(f"Source root does not exist: {root}")
+    dataset = config["dataset"]
+    files = audio_files(root)
+    _log(progress, f"[{dataset}] found {len(files)} audio files under {root}")
     items: list[dict[str, Any]] = []
-    for audio_path in audio_files(root):
+    skipped_short = 0
+    for index, audio_path in enumerate(files, start=1):
         metadata = probe_audio(audio_path) if probe else {"duration_seconds": 0.0, "sample_rate": 0, "channels": 0}
         if probe and metadata["duration_seconds"] < float(config.get("min_source_seconds", CLIP_SECONDS)):
-            continue
-        item = SourceItem(
-            dataset=config["dataset"],
-            source_id=_source_id(root, audio_path),
-            audio_path=str(audio_path.resolve()),
-            role=config["role"],
-            split=config["fixed_split"],
-            source_sha256=sha256_file(audio_path),
-            **metadata,
-        )
-        items.append(item.to_dict())
+            skipped_short += 1
+        else:
+            item = SourceItem(
+                dataset=dataset,
+                source_id=_source_id(root, audio_path),
+                audio_path=str(audio_path.resolve()),
+                role=config["role"],
+                split=config["fixed_split"],
+                source_sha256=sha256_file(audio_path),
+                **metadata,
+            )
+            items.append(item.to_dict())
+        if progress and (index == 1 or index % progress_interval == 0 or index == len(files)):
+            _log(
+                progress,
+                f"[{dataset}] ingest {index}/{len(files)} processed, "
+                f"{len(items)} accepted, {skipped_short} skipped_short",
+            )
     write_jsonl(output, items)
+    _log(progress, f"[{dataset}] wrote {len(items)} rows to {output}")
     return items
 
 
@@ -70,14 +94,34 @@ def validate_split_policy(rows: Iterable[dict[str, Any]]) -> None:
             raise ValueError(f"{dataset} is validation-only, got {split}")
 
 
-def combine_and_split(index_paths: list[Path], output: Path, seed: int, train_fraction: float, validation_fraction: float) -> list[dict[str, Any]]:
-    rows = [row for path in index_paths for row in read_jsonl(path)]
+def combine_and_split(
+    index_paths: list[Path],
+    output: Path,
+    seed: int,
+    train_fraction: float,
+    validation_fraction: float,
+    progress: bool = False,
+) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for path in index_paths:
+        path_rows = read_jsonl(path)
+        rows.extend(path_rows)
+        _log(progress, f"[split] read {len(path_rows)} rows from {path}")
     output_rows: list[dict[str, Any]] = []
     for dataset, group in _group_by_dataset(rows).items():
-        output_rows.extend(split_sonicmaster(group, seed, train_fraction, validation_fraction) if dataset == "sonicmaster_clean" else group)
+        _log(progress, f"[split] assigning {len(group)} rows for {dataset}")
+        output_rows.extend(
+            split_sonicmaster(group, seed, train_fraction, validation_fraction)
+            if dataset == "sonicmaster_clean"
+            else group
+        )
     output_rows.sort(key=lambda row: (row["dataset"], row["source_id"]))
     validate_split_policy(output_rows)
     write_jsonl(output, output_rows)
+    counts = Counter((row["split"], row["dataset"]) for row in output_rows)
+    for (split, dataset), count in sorted(counts.items()):
+        _log(progress, f"[split] {split}/{dataset}: {count}")
+    _log(progress, f"[split] wrote {len(output_rows)} rows to {output}")
     return output_rows
 
 
@@ -118,11 +162,28 @@ def _wave_quality(path: Path) -> dict[str, float | int]:
     return {"peak": peak, "rms": rms, "duration_seconds": duration}
 
 
-def segment(rows: Iterable[dict[str, Any]], output_root: Path, manifest: Path, checksums: Path, seed: int, clips_per_source: int, normalize: bool, min_rms: float) -> list[dict[str, Any]]:
+def segment(
+    rows: Iterable[dict[str, Any]],
+    output_root: Path,
+    manifest: Path,
+    checksums: Path,
+    seed: int,
+    clips_per_source: int,
+    normalize: bool,
+    min_rms: float,
+    progress: bool = False,
+    progress_interval: int = 50,
+) -> list[dict[str, Any]]:
+    sources = list(rows)
+    total = len(sources) * clips_per_source
+    _log(progress, f"[segment] rendering up to {total} clips into {output_root}")
     result: list[dict[str, Any]] = []
     checksum_rows: list[dict[str, str]] = []
-    for source in rows:
+    processed = 0
+    rejected = 0
+    for source in sources:
         for clip_index in range(clips_per_source):
+            processed += 1
             start = _clip_start(source["source_id"], source["duration_seconds"], clip_index, seed)
             item_id = f"{source['dataset']}--{source['source_id']}--{clip_index:02d}"
             relative_path = Path(source["split"]) / source["dataset"] / f"{item_id}.wav"
@@ -131,6 +192,13 @@ def segment(rows: Iterable[dict[str, Any]], output_root: Path, manifest: Path, c
             quality = _wave_quality(output_path)
             if abs(float(quality["duration_seconds"]) - CLIP_SECONDS) > 0.01 or float(quality["rms"]) < min_rms:
                 output_path.unlink(missing_ok=True)
+                rejected += 1
+                if progress and (processed % progress_interval == 0 or processed == total):
+                    _log(
+                        progress,
+                        f"[segment] {processed}/{total} processed, "
+                        f"{len(result)} accepted, {rejected} rejected",
+                    )
                 continue
             checksum = sha256_file(output_path)
             result.append({
@@ -148,16 +216,32 @@ def segment(rows: Iterable[dict[str, Any]], output_root: Path, manifest: Path, c
                 "audio_sha256": checksum,
             })
             checksum_rows.append({"path": relative_path.as_posix(), "sha256": checksum})
+            if progress and (processed == 1 or processed % progress_interval == 0 or processed == total):
+                _log(
+                    progress,
+                    f"[segment] {processed}/{total} processed, "
+                    f"{len(result)} accepted, {rejected} rejected",
+                )
     result.sort(key=lambda row: row["id"])
     write_jsonl(manifest, result)
     write_jsonl(checksums, checksum_rows)
+    _log(progress, f"[segment] wrote {len(result)} rows to {manifest}")
+    _log(progress, f"[segment] wrote {len(checksum_rows)} checksums to {checksums}")
     return result
 
 
-def write_shards(output_root: Path, manifest_rows: Iterable[dict[str, Any]], shards_dir: Path, shard_size: int) -> list[Path]:
+def write_shards(
+    output_root: Path,
+    manifest_rows: Iterable[dict[str, Any]],
+    shards_dir: Path,
+    shard_size: int,
+    progress: bool = False,
+) -> list[Path]:
     shards_dir.mkdir(parents=True, exist_ok=True)
     rows = list(manifest_rows)
     shard_paths: list[Path] = []
+    shard_count = math.ceil(len(rows) / shard_size) if rows else 0
+    _log(progress, f"[shard] writing {len(rows)} files into {shard_count} shards")
     for index in range(0, len(rows), shard_size):
         shard_path = shards_dir / f"shard-{index // shard_size:05d}.tar"
         with tarfile.open(shard_path, "w") as archive:
@@ -165,6 +249,7 @@ def write_shards(output_root: Path, manifest_rows: Iterable[dict[str, Any]], sha
                 audio_path = output_root / row["clean_path"]
                 archive.add(audio_path, arcname=row["clean_path"], recursive=False)
         shard_paths.append(shard_path)
+        _log(progress, f"[shard] wrote {len(shard_paths)}/{shard_count}: {shard_path}")
     return shard_paths
 
 
@@ -173,12 +258,18 @@ def iter_shard(shard_path: Path) -> Iterable[str]:
         yield from (member.name for member in archive.getmembers() if member.isfile())
 
 
-def verify_checksums(root: Path, checksums: Path) -> list[str]:
+def verify_checksums(
+    root: Path, checksums: Path, progress: bool = False, progress_interval: int = 100
+) -> list[str]:
+    rows = read_jsonl(checksums)
     failures: list[str] = []
-    for row in read_jsonl(checksums):
+    _log(progress, f"[verify] checking {len(rows)} files against {checksums}")
+    for index, row in enumerate(rows, start=1):
         path = root / row["path"]
         if not path.is_file() or sha256_file(path) != row["sha256"]:
             failures.append(row["path"])
+        if progress and (index == 1 or index % progress_interval == 0 or index == len(rows)):
+            _log(progress, f"[verify] {index}/{len(rows)} checked, {len(failures)} failures")
     return failures
 
 
@@ -194,17 +285,25 @@ def statistics(manifest_rows: Iterable[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-def write_statistics(manifest: Path, output: Path) -> dict[str, Any]:
+def write_statistics(manifest: Path, output: Path, progress: bool = False) -> dict[str, Any]:
     report = statistics(read_jsonl(manifest))
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    _log(progress, f"[stats] wrote statistics for {report['items']} items to {output}")
     return report
 
 
-def audit(config: dict[str, Any], output: Path, probe_limit: int = 25) -> dict[str, Any]:
+def audit(
+    config: dict[str, Any], output: Path, probe_limit: int = 25, progress: bool = False
+) -> dict[str, Any]:
     root = Path(config["source_root"])
     files = audio_files(root)
-    sampled = [probe_audio(path) for path in files[:probe_limit]]
+    _log(progress, f"[{config['dataset']}] found {len(files)} audio files under {root}")
+    sample_paths = files[:probe_limit]
+    sampled = []
+    for index, path in enumerate(sample_paths, start=1):
+        sampled.append(probe_audio(path))
+        _log(progress, f"[{config['dataset']}] probed {index}/{len(sample_paths)} audit files")
     report = {
         "dataset": config["dataset"],
         "version": config.get("version", "unspecified"),
@@ -220,4 +319,5 @@ def audit(config: dict[str, Any], output: Path, probe_limit: int = 25) -> dict[s
     }
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    _log(progress, f"[{config['dataset']}] wrote audit report to {output}")
     return report
