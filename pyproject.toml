@@ -12,6 +12,9 @@ dependencies = ["PyYAML>=6.0"]
 [project.scripts]
 openrestore-data = "openrestore.data.cli:main"
 
+[tool.setuptools.packages.find]
+include = ["openrestore*"]
+
 [tool.ruff]
 line-length = 100
 target-version = "py311"
