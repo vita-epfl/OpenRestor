@@ -506,6 +506,31 @@ The container must be runnable without manual intervention beyond pulling the im
 
 ## Implementation Plan
 
+### Submissions And Leaderboard Modules
+
+In the implementation roadmap, `openrestore/submissions` and `openrestore/leaderboard` are not
+model code. They are the benchmark contract around participant evaluation and public reporting.
+
+`openrestore/submissions` should define how participants package a restoration system for official
+evaluation. A submission is a runnable OCI/Docker container plus a manifest, not a folder of
+restored hidden-evaluation audio. This module should own the submission manifest parser and
+validator, the container interface specification, training-data declarations, weight URI/checksum
+rules, hardware/runtime declarations, and invalid-submission checks. Its job is to answer: can the
+organizers run this system reproducibly on the hidden evaluation split, and does it belong in the
+main track or the external-data track?
+
+`openrestore/leaderboard` should define how evaluated submissions become public results. It should
+take versioned score files, submission metadata, baseline rows, and benchmark release metadata, then
+produce a stable `leaderboard.json` and a static public table. This module should own score
+aggregation, main-track versus external-data ranking, per-degradation-family summaries, validation
+of leaderboard entries, release snapshots, and static rendering. Its job is to answer: how are
+systems compared, ranked, and published after the organizers have run evaluation?
+
+These modules depend on the lower-level pipeline in this order: `data` builds the public and hidden
+evaluation manifests, `degradations` creates paired inputs, `metrics` scores restored outputs,
+`evaluation` runs containers and validates outputs, `submissions` validates participant metadata,
+and `leaderboard` publishes the resulting scores.
+
 ### Repository Layout
 
 The repository should separate public benchmark code from generated data. Audio shards, model weights, hidden evaluation files, and restored outputs should live in release/storage locations, not directly in the Git repository.
