@@ -36,22 +36,22 @@ Goal: freeze the minimum viable benchmark contract before implementation becomes
 - [x] Decide which metrics are required for the first release and which stay experimental.
 - [x] Define the scientific meaning of the main leaderboard track and external-data track.
 - [ ] Create the Python package/repository skeleton that IT will later host:
-  - [ ] `openrestore/data`
+  - [x] `openrestore/data`
   - [ ] `openrestore/degradations`
   - [ ] `openrestore/metrics`
   - [ ] `openrestore/evaluation`
   - [ ] `openrestore/submissions`
   - [ ] `openrestore/leaderboard`
-  - [ ] `configs`
+  - [x] `configs`
   - [ ] `schemas`
   - [ ] `scripts`
-  - [ ] `tests`
+  - [x] `tests`
   - [ ] `docker`
   - [ ] `site`
 - [ ] Add local packaging and developer tooling for the runnable pipeline:
-  - [ ] `pyproject.toml`
-  - [ ] formatter/linter configuration
-  - [ ] test runner
+  - [x] `pyproject.toml`
+  - [x] formatter/linter configuration
+  - [x] test runner
   - [ ] basic CI configuration that IT can wire into hosted CI/CD
 - [ ] Implement JSON Schema validation harnesses for:
   - [ ] `index.jsonl`
@@ -80,7 +80,7 @@ Goal: freeze the minimum viable benchmark contract before implementation becomes
 - [ ] Versioned benchmark contract document.
 - [ ] Initial repository layout.
 - [ ] Minimal schema files and validation commands.
-- [ ] One tiny fixture dataset used by tests.
+- [x] One tiny fixture dataset used by tests.
 
 ## Phase 1 - Dataset Audit, Ingestion, And Splitting
 
@@ -88,37 +88,36 @@ Goal: build a trustworthy data pipeline before generating large degraded release
 
 ### Research/audio engineer tasks
 
-- [ ] Perform source audits for each candidate dataset:
-  - [ ] SonicMaster clean originals as the only main-track training source and as the public test source through source-separated held-out items.
-  - [ ] SDD as a validation source only.
-  - [ ] Music Demixing Dataset 2018 High Quality ("MUSDB18-HQ") mixtures as a validation source only.
-  - [ ] Secret custom dataset as hidden evaluation source.
-  - [ ] British Broadcasting Corporation ("BBC") Sound Effects, Freesound, Freesound Dataset 50K ("FSD50K"), and music, speech, and noise corpus ("MUSAN") as degradation material only.
-- [ ] For each dataset, produce a decision record:
-  - [ ] dataset name and version
-  - [ ] access Uniform Resource Locator ("URL")
-  - [ ] intended OpenRestore role
-  - [ ] license terms
-  - [ ] redistribution status
-  - [ ] quality notes
-- [ ] Define SonicMaster source-level split rules so no recording leaks across train/validation/public test.
-- [ ] Define SDD and MUSDB18-HQ validation selection rules so validation items remain separate from main-track training.
-- [ ] Define deterministic 30-second segmentation rules:
-  - [ ] window start policy
-  - [ ] partial segment policy
-  - [ ] silence rejection
-  - [ ] loudness/headroom normalization
-  - [ ] channel conversion policy
-- [ ] Run structured listening review on sampled clips and document failure modes.
-- [ ] Implement the runnable dataset pipeline that IT will host:
-  - [ ] dataset ingestion commands
-  - [ ] deterministic splitting command
-  - [ ] 30-second segmentation command
-  - [ ] manifest writer
-  - [ ] shard writer/reader
-  - [ ] checksum generation and verification
-  - [ ] automated audio quality checks
-  - [ ] dataset statistics report command
+- [x] Perform source audits for each candidate dataset:
+  - [x] SonicMaster clean originals as the only main-track training source and as the public test source through source-separated held-out items.
+  - [x] SDD as a validation source only.
+  - [x] Music Demixing Dataset 2018 High Quality ("MUSDB18-HQ") mixtures as a validation source only.
+  - [x] Secret custom dataset as hidden evaluation source.
+- [x] For each dataset, produce a decision record:
+  - [x] dataset name and version
+  - [x] access Uniform Resource Locator ("URL")
+  - [x] intended OpenRestore role
+  - [x] license terms
+  - [x] redistribution status
+  - [x] quality notes
+- [x] Define SonicMaster source-level split rules so no recording leaks across train/validation/public test.
+- [x] Define SDD and MUSDB18-HQ validation selection rules so validation items remain separate from main-track training.
+- [x] Define deterministic 30-second segmentation rules:
+  - [x] window start policy
+  - [x] partial segment policy
+  - [x] silence rejection
+  - [x] loudness/headroom normalization
+  - [x] channel conversion policy
+- [x] Run structured listening review on sampled clips and document failure modes for SonicMaster, SDD, and MUSDB18-HQ.
+- [x] Implement the runnable dataset pipeline that IT will host:
+  - [x] dataset ingestion commands
+  - [x] deterministic splitting command
+  - [x] 30-second segmentation command
+  - [x] manifest writer
+  - [x] shard writer/reader
+  - [x] checksum generation and verification
+  - [x] automated audio quality checks
+  - [x] dataset statistics report command
 
 ### IT/software engineer tasks
 
@@ -130,15 +129,15 @@ Goal: build a trustworthy data pipeline before generating large degraded release
 
 ### Shared deliverables
 
-- [ ] `configs/datasets/sonicmaster_clean.yaml`
-- [ ] `configs/datasets/sdd_validation.yaml`
-- [ ] `configs/datasets/musdb18_hq_validation.yaml`
-- [ ] dataset audit records
-- [ ] SonicMaster public train/validation/test split manifests
-- [ ] SDD and MUSDB18-HQ validation manifests
-- [ ] private evaluation manifest template
-- [ ] reproducible miniature dataset build
-- [ ] dataset statistics report
+- [x] `configs/datasets/sonicmaster_clean.yaml`
+- [x] `configs/datasets/sdd_validation.yaml`
+- [x] `configs/datasets/musdb18_hq_validation.yaml`
+- [x] dataset audit records
+- [x] SonicMaster public train/validation/test split manifests
+- [x] SDD and MUSDB18-HQ validation manifests
+- [x] private evaluation manifest template
+- [x] reproducible miniature dataset build
+- [x] dataset statistics report
 
 ## Phase 2 - Degradation Pipeline
 

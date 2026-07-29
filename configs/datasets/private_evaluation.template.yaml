@@ -1,0 +1,9 @@
+dataset: private_evaluation
+version: organizer-private
+source_root: /secure/path/to/private/music
+role: hidden-evaluation-only
+fixed_split: hidden
+license: record internally before use
+redistribution: never public
+quality_notes: Keep source paths, manifests, clips, and checksums in organizer-controlled storage.
+min_source_seconds: 30

@@ -1,0 +1,9 @@
+dataset: musdb18_hq
+version: local-HQ-mixtures
+source_root: /mnt/ssd2/datasets/OpenRestoreDataset/musdb18hq
+role: validation-only
+fixed_split: validation
+license: CC BY-NC-SA 4.0; confirm the local distribution and release terms before publishing derived clips
+redistribution: restricted; publish manifests and build instructions unless redistribution approval is documented
+quality_notes: Use full-song mixture WAVs only. Never use stems, main-track training, or public test.
+min_source_seconds: 30
