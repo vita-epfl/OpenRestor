@@ -88,17 +88,16 @@ Goal: build a trustworthy data pipeline before generating large degraded release
 
 ### Research/audio engineer tasks
 
-- [ ] Perform source audits for each candidate dataset:
+- [x] Perform source audits for each candidate dataset:
   - [x] SonicMaster clean originals as the only main-track training source and as the public test source through source-separated held-out items.
   - [x] SDD as a validation source only.
   - [x] Music Demixing Dataset 2018 High Quality ("MUSDB18-HQ") mixtures as a validation source only.
   - [x] Secret custom dataset as hidden evaluation source.
-  - [ ] British Broadcasting Corporation ("BBC") Sound Effects, Freesound, Freesound Dataset 50K ("FSD50K"), and music, speech, and noise corpus ("MUSAN") as degradation material only.
-- [ ] For each dataset, produce a decision record:
+- [x] For each dataset, produce a decision record:
   - [x] dataset name and version
   - [x] access Uniform Resource Locator ("URL")
   - [x] intended OpenRestore role
-  - [ ] license terms
+  - [x] license terms
   - [x] redistribution status
   - [x] quality notes
 - [x] Define SonicMaster source-level split rules so no recording leaks across train/validation/public test.
