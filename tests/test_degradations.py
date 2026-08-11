@@ -57,7 +57,6 @@ class DegradationPrimitiveTests(TestCase):
         for primitive, variant, params in recipes:
             recipe = {
                 "id": f"test_{primitive}",
-                "recipe_type": "single",
                 "severity": "medium",
                 "operations": [{"primitive": primitive, "variant": variant, "parameters": params}],
             }
@@ -140,7 +139,6 @@ class DegradationPipelineTests(TestCase):
 version: test
 recipes:
   - id: single_eq_test
-    recipe_type: single
     severity: mild
     operations:
       - primitive: eq_coloration
@@ -152,26 +150,17 @@ recipes:
           mix:
             min: 0.2
             max: 0.4
-  - id: paired_device_noise
-    recipe_type: paired
-    severity: medium
-    operations:
-      - primitive: device_mic_response
-        variant: bluetooth_small_speaker_recapture
-        parameters: {}
-      - primitive: noise_interference
-        variant: hum
-        parameters:
-          snr_db: 24
 """.strip(),
                 encoding="utf-8",
             )
             validate_config(__import__("yaml").safe_load(config.read_text()))
+            with self.assertRaisesRegex(ValueError, "exactly one operation"):
+                validate_config({"recipes": [{"id": "invalid", "severity": "test", "operations": [{"primitive": "eq_coloration"}, {"primitive": "dynamics"}]}]})
             output_root = tmp / "degraded"
             output_manifest = tmp / "degraded.jsonl"
             checksums = tmp / "checksums.jsonl"
             rows = render_degradations(manifest, clean_root, output_root, config, output_manifest, checksums, 99)
-            self.assertEqual(len(rows), 2)
+            self.assertEqual(len(rows), 1)
             for row in rows:
                 path = output_root / row["degraded_path"]
                 self.assertTrue(path.is_file())
@@ -179,7 +168,7 @@ recipes:
                 self.assertIn("degradation_tracking", row)
                 self.assertIn("degradation_params", row)
                 self.assertEqual(row["degradation_tracking"]["item_seed"], row["degradation_seed"])
-            self.assertEqual(len(read_jsonl(checksums)), 2)
+            self.assertEqual(len(read_jsonl(checksums)), 1)
 
     def test_cli_list_recipes_and_render(self) -> None:
         with TemporaryDirectory() as directory:
@@ -198,7 +187,6 @@ recipes:
 version: test
 recipes:
   - id: single_gain_test
-    recipe_type: single
     severity: mild
     operations:
       - primitive: gain_level

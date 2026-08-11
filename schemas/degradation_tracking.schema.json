@@ -2,15 +2,15 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "OpenRestore degradation tracking",
   "type": "object",
-  "required": ["recipe_id", "recipe_type", "severity", "item_seed", "operations"],
+  "required": ["recipe_id", "severity", "item_seed", "operations"],
   "properties": {
     "recipe_id": {"type": "string", "minLength": 1},
-    "recipe_type": {"type": "string", "enum": ["single", "paired", "organic", "stress"]},
     "severity": {"type": "string", "minLength": 1},
     "item_seed": {"type": "integer", "minimum": 0},
     "operations": {
       "type": "array",
       "minItems": 1,
+      "maxItems": 1,
       "items": {
         "type": "object",
         "required": ["primitive", "seed", "summary"],

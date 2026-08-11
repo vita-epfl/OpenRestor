@@ -52,13 +52,11 @@ def validate_config(config: dict[str, Any]) -> None:
         if not recipe_id or recipe_id in seen:
             raise ValueError(f"Invalid or duplicate recipe id: {recipe_id}")
         seen.add(recipe_id)
-        if recipe.get("recipe_type") not in {"single", "paired", "organic", "stress"}:
-            raise ValueError(f"Invalid recipe_type for {recipe_id}")
         if not isinstance(recipe.get("severity"), str) or not recipe["severity"]:
             raise ValueError(f"Invalid severity for {recipe_id}")
         operations = recipe.get("operations")
-        if not isinstance(operations, list) or not operations:
-            raise ValueError(f"Recipe {recipe_id} must contain operations")
+        if not isinstance(operations, list) or len(operations) != 1:
+            raise ValueError(f"Recipe {recipe_id} must contain exactly one operation")
         for operation in operations:
             primitive = operation.get("primitive")
             if primitive not in REQUIRED_PRIMITIVES:
@@ -70,7 +68,6 @@ def list_recipes(config: dict[str, Any]) -> list[dict[str, Any]]:
     return [
         {
             "id": recipe["id"],
-            "recipe_type": recipe["recipe_type"],
             "severity": recipe["severity"],
             "primitives": [operation["primitive"] for operation in recipe["operations"]],
         }
@@ -117,7 +114,6 @@ def render_degradations(
                 "clean_id": clean_row["id"],
                 "degraded_path": relative_path.as_posix(),
                 "degradation_recipe_id": recipe_id,
-                "recipe_type": recipe["recipe_type"],
                 "severity": recipe["severity"],
                 "degradation_seed": stable_seed(seed, clean_row["id"], recipe_id),
                 "degradation_tracking": tracking,
@@ -175,7 +171,6 @@ def _tracking(
 ) -> dict[str, Any]:
     return {
         "recipe_id": recipe["id"],
-        "recipe_type": recipe["recipe_type"],
         "severity": recipe["severity"],
         "item_seed": stable_seed(global_seed, item_id, recipe["id"]),
         "operations": [

@@ -6,9 +6,7 @@ In progress. The current v0.1 single-effect renderer is implemented and verified
 
 ## Purpose
 
-Phase 2 creates paired training and evaluation data by applying reproducible degradations to a canonical clean clip. Each output is traceable to the clean input, configuration recipe, seed, fully sampled parameters, and checksum.
-
-The immediate focus is intelligible, inspectable single effects. Compound recipes must not be released until their combinations have been intentionally designed and reviewed.
+Phase 2 creates paired training and evaluation data by applying one explicitly selected degradation to a canonical clean clip. Each output is traceable to the clean input, configuration recipe, seed, fully sampled parameters, and checksum. Randomness applies only to the selected effects parameters; effect choices are neither sampled nor combined.
 
 ## Implementation Map
 
@@ -20,7 +18,6 @@ The immediate focus is intelligible, inspectable single effects. Compound recipe
 | openrestore/degradations/pipeline.py | Recipe loading, per-item deterministic seeds, operation execution, WAV rendering, manifest rows, and checksum output. |
 | openrestore/degradations/cli.py | openrestore-degrade commands: render, validate-config, and list-recipes. |
 | configs/degradations/single/v0_1.yaml | Active, effect-first v0.1 single-effect recipes. |
-| configs/degradations/{paired,organic,stress}/v0_1.yaml | Incomplete compound-recipe scaffolding. |
 | tests/test_degradations.py | Determinism, canonical-audio, parameter-sampling, runner, and CLI tests. |
 | OpenRestore.md | Effect-level registry, including origin, group, rationale, and status. |
 
@@ -42,7 +39,7 @@ distant_mic_capture is the far-from-source recording simulation: a deterministic
 5. The renderer applies the effect, restores canonical sample rate/channel layout, checks finite samples and peak safety, and writes a WAV.
 6. It writes one output-manifest row per degraded example and a separate SHA-256 checksum record.
 
-Every degraded manifest row preserves clean-row context and adds clean_path, degraded_path, degradation_recipe_id, recipe_type, severity, degradation_seed, degradation_tracking, degradation_params, and degraded_audio_sha256.
+Every degraded manifest row preserves clean-row context and adds clean_path, degraded_path, degradation_recipe_id, severity, degradation_seed, degradation_tracking, degradation_params, and degraded_audio_sha256.
 
 degradation_tracking is the compact audit trail. degradation_params stores the complete sampled operation chain so an example can be recreated exactly.
 
@@ -62,7 +59,6 @@ A local listening preview exists under build/degradation_preview/degraded_all_ef
 
 ## Remaining Phase 2 Work
 
-- Reconcile and listen-review the paired, organic, and stress configurations before any use.
 - Add effect-specific perceptual/regression tests and complete random-severity review for all single effects.
 - Implement production-scale deterministic partitioning, retry/resume behavior, and validated merging.
 - Connect degraded WAV/JSONL outputs to the final shard and index release flow.

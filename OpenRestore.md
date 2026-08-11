@@ -1,6 +1,6 @@
 # OpenRestore
 
-OpenRestore is an open, reproducible benchmark for musical audio restoration. It curates high-quality clean audio, generates controlled and organic degradation chains, evaluates restoration systems with reconstruction and perceptual metrics, and publishes datasets, baselines, reports, and a public leaderboard.
+OpenRestore is an open, reproducible benchmark for musical audio restoration. It curates high-quality clean audio, generates controlled single degradations, evaluates restoration systems with reconstruction and perceptual metrics, and publishes datasets, baselines, reports, and a public leaderboard.
 
 Internal application link: [CHORD-VITA application](https://docs.google.com/document/d/1jHbahFTKmkAgQGIGbRLSNHwxb-EY-tgN)
 
@@ -188,7 +188,6 @@ OpenRestore should keep the row close to the current restoration pipeline format
     "noise_interference": [],
     "device_mic_response": [],
     "codec_resampling": [],
-    "recipe_type": "single",
     "severity": "medium"
   },
 
@@ -260,8 +259,7 @@ The `mic` effect needs ARIEL-compatible microphone transfer functions in `parame
 
 #### Recipe Inventory
 
-- `single`: one named degradation from the table above. This is the current implementation and the main listening-review inventory.
-- `paired`, `organic`, and `stress`: deferred until the single-effect set has been reviewed and its parameter ranges adjusted.
+Each recipe contains one named degradation from the table above. Every active effect is rendered explicitly; the runner never samples an effect choice or combines effects. Randomness is limited to the parameters of that selected effect.
 
 Do not use mild, medium, and strong as separate recipe IDs. Intensity remains random within the effect's ARIEL range, with the item-level seed and every sampled value stored in metadata.
 
@@ -465,8 +463,6 @@ openrestore/
       bbc_sound_effects.yaml
     degradations/
       single/
-      organic/
-      stress/
     evaluation/
       metrics.yaml
       leaderboard.yaml
@@ -635,7 +631,7 @@ Keep optional infrastructure optional. RenkuLab, DaSCH, or other preservation pl
 - Implement the v0.1 primitive degradations first: `eq_coloration`, `dynamics`, `reverb_room`, `gain_level`, `clipping_distortion`, `stereo_spatial`, `bandwidth_filtering`, `noise_interference`, `device_mic_response`, and `codec_resampling`.
 - Keep first-release modules close to SonicMaster: EQ/filtering, dynamics, reverb, gain, clipping/saturation, stereo, microphone/device response, noise/hum/ambience, bandwidth loss, and conventional codec/resampling loss.
 - Store compact per-item metadata in `degradation_tracking` and keep full recipe/config files versioned with the release.
-- Make isolated single-primitive recipes the main v0.1 benchmark inventory; keep paired, organic, and stress recipes for validation, listening review, and later expansion.
+- Use one explicitly selected degradation per output in v0.1. Do not sample effect choices or combine effects; sample only the selected effects parameters.
 - Validate each degradation on a small fixed fixture set so outputs are reproducible across releases.
 
 ### 4. Implement Metrics And Reports
