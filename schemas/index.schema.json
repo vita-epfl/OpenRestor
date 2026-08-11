@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OpenRestore index row",
+  "type": "object",
+  "required": ["id", "dataset", "split", "clean_path"],
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "dataset": {"type": "string", "minLength": 1},
+    "split": {"type": "string", "enum": ["train", "validation", "test", "evaluation", "preview"]},
+    "clean_path": {"type": "string", "minLength": 1},
+    "sample_rate": {"type": "integer", "minimum": 1},
+    "channels": {"type": "integer", "minimum": 1}
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,20 @@
+version: v0.1
+sample_rate: 44100
+recipes:
+- id: stress_bandwidth_codec_strong
+  recipe_type: stress
+  severity: strong
+  operations:
+  - primitive: bandwidth_filtering
+    variant: lowpass
+    parameters:
+      cutoff_hz:
+        min: 3000
+        max: 6000
+  - primitive: codec_resampling
+    variant: mp3
+    parameters:
+      codec: mp3
+      bitrate:
+        choices:
+        - 48k

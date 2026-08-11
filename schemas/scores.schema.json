@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OpenRestore score report",
+  "type": "object",
+  "required": ["benchmark_version", "submission_id", "metrics"],
+  "properties": {
+    "benchmark_version": {"type": "string", "minLength": 1},
+    "submission_id": {"type": "string", "minLength": 1},
+    "metrics": {"type": "object", "minProperties": 1}
+  },
+  "additionalProperties": true
+}

@@ -47,7 +47,7 @@ OpenRestore should focus on clip-level musical audio restoration across any musi
 - Treat AudioMD as an optional XML preservation export, not as the native JSON metadata format.
 - Keep required metrics focused on one-to-one reconstruction and perceptual quality, with experimental metrics in optional reports.
 - Keep all degradations open-source, reproducible, and fully specified in metadata.
-- Prioritize real-world organic degradation profiles over a broad inherited list of lab-style effects.
+- Prioritize a small SonicMaster-adjacent primitive degradation set over a broad inherited list of lab-style effects or real-world profiles.
 
 ## Dataset Strategy
 
@@ -178,19 +178,18 @@ OpenRestore should keep the row close to the current restoration pipeline format
   "alt_prompt": "Enhance the sense of space in the highs.",
 
   "degradation_tracking": {
-    "EQ": ["airy", [12]],
-    "Dynamics": [],
-    "Reverb": [],
-    "Amplitude": [],
-    "Stereo": [],
-    "Noise": [],
-    "Filter": [],
-    "Tape": [],
-    "Composite": [],
-    "Calibrated": [],
-    "OrganicProfile": [],
-    "Codec": [],
-    "NeuralCodec": []
+    "eq_coloration": ["airy_lack_high_frequencies", {"high_shelf_hz": 12000, "gain_db": -6.0}],
+    "dynamics": [],
+    "reverb_room": [],
+    "gain_level": [],
+    "clipping_distortion": [],
+    "stereo_spatial": [],
+    "bandwidth_filtering": [],
+    "noise_interference": [],
+    "device_mic_response": [],
+    "codec_resampling": [],
+    "recipe_type": "single",
+    "severity": "medium"
   },
 
   "hidden_clipping": [false, 0],
@@ -223,129 +222,48 @@ For public releases, avoid machine-specific absolute paths such as `/work/vita/.
 
 ### Degradation Taxonomy
 
-OpenRestore should organize degradation metadata into three levels:
+OpenRestore v0.1 is effect-first: every single-degradation recipe names the audible degradation directly. The high-level group is retained only for organization, filtering, and reporting. Each effect samples deterministic random parameters from the ARIEL implementation; `ariel_random` is not a three-level preset.
 
-1. Primitive causal degradation families describe the physical, signal-processing, or distribution mechanism that damaged the audio.
-2. Real-world degradation profiles describe named, reproducible conditions built from one or more causal families.
-3. Perceptual diagnostic descriptors describe what listeners or diagnostic models perceive in the degraded signal.
+#### v0.1 Degradation Set
 
-Each generated item should store all three levels where possible: causal family IDs for metric grouping, profile IDs for user-facing benchmark slices, and perceptual descriptor IDs for diagnostics and prompt-conditioned analysis.
+| ID | Group | What the degradation does | Origin | Why it matters | Status | Benchmark role |
+| --- | --- | --- | --- | --- | --- | --- |
+| `comp` | Dynamics | Applies strong feed-forward compression with randomized threshold, ratio, attack, release, and makeup gain. | ARIEL implementation of SonicMaster's `comp` effect. | Represents flattened dynamics, reduced contrast, and over-compressed material. | Baseline parity | Single-effect |
+| `punch` | Dynamics | Detects and attenuates transient peaks while preserving the rest of the signal. | ARIEL implementation of SonicMaster's `punch` effect. | Covers mixes that have lost impact because attacks are softened or suppressed. | Baseline parity | Single-effect |
+| `xband` | EQ | Applies a randomized multi-band peaking EQ curve across the spectrum. | ARIEL implementation of SonicMaster's `xband` effect. | Produces broad, irregular tonal imbalance rather than a single shelf or cutoff. | Baseline parity | Single-effect |
+| `mic` | EQ | Convolves the signal with one microphone transfer function. | SonicMaster's Poliphone microphone approach, using ARIEL-compatible `.npy` transfer functions. | Captures the spectral fingerprint of a real recording device. | Baseline parity | Single-effect |
+| `bright` | EQ | Cuts the high shelf around 6 kHz, making the result insufficiently bright. | ARIEL implementation of SonicMaster's `bright` effect. | Models dull high frequencies and reduced presence. | Baseline parity | Single-effect |
+| `dark` | EQ | Boosts the high shelf around 6 kHz, reducing audible darkness. | ARIEL implementation of SonicMaster's `dark` effect. | Adds excessive top-end energy that restoration models must identify and control. | Baseline parity | Single-effect |
+| `airy` | EQ | Cuts the high shelf around 10 kHz. | ARIEL implementation of SonicMaster's `airy` effect. | Represents missing air and reduced openness in the extreme high frequencies. | Baseline parity | Single-effect |
+| `boom` | EQ | Cuts the low shelf around 120 Hz. | ARIEL implementation of SonicMaster's `boom` effect. | Covers low-end imbalance and loss of weight in bass and kick content. | Baseline parity | Single-effect |
+| `clarity` | EQ | Applies a low-pass filter around 4 kHz with randomized order. | ARIEL implementation of SonicMaster's `clarity` effect. | Models a clear, common loss of definition and intelligibility. | Baseline parity | Single-effect |
+| `mud` | EQ | Isolates the 200-500 Hz region through a Chebyshev band-pass response. | ARIEL implementation of SonicMaster's `mud` effect. | Targets congested low-mid coloration that masks detail. | Baseline parity | Single-effect |
+| `warm` | EQ | Cuts the low shelf around 400 Hz. | ARIEL implementation of SonicMaster's `warm` effect. | Covers insufficient warmth and thin lower-mid content. | Baseline parity | Single-effect |
+| `vocal` | EQ | Applies a 350-3500 Hz Chebyshev band-stop response. | ARIEL implementation of SonicMaster's `vocal` effect. | Simulates recessed vocal and midrange content in a full mix. | Baseline parity | Single-effect |
+| `small` | Reverb | Convolves audio with a randomized small Pyroomacoustics room. | SonicMaster small-room simulation, ported from ARIEL. | Represents close-room reflections and short acoustic coloration. | Baseline parity | Single-effect |
+| `big` | Reverb | Convolves audio with a randomized large Pyroomacoustics room. | SonicMaster big-room simulation, ported from ARIEL. | Covers longer, more spacious room coloration and decay. | Baseline parity | Single-effect |
+| `mix` | Reverb | Simulates a room with mixed absorptive and reflective wall materials. | SonicMaster mixed-room simulation, ported from ARIEL. | Adds frequency-dependent room coloration closer to varied real spaces. | Baseline parity | Single-effect |
+| `real` | Reverb | Convolves audio with a selected stereo or B-format room impulse response. | SonicMaster openAIR-style real-RIR approach, ported from ARIEL. | Supplies real acoustic responses that complement simulated rooms. | Baseline parity | Single-effect |
+| `stereo` | Stereo | Sums the left and right channels and duplicates the combined signal to both outputs. | ARIEL implementation of SonicMaster's `stereo` effect. | Tests restoration from collapsed stereo information. | Baseline parity | Single-effect |
+| `clip` | Amplitude | Normalizes, amplifies by a sampled amount, then hard-clips the waveform. | ARIEL implementation of SonicMaster's `clip` effect. | Represents overload distortion and lost peak detail. | Baseline parity | Single-effect |
+| `volume` | Amplitude | Normalizes then attenuates audio using one of ARIEL's low-volume multipliers. | ARIEL implementation of SonicMaster's `volume` effect. | Covers severe gain mismatch; it remains listed for parity with ARIEL, even if later evaluation decides it duplicates an existing volume task. | Baseline parity | Single-effect |
+| `noise` | Noise | Adds colored broadband noise at a controlled SNR. | OpenRestore addition; ARIEL already contains calibrated white, pink, and brown noise helpers. | Covers persistent recording noise that is absent from the SonicMaster parity set. | OpenRestore addition - implemented | Listening review |
+| `hum` | Noise | Adds 50 or 60 Hz electrical hum with decaying harmonics. | OpenRestore addition; ARIEL already contains a hum helper. | A recognizable real-world electrical fault with clear diagnostic behavior. | OpenRestore addition - implemented | Listening review |
+| `codec` | Codec | Encodes and decodes through a lossy codec such as MP3, AAC, or Opus. | OpenRestore addition; ARIEL and OpenRestore have codec helpers. | Distribution and platform transcodes are common in music restoration inputs. | OpenRestore addition - implemented | Listening review |
+| `bandwidth` | Filtering | Applies telephone, low-pass, high-pass, or low-sample-rate bandwidth loss. | OpenRestore addition; ARIEL has telephone and high-pass helpers. | Separates capture or transmission bandwidth loss from the broader SonicMaster EQ effects. | OpenRestore addition - implemented | Listening review |
+| `channel_damage` | Stereo | Damages one channel through attenuation, filtering, delay, polarity inversion, or dropout. | OpenRestore addition, based on the prior OpenRestore one-channel-damage proposal. | Represents asymmetric capture, cable, and playback faults more precisely than collapsed stereo alone. | OpenRestore addition - implemented | Listening review |
+| `distant_mic_capture` | Capture | Simulates a microphone recording several metres from the source: reduced direct-to-reverberant ratio, distance-related high-frequency loss, and optional low room noise. | OpenRestore addition, using a physically constrained Pyroomacoustics source/microphone geometry. | Covers acoustic distance as a capture problem, not merely reverb added to a close recording. | OpenRestore addition - implemented | Listening review |
 
-#### Primitive Causal Degradation Families
+#### Asset Requirements
 
-| ID | Scope | Implementation Notes |
-| --- | --- | --- |
-| `spectral_transfer_eq` | Static or slowly varying coloration from EQ, transfer functions, resonances, comb filtering, shelves, peaks, notches, and tonal balance shifts. | Use SciPy filters, FIR/IIR recipes, or measured transfer functions with documented provenance. |
-| `bandwidth_limitation` | Missing or restricted frequency range from low-pass, high-pass, band-pass, downsampling, telephone band, or poor capture/playback bandwidth. | Store cutoff estimates, transition bands, resampling method, and anti-alias settings. |
-| `dynamics_envelope` | Compression, limiting, AGC, transient softening, pumping, expansion errors, or over-normalization. | Implement with open DSP code and fixed parameter ranges; store time constants and loudness changes. |
-| `gain_loudness` | Gain staging, level mismatch, low level, peak normalization, loudness normalization, or hidden clipping risk. | Store pre/post LUFS, peak, true peak, headroom, and gain values. |
-| `nonlinear_distortion` | Soft clipping, hard clipping, saturation, waveshaping, bit depth reduction, harmonic distortion, or overloaded analog stages. | Include mild and severe settings; store true pre/post peak levels and distortion parameters. |
-| `additive_noise_interference` | Hiss, hum, broadband noise, room tone, crowd bleed, ambience, buzz, or other additive contaminants. | Use open-licensed sources; store SNR, source IDs, spectral shape, and event timing. |
-| `transient_defects` | Clicks, crackle, pops, burst artifacts, impulsive corruption, or softened transients. | Store event times, densities, durations, amplitudes, and generation source. |
-| `dropouts_discontinuities` | Mutes, packet loss, buffer underruns, repeated blocks, missing spans, discontinuities, or zeroed samples. | Store dropout spans, repeat windows, crossfade policy, and gap statistics. |
-| `room_acoustics` | Reverberation, early reflections, late decay, room modes, direct-to-reverberant ratio, and distance cues. | Use open IRs where possible; Pyroomacoustics or equivalent for simulation. |
-| `device_microphone_speaker` | Microphone, recorder, speaker, cabinet, phone, laptop, headphone leak, or consumer playback/capture chain behavior. | Model response curves, AGC, self-noise, mono capture, driver saturation, and device-specific bandwidth. |
-| `stereo_spatial_phase` | Stereo collapse, narrowing, channel imbalance, one-sided channel loss, phase issues, mid/side changes, or mono compatibility problems. | Include channel correlation, mid/side energy, balance, and phase-coherence diagnostics. |
-| `codec_transcoding` | MP3, AAC, Opus, platform processing, resampling, loudness normalization, or repeated conventional codec generations. | Prefer FFmpeg and open encoders; record codec, bitrate, sample rate, encoder version, and pass count. |
-| `neural_codec_model_artifacts` | EnCodec, DAC-style codecs, neural vocoders, generative restoration artifacts, hallucinated texture, or model-specific warble. | Track model name, checkpoint, bitrate/tokens, sampling settings, and artifact detectors separately from conventional codecs. |
-| `temporal_pitch_instability` | Wow, flutter, clock drift, tape speed instability, turntable drift, timing modulation, or pitch wobble. | Store modulation rates, depth, random-walk parameters, and resampling method. |
-| `source_mix_balance` | Vocal/instrument imbalance, source dominance shifts, backing-track masking, or mix elements moved too far forward/back. | Use source-aware diagnostics where available; keep separate from generic EQ or loudness. |
-| `organic_multistep_chain` | Realistic accumulated damage composed from multiple causal families, such as room playback, mic capture, ambience, saturation, and codec loss. | Store ordered child operations and make every component independently reproducible. |
+The `mic` effect needs ARIEL-compatible microphone transfer functions in `parameters.mic_ir_dir`. The `real` effect needs compatible RIR WAV files in `parameters.real_rir_dir`. The remaining 23 effects run without external assets. Simulated room effects use the local `pyroomacoustics` dependency.
 
-#### Real-World Degradation Profiles
+#### Recipe Inventory
 
-The first public inventory should contain 20 named profiles. Each profile should have fixed severity bands, isolated diagnostic descriptors where possible, and at least one organic chain recipe that combines the relevant primitive modules.
+- `single`: one named degradation from the table above. This is the current implementation and the main listening-review inventory.
+- `paired`, `organic`, and `stress`: deferred until the single-effect set has been reviewed and its parameter ranges adjusted.
 
-| ID | Display Name | Typical Components | Causal Factors | Perceptual Descriptors | What It Tests |
-| --- | --- | --- | --- | --- | --- |
-| `room_rir` | Room RIR | Measured or simulated RIR, early reflections, late decay, wet/dry control. | `room_acoustics`, `spectral_transfer_eq` | `reverberant`, `smeared`, `unclear` | Dereverberation without destroying musical sustain. |
-| `far_field_distance` | Far-field distance | Distance attenuation, air absorption, reduced direct-to-reverb ratio, room tone. | `room_acoustics`, `gain_loudness`, `spectral_transfer_eq` | `distant`, `muffled`, `unclear`, `quiet` | Restoring presence and clarity from far-field capture. |
-| `off_axis_mic` | Off-axis mic | Directional mic EQ, high-frequency loss, comb filtering. | `device_microphone_speaker`, `spectral_transfer_eq`, `bandwidth_limitation` | `dark`, `muffled`, `thin`, `unclear` | Correcting microphone placement problems. |
-| `consumer_mic` | Consumer mic | Narrow response, AGC, self-noise, mild clipping, mono or near-mono capture. | `device_microphone_speaker`, `bandwidth_limitation`, `dynamics_envelope`, `additive_noise_interference`, `stereo_spatial_phase` | `lo_fi`, `noisy`, `narrow`, `mono`, `distorted` | Robustness to non-studio recording devices. |
-| `speaker_playback` | Speaker playback | Speaker EQ, cabinet resonances, nonlinear driver saturation, room coupling. | `device_microphone_speaker`, `spectral_transfer_eq`, `nonlinear_distortion`, `room_acoustics` | `boomy`, `muddy`, `distorted`, `reverberant` | Undoing playback-chain coloration. |
-| `background_ambience` | Background ambience | Open ambience beds, level automation, spectral masking. | `additive_noise_interference`, `source_mix_balance`, `spectral_transfer_eq` | `noisy`, `muddy`, `unclear`, `smeared` | Separating music from natural environmental beds. |
-| `crowd_bleed` | Crowd bleed | Crowd murmur, applause bursts, stage bleed, diffuse reverb. | `additive_noise_interference`, `room_acoustics`, `transient_defects`, `source_mix_balance` | `noisy`, `reverberant`, `unclear`, `smeared` | Handling concert and bootleg-style interference. |
-| `broadband_noise` | Broadband noise | Colored noise mixtures, SNR targets, slow level drift. | `additive_noise_interference` | `noisy`, `unclear`, `lo_fi` | Denoising without over-smoothing music. |
-| `electrical_hum` | Electrical hum | 50/60 Hz fundamentals, harmonic stacks, time-varying amplitude. | `additive_noise_interference`, `spectral_transfer_eq` | `noisy`, `muddy`, `unclear` | Removing tonal interference while preserving bass. |
-| `clicks_crackle` | Clicks and crackle | Sparse clicks, dense crackle, burst events, random timing. | `transient_defects`, `additive_noise_interference` | `noisy`, `lo_fi`, `unclear` | Repairing short impulsive artifacts. |
-| `dropouts_glitches` | Dropouts and glitches | Short mutes, repeats, discontinuities, zeroed blocks. | `dropouts_discontinuities`, `transient_defects`, `codec_transcoding` | `smeared`, `unclear`, `lo_fi` | Inpainting missing or discontinuous audio. |
-| `gain_clipping` | Gain clipping | Soft clipping, hard clipping, hidden clipping, clipped transients. | `gain_loudness`, `nonlinear_distortion`, `transient_defects` | `clipped`, `harsh`, `distorted` | Declip and reconstruct peaks. |
-| `saturation_overdrive` | Saturation and overdrive | Waveshaping, harmonic distortion, level-dependent coloration. | `nonlinear_distortion`, `gain_loudness`, `spectral_transfer_eq` | `distorted`, `harsh`, `bright`, `clipped` | Removing nonlinear distortion without flattening energy. |
-| `overcompression_limiter` | Overcompression and limiter | Low dynamic range, pumping, transient loss, loudness normalization. | `dynamics_envelope`, `gain_loudness`, `transient_defects` | `overcompressed`, `pumping`, `lack_punch`, `quiet` | Restoring dynamics and transients. |
-| `bandwidth_loss` | Bandwidth loss | High-pass, low-pass, shelving loss, resonant notches. | `bandwidth_limitation`, `spectral_transfer_eq` | `dark`, `muffled`, `thin`, `narrow` | Recovering missing lows/highs and correcting muffling. |
-| `telephone_band` | Telephone band | 300-3400 Hz bandpass, companding, codec/noise layer. | `bandwidth_limitation`, `codec_transcoding`, `additive_noise_interference`, `dynamics_envelope` | `narrow`, `thin`, `muffled`, `lo_fi` | Restoring intelligibility and bandwidth from narrowband signals. |
-| `low_sample_rate` | Low sample rate | Downsampling, anti-alias variation, aliasing, upsampled output. | `bandwidth_limitation`, `codec_transcoding`, `neural_codec_model_artifacts` | `lo_fi`, `muffled`, `thin`, `smeared` | Bandwidth extension and alias robustness. |
-| `lossy_codec` | Lossy codec | MP3, AAC, Opus, bitrate ladder, encoder metadata. | `codec_transcoding`, `bandwidth_limitation`, `stereo_spatial_phase` | `smeared`, `lo_fi`, `unclear`, `narrow` | Removing codec artifacts and pre-echo. |
-| `transcode_chain` | Transcode chain | Multiple codec generations, resampling, loudness normalization, stereo changes. | `codec_transcoding`, `bandwidth_limitation`, `gain_loudness`, `stereo_spatial_phase` | `lo_fi`, `smeared`, `collapsed`, `unclear` | Repairing accumulated distribution-platform damage. |
-| `pitch_speed_instability` | Pitch and speed instability | Slow wow, fast flutter, random pitch drift, timing modulation. | `temporal_pitch_instability` | `smeared`, `unclear`, `lo_fi` | Stabilizing pitch and timing without warping musical expression. |
-
-#### Perceptual Diagnostic Descriptors
-
-Perceptual descriptors are symptom labels, not causal explanations. They can be emitted by listening review, prompt metadata, automated diagnostics, or model-facing conditioning. The core descriptor vocabulary should include:
-
-| Descriptor | Diagnostic Meaning |
-| --- | --- |
-| `boomy` | Excessive low-frequency resonance or room buildup. |
-| `muddy` | Low-mid masking, weak separation, or indistinct musical layers. |
-| `bright` | Excessive high-frequency energy. |
-| `harsh` | Aggressive upper-mid/high-frequency energy or brittle distortion. |
-| `dark` | Reduced high-frequency energy or closed tonal balance. |
-| `muffled` | Missing clarity or high-frequency detail, often from bandwidth loss or off-axis capture. |
-| `unclear` | Reduced intelligibility, definition, or source separation. |
-| `smeared` | Loss of transient, temporal, stereo, reverb, or codec detail. |
-| `narrow` | Restricted bandwidth or stereo width. |
-| `thin` | Lack of low-frequency or low-mid body. |
-| `clipped` | Audible overload, flat-topping, or clipped peaks. |
-| `distorted` | Nonlinear, harmonic, gritty, or overloaded sound. |
-| `overcompressed` | Reduced dynamic contrast or flattened envelope. |
-| `pumping` | Audible compressor/limiter gain movement. |
-| `lack_punch` | Softened attacks or reduced transient impact. |
-| `reverberant` | Excessive room decay, reflections, or wetness. |
-| `distant` | Far-field or low-presence capture. |
-| `mono` | Mono or near-mono presentation. |
-| `collapsed` | Stereo image reduced, phase-damaged, or center-heavy. |
-| `vocal_forward` | Vocal too prominent relative to the mix. |
-| `quiet` | Low playback level or low loudness. |
-| `lo_fi` | Overall reduced fidelity, often from devices, codecs, or bandwidth loss. |
-| `noisy` | Audible additive noise, hum, ambience, crowd bleed, or crackle. |
-
-Additional descriptors may be used when needed for compatibility with imported labels or listening notes, but they should remain separate from the core vocabulary until they are validated.
-
-#### SonicMaster Compatibility Mapping
-
-SonicMaster-style classes should map into OpenRestore's causal families and perceptual descriptors rather than define the benchmark taxonomy. This preserves comparability with prior work while keeping the official profile inventory focused on real-world restoration.
-
-| SonicMaster Class | Causal Families | Perceptual Descriptors |
-| --- | --- | --- |
-| `reverb_big_room` | `room_acoustics`, `spectral_transfer_eq` | `reverberant`, `distant`, `unclear` |
-| `reverb_small` | `room_acoustics` | `boxy`, `early_reflections` |
-| `reverb_real` | `room_acoustics`, `device_microphone_speaker` | `natural_room`, `reverberant` |
-| `reverb_mix` | `room_acoustics`, `gain_loudness` | `too_wet`, `unclear` |
-| `boom` | `spectral_transfer_eq`, `room_acoustics` | `boomy`, `bass_heavy`, `resonant` |
-| `muddiness` | `spectral_transfer_eq`, `room_acoustics`, `dynamics_envelope` | `muddy`, `unclear`, `masked` |
-| `loss_of_clarity` | `spectral_transfer_eq`, `stereo_spatial_phase`, `codec_transcoding`, `room_acoustics` | `unclear`, `smeared`, `masked` |
-| `too_much_brightness` | `spectral_transfer_eq`, `nonlinear_distortion` | `bright`, `harsh` |
-| `too_much_darks` | `spectral_transfer_eq`, `bandwidth_limitation` | `dark`, `muffled` |
-| `warmness` | `spectral_transfer_eq`, `nonlinear_distortion`, `dynamics_envelope` | `warm`, `thick` |
-| `airy_lack_high_frequencies` | `bandwidth_limitation`, `spectral_transfer_eq` | `dull`, `missing_air`, `muffled` |
-| `xband` | `bandwidth_limitation`, `spectral_transfer_eq` | `narrowband`, `thin` |
-| `clipping` | `nonlinear_distortion`, `gain_loudness` | `clipped`, `harsh`, `distorted` |
-| `compression` | `dynamics_envelope`, `gain_loudness` | `overcompressed`, `flat`, `pumping` |
-| `punch` | `dynamics_envelope`, `transient_defects` | `lack_punch`, `softened_transients` |
-| `microphone_simulation` | `device_microphone_speaker`, `spectral_transfer_eq`, `bandwidth_limitation`, `additive_noise_interference`, `nonlinear_distortion`, `stereo_spatial_phase` | `colored`, `lo_fi`, `narrow`, `noisy` |
-| `stereo_to_mono` | `stereo_spatial_phase` | `mono`, `narrow`, `collapsed` |
-| `too_much_vocals` | `source_mix_balance` | `vocal_forward`, `mix_imbalanced` |
-| `low_volume` | `gain_loudness` | `quiet`, `low_level` |
-
-### Recipe Design
-
-- `profile`: one of the named real-world degradation profiles above, implemented as a reproducible chain with documented severity bands.
-- `single`: one degradation family at a controlled severity.
-- `chain`: ordered combinations of two or more degradations.
-- `organic`: sampled chains intended to resemble naturally accumulated musical degradation, such as room playback, microphone capture, device compression, background ambience, mild saturation, and codec loss.
-- `stress`: severe but still open and reproducible degradations for robustness testing, reported separately from the main leaderboard score.
-
-The benchmark should report results separately by family and severity. A single global score is useful for ranking, but it must not hide which degradations a model handles poorly.
+Do not use mild, medium, and strong as separate recipe IDs. Intensity remains random within the effect's ARIEL range, with the item-level seed and every sampled value stored in metadata.
 
 ## Evaluation And Leaderboard
 
@@ -577,9 +495,8 @@ openrestore/
       stereo.py
       noise.py
       filters.py
-      tape.py
-      codecs.py
-      organic_profiles.py
+      codec_resampling.py
+      recipes.py
       tracking.py
     metrics/
       reconstruction.py
@@ -715,10 +632,10 @@ Keep optional infrastructure optional. RenkuLab, DaSCH, or other preservation pl
 
 ### 3. Implement Degradations And Tracking
 
-- Implement the 20 real-world degradation profiles first, starting from the existing composite prototypes: `crackle`, `highpass`, `hum`, `low_sr`, `noise`, `pitch_instability`, `soft_clip`, and `telephone`.
-- Implement the primitive modules needed by those profiles: RIR/reverb, distance and microphone response, EQ/filtering, noise and ambience mixing, hum, crackle/clicks, clipping/saturation, compression/limiting, sample-rate loss, codec loss, dropouts/glitches, and pitch/speed instability.
+- Implement the v0.1 primitive degradations first: `eq_coloration`, `dynamics`, `reverb_room`, `gain_level`, `clipping_distortion`, `stereo_spatial`, `bandwidth_filtering`, `noise_interference`, `device_mic_response`, and `codec_resampling`.
+- Keep first-release modules close to SonicMaster: EQ/filtering, dynamics, reverb, gain, clipping/saturation, stereo, microphone/device response, noise/hum/ambience, bandwidth loss, and conventional codec/resampling loss.
 - Store compact per-item metadata in `degradation_tracking` and keep full recipe/config files versioned with the release.
-- Create isolated recipes only for diagnosis and AAE validation; keep the main benchmark focused on organic multi-step profiles that resemble real restoration cases.
+- Make isolated single-primitive recipes the main v0.1 benchmark inventory; keep paired, organic, and stress recipes for validation, listening review, and later expansion.
 - Validate each degradation on a small fixed fixture set so outputs are reproducible across releases.
 
 ### 4. Implement Metrics And Reports

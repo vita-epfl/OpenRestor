@@ -1,15 +1,12 @@
 # OpenRestore
 
-OpenRestore is a reproducible benchmark for musical audio restoration. This repository currently
-contains the Phase 1 dataset preparation pipeline.
+OpenRestore is a reproducible benchmark for musical audio restoration. This repository currently contains the Phase 1 dataset preparation pipeline and the Phase 2 local degradation renderer.
 
-The pipeline uses only clean SonicMaster originals for main-track training and source-separated
-SonicMaster validation/test. SDD and MUSDB18-HQ mixture audio are validation-only; FMA is not part
-of this release.
+The pipeline uses only clean SonicMaster originals for main-track training and source-separated SonicMaster validation/test. SDD and MUSDB18-HQ mixture audio are validation-only; FMA is not part of this release.
 
-Install the local package with `python -m pip install -e .`. The commands below build public data
-into a directory outside the repository. Commands print progress by default; add `--quiet` for
-automated runs.
+Install the local package with `python -m pip install -e .`. Commands print progress by default; add `--quiet` for automated runs.
+
+## Dataset Preparation
 
 ```bash
 openrestore-data audit --config configs/datasets/sonicmaster_clean.yaml --output build/audits/sonicmaster_clean.json
@@ -24,7 +21,15 @@ openrestore-data verify --root /path/to/openrestore-clips --checksums build/chec
 openrestore-data stats --manifest build/index.jsonl --output build/statistics.json
 ```
 
-`docs/dataset_audits.md` records the source roles and release gates. The implementation renders
-canonical 30-second, 44.1 kHz, stereo PCM WAV clips; partial segments are rejected, mono is
-duplicated to stereo, multichannel sources are downmixed to stereo, and silent clips fail the RMS
-quality gate.
+## Degradation Pipeline
+
+The active single-effect registry has 25 degradations. Validate and inspect it with:
+
+```bash
+openrestore-degrade validate-config --config configs/degradations/single/v0_1.yaml
+openrestore-degrade list-recipes --config configs/degradations/single/v0_1.yaml
+```
+
+For the exact render contract, storage layout, optional-asset handling, acceptance checks, and IT responsibilities, read [the IT handoff](docs/it_handoff.md). The versioned task and ownership contract is [docs/benchmark_contract.md](docs/benchmark_contract.md).
+
+`docs/dataset_audits.md` records source roles and release gates. The dataset implementation renders canonical 30-second, 44.1 kHz, stereo PCM WAV clips; partial segments are rejected, mono is duplicated to stereo, multichannel sources are downmixed to stereo, and silent clips fail the RMS quality gate.
