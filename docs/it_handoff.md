@@ -47,6 +47,14 @@ openrestore-degrade validate-config \
 openrestore-degrade list-recipes \
   --config configs/degradations/single/v0_1.yaml
 ```
+Validate a versioned artifact schema with:
+
+```bash
+openrestore-validate index --input tests/fixtures/index.json
+```
+
+Supported schema kinds are `index`, `degradation_tracking`, `submission_manifest`, `scores`, and `leaderboard_entry`.
+
 
 ## Input Contract
 

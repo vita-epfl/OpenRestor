@@ -30,6 +30,6 @@ openrestore-degrade validate-config --config configs/degradations/single/v0_1.ya
 openrestore-degrade list-recipes --config configs/degradations/single/v0_1.yaml
 ```
 
-For the exact render contract, storage layout, optional-asset handling, acceptance checks, and IT responsibilities, read [the IT handoff](docs/it_handoff.md).
+For the exact render contract, storage layout, optional-asset handling, acceptance checks, and IT responsibilities, read [the IT handoff](docs/it_handoff.md). The versioned task and ownership contract is [docs/benchmark_contract.md](docs/benchmark_contract.md).
 
 `docs/dataset_audits.md` records source roles and release gates. The dataset implementation renders canonical 30-second, 44.1 kHz, stereo PCM WAV clips; partial segments are rejected, mono is duplicated to stereo, multichannel sources are downmixed to stereo, and silent clips fail the RMS quality gate.

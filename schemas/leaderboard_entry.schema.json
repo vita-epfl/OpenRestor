@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OpenRestore leaderboard entry",
+  "type": "object",
+  "required": ["submission_id", "track", "status"],
+  "properties": {
+    "submission_id": {"type": "string", "minLength": 1},
+    "track": {"type": "string", "enum": ["main", "external-data"]},
+    "status": {"type": "string", "enum": ["valid", "invalid", "pending"]},
+    "primary_score": {"type": "number"}
+  },
+  "additionalProperties": true
+}

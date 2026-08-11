@@ -35,30 +35,30 @@ Goal: freeze the minimum viable benchmark contract before implementation becomes
 - [x] Freeze the v0.1 primitive degradation set and initial randomized severity-band policy.
 - [x] Decide which metrics are required for the first release and which stay experimental.
 - [x] Define the scientific meaning of the main leaderboard track and external-data track.
-- [ ] Create the Python package/repository skeleton that IT will later host:
+- [x] Create the Python package/repository skeleton that IT will later host:
   - [x] `openrestore/data`
-  - [ ] `openrestore/degradations`
-  - [ ] `openrestore/metrics`
-  - [ ] `openrestore/evaluation`
-  - [ ] `openrestore/submissions`
-  - [ ] `openrestore/leaderboard`
+  - [x] `openrestore/degradations`
+  - [x] `openrestore/metrics`
+  - [x] `openrestore/evaluation`
+  - [x] `openrestore/submissions`
+  - [x] `openrestore/leaderboard`
   - [x] `configs`
-  - [ ] `schemas`
-  - [ ] `scripts`
+  - [x] `schemas`
+  - [x] `scripts`
   - [x] `tests`
-  - [ ] `docker`
-  - [ ] `site`
-- [ ] Add local packaging and developer tooling for the runnable pipeline:
+  - [x] `docker`
+  - [x] `site`
+- [x] Add local packaging and developer tooling for the runnable pipeline:
   - [x] `pyproject.toml`
   - [x] formatter/linter configuration
   - [x] test runner
-  - [ ] basic CI configuration that IT can wire into hosted CI/CD
-- [ ] Implement JSON Schema validation harnesses for:
-  - [ ] `index.jsonl`
-  - [ ] degradation tracking
-  - [ ] submission manifests
-  - [ ] scores
-  - [ ] leaderboard entries
+  - [x] basic CI configuration that IT can wire into hosted CI/CD
+- [x] Implement JSON Schema validation harnesses for:
+  - [x] `index.jsonl`
+  - [x] degradation tracking
+  - [x] submission manifests
+  - [x] scores
+  - [x] leaderboard entries
 
 ### IT/software engineer tasks
 
@@ -77,9 +77,9 @@ Goal: freeze the minimum viable benchmark contract before implementation becomes
 
 ### Shared deliverables
 
-- [ ] Versioned benchmark contract document.
-- [ ] Initial repository layout.
-- [ ] Minimal schema files and validation commands.
+- [x] Versioned benchmark contract document.
+- [x] Initial repository layout.
+- [x] Minimal schema files and validation commands.
 - [x] One tiny fixture dataset used by tests.
 
 ## Phase 1 - Dataset Audit, Ingestion, And Splitting
