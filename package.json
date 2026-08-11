@@ -1,0 +1,8 @@
+{
+  "scripts": {
+    "repomix": "npx -p node@20 -p repomix repomix"
+  },
+  "volta": {
+    "node": "20"
+  }
+}

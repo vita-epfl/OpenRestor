@@ -6,6 +6,16 @@ The pipeline uses only clean SonicMaster originals for main-track training and s
 
 Install the local package with `python -m pip install -e .`. Commands print progress by default; add `--quiet` for automated runs.
 
+## Repository Context
+
+This repository pins Node.js 20 for Repomix via `.nvmrc`, `.node-version`,
+and the `package.json` Volta setting. If your shell does not auto-select Node
+20, run Repomix through the repository script:
+
+```bash
+npm run repomix
+```
+
 ## Dataset Preparation
 
 ```bash
