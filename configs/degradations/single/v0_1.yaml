@@ -26,8 +26,7 @@ recipes:
   - {id: single_volume, severity: ariel_random, operations: [{primitive: ariel, variant: volume, parameters: {}}]}
   # OpenRestore-specific single effects; random ranges are stored in metadata.
   - {id: single_noise, severity: openrestore_random, operations: [{primitive: noise_interference, variant: broadband, parameters: {snr_db: {min: 15, max: 25}}}]}
-  - {id: single_hum, severity: openrestore_random, operations: [{primitive: noise_interference, variant: hum, parameters: {snr_db: {min: 8, max: 16}, frequency_hz: {choices: [50, 60]}, harmonics: {min: 3, max: 5}}}]}
-  - {id: single_codec, severity: openrestore_random, operations: [{primitive: codec_resampling, variant: mp3, parameters: {bitrate: {choices: [64k, 96k, 128k]}}}]}
-  - {id: single_bandwidth, severity: openrestore_random, operations: [{primitive: bandwidth_filtering, variant: telephone, parameters: {}}]}
-  - {id: single_channel_damage, severity: openrestore_random, operations: [{primitive: stereo_spatial, variant: one_channel_damage, parameters: {right_gain_db: {min: -10, max: -5}, cutoff_hz: {min: 2500, max: 5000}, right_lowpass: true}}]}
+  - {id: single_hum, severity: openrestore_random, operations: [{primitive: noise_interference, variant: hum, parameters: {snr_db: {min: 7, max: 14}, frequency_hz: {choices: [50, 60]}, harmonics: {min: 3, max: 5}}}]}
+  - {id: single_codec, severity: openrestore_random, operations: [{primitive: codec_resampling, variant: mp3, parameters: {bitrate: {choices: [48k, 64k, 80k]}}}]}
+  - {id: single_bandwidth, severity: openrestore_random, operations: [{primitive: bandwidth_filtering, variant: lowpass, parameters: {cutoff_hz: {min: 7000, max: 10000}}}]}
   - {id: single_distant_mic_capture, severity: openrestore_random, operations: [{primitive: distant_mic_capture, variant: room_capture, parameters: {}}]}

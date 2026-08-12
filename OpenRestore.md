@@ -250,12 +250,11 @@ OpenRestore v0.1 is effect-first: every single-degradation recipe names the audi
 | `hum` | Noise | Adds 50 or 60 Hz electrical hum with decaying harmonics. | OpenRestore addition; ARIEL already contains a hum helper. | A recognizable real-world electrical fault with clear diagnostic behavior. | OpenRestore addition - implemented | Listening review |
 | `codec` | Codec | Encodes and decodes through a lossy codec such as MP3, AAC, or Opus. | OpenRestore addition; ARIEL and OpenRestore have codec helpers. | Distribution and platform transcodes are common in music restoration inputs. | OpenRestore addition - implemented | Listening review |
 | `bandwidth` | Filtering | Applies telephone, low-pass, high-pass, or low-sample-rate bandwidth loss. | OpenRestore addition; ARIEL has telephone and high-pass helpers. | Separates capture or transmission bandwidth loss from the broader SonicMaster EQ effects. | OpenRestore addition - implemented | Listening review |
-| `channel_damage` | Stereo | Damages one channel through attenuation, filtering, delay, polarity inversion, or dropout. | OpenRestore addition, based on the prior OpenRestore one-channel-damage proposal. | Represents asymmetric capture, cable, and playback faults more precisely than collapsed stereo alone. | OpenRestore addition - implemented | Listening review |
 | `distant_mic_capture` | Capture | Simulates a microphone recording several metres from the source: reduced direct-to-reverberant ratio, distance-related high-frequency loss, and optional low room noise. | OpenRestore addition, using a physically constrained Pyroomacoustics source/microphone geometry. | Covers acoustic distance as a capture problem, not merely reverb added to a close recording. | OpenRestore addition - implemented | Listening review |
 
 #### Asset Requirements
 
-The `mic` effect needs ARIEL-compatible microphone transfer functions in `parameters.mic_ir_dir`. The `real` effect needs compatible RIR WAV files in `parameters.real_rir_dir`. The remaining 23 effects run without external assets. Simulated room effects use the local `pyroomacoustics` dependency.
+The `mic` effect needs ARIEL-compatible microphone transfer functions in `parameters.mic_ir_dir`. The `real` effect needs compatible RIR WAV files in `parameters.real_rir_dir`. The remaining 22 effects run without external assets. Simulated room effects use the local `pyroomacoustics` dependency.
 
 #### Recipe Inventory
 
