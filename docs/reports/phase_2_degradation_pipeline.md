@@ -18,7 +18,7 @@ Phase 2 creates paired training and evaluation data by applying one explicitly s
 | openrestore/degradations/pipeline.py | Recipe loading, per-item deterministic seeds, operation execution, WAV rendering, manifest rows, and checksum output. |
 | openrestore/degradations/cli.py | openrestore-degrade commands: render, validate-config, and list-recipes. |
 | configs/degradations/single/v0_1.yaml | Active, effect-first v0.1 single-effect recipes. |
-| configs/degradations/review_boundaries/v0_1.yaml | Fixed mild/strong listening endpoints for the OpenRestore additions. |
+| configs/degradations/review_boundaries/v0_2.yaml | Fixed mild/strong listening endpoints for the OpenRestore additions. |
 | tests/test_degradations.py | Determinism, canonical-audio, parameter-sampling, runner, and CLI tests. |
 | OpenRestore.md | Effect-level registry, including origin, group, rationale, and status. |
 
@@ -56,7 +56,7 @@ The editable install exposes openrestore-degrade; python -m openrestore.degradat
 
 Automated tests confirm canonical output properties, finite samples, determinism for a fixed seed, changed sampled values for a changed seed, recipe rendering, output-manifest creation, checksums, and CLI config validation.
 
-A local medium listening preview exists under build/degradation_preview/degraded_all_effects_medium_v4. Boundary review uses review_boundaries/v0_1.yaml: fixed minimum and maximum endpoints for each OpenRestore addition. Both are review artifacts, not benchmark releases.
+A local medium listening preview exists under build/degradation_preview/degraded_all_effects_medium_v4. Boundary review uses review_boundaries/v0_2.yaml: fixed minimum and maximum endpoints for each OpenRestore addition. Both are review artifacts, not benchmark releases.
 
 ## Remaining Phase 2 Work
 

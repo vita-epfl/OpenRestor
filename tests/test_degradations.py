@@ -95,8 +95,10 @@ class DegradationPrimitiveTests(TestCase):
         self.assertGreater(np.mean(np.square(noisy - audio)), 0)
 
 
-        clicks, params = apply_operation(audio, SAMPLE_RATE, "noise_interference", "clicks_crackle", {"click_rate_hz": 2, "crackle_rate_hz": 12, "click_level_db": -8, "crackle_level_db": -26}, np.random.default_rng(7))
+        clicks, params = apply_operation(audio, SAMPLE_RATE, "noise_interference", "clicks_crackle", {"click_rate_hz": 2, "crackle_rate_hz": 12, "click_level_db": -2, "crackle_level_db": -18, "click_duration_ms": 3, "crackle_duration_ms": 0.5}, np.random.default_rng(7))
         self.assertGreater(params["click_count"] + params["crackle_count"], 0)
+        self.assertEqual(params["click_duration_ms"], 3)
+        self.assertEqual(params["crackle_duration_ms"], 0.5)
         self.assertGreater(np.mean(np.square(clicks - audio)), 0)
 
         reverb, _ = apply_operation(audio, SAMPLE_RATE, "reverb_room", "small", {"wet": 0.25, "decay_seconds": 0.35}, rng)
@@ -106,6 +108,10 @@ class DegradationPrimitiveTests(TestCase):
         self.assertEqual(params["variant"], "bluetooth_small_speaker_recapture")
         self.assertTrue(params["child_operations"])
         self.assertEqual(damaged.shape, audio.shape)
+
+        distant, distant_params = apply_operation(audio, SAMPLE_RATE, "distant_mic_capture", "room_capture", {"distance_m": 1.5, "absorption": 0.45, "air_absorption_cutoff_hz": 12_000}, np.random.default_rng(2))
+        self.assertEqual(distant.shape, audio.shape)
+        self.assertGreaterEqual(distant_params["room_noise_snr_db"], 100)
 
     @skipUnless(shutil.which("ffmpeg") is not None, "ffmpeg is required for codec roundtrip")
     def test_codec_roundtrip_produces_valid_audio(self) -> None:

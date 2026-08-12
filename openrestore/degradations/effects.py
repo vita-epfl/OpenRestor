@@ -75,7 +75,7 @@ def distant_mic_capture(
     )
     air_cutoff = float(params.get("air_absorption_cutoff_hz", rng.uniform(4_500, 7_000)))
     captured = butter_filter(captured, sample_rate, "lowpass", air_cutoff, order=2)
-    snr_db = float(params.get("room_noise_snr_db", rng.uniform(30, 38)))
+    snr_db = float(params.get("room_noise_snr_db", 1_000))
     if snr_db < 100:
         noise = rng.normal(0, 1, captured.shape).astype(np.float32)
         captured += noise * (rms(captured) / max(rms(noise) * (10 ** (snr_db / 20)), 1e-8))
@@ -262,16 +262,18 @@ def noise_interference(
     elif variant == "clicks_crackle":
         click_rate_hz = float(params.get("click_rate_hz", 1.5))
         crackle_rate_hz = float(params.get("crackle_rate_hz", 14.0))
-        click_level_db = float(params.get("click_level_db", -8.0))
-        crackle_level_db = float(params.get("crackle_level_db", -26.0))
+        click_level_db = float(params.get("click_level_db", -2.0))
+        crackle_level_db = float(params.get("crackle_level_db", -18.0))
+        click_duration_ms = float(params.get("click_duration_ms", 3.0))
+        crackle_duration_ms = float(params.get("crackle_duration_ms", 0.5))
         click_count = int(rng.poisson(click_rate_hz * len(audio) / sample_rate))
         crackle_count = int(rng.poisson(crackle_rate_hz * len(audio) / sample_rate))
         noise = np.zeros_like(audio, dtype=np.float32)
         signal_rms = rms(audio)
-        for count, level_db, width_range in ((click_count, click_level_db, (8, 48)), (crackle_count, crackle_level_db, (2, 12))):
+        for count, level_db, duration_ms in ((click_count, click_level_db, click_duration_ms), (crackle_count, crackle_level_db, crackle_duration_ms)):
             for _ in range(count):
                 start = int(rng.integers(0, len(audio)))
-                width = int(rng.integers(*width_range))
+                width = max(1, int(sample_rate * duration_ms / 1000))
                 end = min(len(audio), start + width)
                 envelope = np.exp(-np.arange(end - start, dtype=np.float32) / max(width / 5.0, 1.0))
                 amplitude = signal_rms * (10 ** (level_db / 20)) * rng.choice([-1.0, 1.0])
@@ -282,6 +284,8 @@ def noise_interference(
             "variant": variant,
             "click_count": click_count,
             "crackle_count": crackle_count,
+            "click_duration_ms": click_duration_ms,
+            "crackle_duration_ms": crackle_duration_ms,
         }
     elif variant == "buzz":
         noise = rng.normal(0, 1, audio.shape).astype(np.float32)
