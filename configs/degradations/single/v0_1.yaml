@@ -26,7 +26,6 @@ recipes:
   - {id: single_volume, severity: ariel_random, operations: [{primitive: ariel, variant: volume, parameters: {}}]}
   # OpenRestore-specific single effects; random ranges are stored in metadata.
   - {id: single_noise, severity: openrestore_random, operations: [{primitive: noise_interference, variant: broadband, parameters: {snr_db: {min: 15, max: 25}}}]}
-  - {id: single_hiss, severity: openrestore_random, operations: [{primitive: noise_interference, variant: hiss, parameters: {snr_db: {min: 16, max: 24}}}]}
   - {id: single_hum, severity: openrestore_random, operations: [{primitive: noise_interference, variant: hum, parameters: {snr_db: {min: 7, max: 14}, frequency_hz: {choices: [50, 60]}, harmonics: {min: 3, max: 5}}}]}
   - {id: single_clicks_crackle, severity: openrestore_random, operations: [{primitive: noise_interference, variant: clicks_crackle, parameters: {click_rate_hz: {min: 1.0, max: 3.0}, crackle_rate_hz: {min: 8.0, max: 20.0}, click_level_db: {min: -10, max: -6}, crackle_level_db: {min: -30, max: -22}}}]}
   - {id: single_codec, severity: openrestore_random, operations: [{primitive: codec_resampling, variant: mp3, parameters: {bitrate: {choices: [48k, 64k, 80k]}}}]}

@@ -145,13 +145,13 @@ Goal: generate deterministic, realistic degraded musical audio with complete met
 
 ### Current v0.1 Contract
 
-OpenRestore is now effect-first. The active single-effect registry has 26 rows: the 19 ARIEL/SonicMaster parity effects plus seven OpenRestore additions. Categories remain metadata and reporting groups, not recipe IDs. Every output has one explicitly selected effect; the runner never samples effect choices or combines effects. Normal dataset recipes use deterministic randomized parameters within that selected effect; medium_preview is a separate, fixed-central listening profile.
+OpenRestore is now effect-first. The active single-effect registry has 25 rows: the 19 ARIEL/SonicMaster parity effects plus six OpenRestore additions. Categories remain metadata and reporting groups, not recipe IDs. Every output has one explicitly selected effect; the runner never samples effect choices or combines effects. Normal dataset recipes use deterministic randomized parameters within that selected effect; medium_preview is a separate, fixed-central listening profile.
 
 ### Research/audio engineer tasks
 
-- [x] Define and document the 26-effect v0.1 registry, including origin, group, relevance, status, and benchmark role.
+- [x] Define and document the 25-effect v0.1 registry, including origin, group, relevance, status, and benchmark role.
 - [x] Port the 19 ARIEL/SonicMaster single effects: `comp`, `punch`, `xband`, `mic`, `bright`, `dark`, `airy`, `boom`, `clarity`, `mud`, `warm`, `vocal`, `small`, `big`, `mix`, `real`, `stereo`, `clip`, and `volume`.
-- [x] Implement the seven OpenRestore additions: noise, hiss, hum, clicks_crackle, codec, bandwidth, and distant_mic_capture.
+- [x] Implement the six OpenRestore additions: noise, hum, clicks_crackle, codec, bandwidth, and distant_mic_capture.
 - [x] Keep simulated room behavior local through `pyroomacoustics`; support optional ARIEL-compatible microphone-transfer-function and real-RIR assets without requiring them for the core test suite.
 - [x] Implement deterministic per-item and per-operation seeds, with sampled values recorded in output metadata.
 - [x] Implement full operation tracking: recipe ID/type, severity label, seed, operation ID/variant, sampled parameters, output path, and SHA-256 checksum.
@@ -162,12 +162,12 @@ OpenRestore is now effect-first. The active single-effect registry has 26 rows: 
   - [x] output JSONL manifest and per-file checksums
   - [x] local progress logging
 - [x] Add generated stereo fixtures and deterministic pipeline tests.
-- [x] Run a three-song, 26-effect medium listening preview: 78 WAVs with verified manifest paths and checksums.
+- [x] Run a three-song, 25-effect medium listening preview: 75 WAVs with verified manifest paths and checksums.
 - [x] Perform an initial listening review and tune the medium hum profile to an audible 50 Hz signal with harmonics.
 
 ### Remaining research/audio work
 
-- [ ] Add effect-level automated tests for all 26 active effects. Current tests cover the generic runner and core primitives, but not every ARIEL/OpenRestore effect's audible behavior, metadata, and deterministic checksum.
+- [ ] Add effect-level automated tests for all 25 active effects. Current tests cover the generic runner and core primitives, but not every ARIEL/OpenRestore effect's audible behavior, metadata, and deterministic checksum.
 - [ ] Calibrate normal dataset parameter distributions from listening review and, where possible, real degraded music. The current medium profile is for review, not a final scientific distribution.
 - [ ] Package or acquire release-approved microphone transfer functions and real RIR assets. The current preview uses local ARIEL asset paths; the released pipeline must not depend on `/home/.../ARIEL`.
 - [ ] Decide whether `volume` is benchmark-critical or remains SonicMaster-parity-only, given overlap with existing ARIEL volume behavior.
@@ -190,9 +190,9 @@ OpenRestore is now effect-first. The active single-effect registry has 26 rows: 
 
 ### Shared deliverables
 
-- [x] `configs/degradations/single/v0_1.yaml` with the 26-effect single registry.
+- [x] `configs/degradations/single/v0_1.yaml` with the 25-effect single registry.
 - [x] deterministic degradation Command-Line Interface ("CLI").
-- [x] first local listening preview: 78 degraded examples across 26 effects.
+- [x] first local listening preview: 75 degraded examples across 25 effects.
 - [ ] effect-by-effect listening and validation notes.
 - [ ] first shard-backed degraded miniature release.
 

@@ -51,7 +51,6 @@ class DegradationPrimitiveTests(TestCase):
             ("stereo_spatial", "width", {"width": {"min": 0.3, "max": 0.8}}),
             ("bandwidth_filtering", "lowpass", {"cutoff_hz": {"min": 4_000, "max": 8_000}}),
             ("noise_interference", "broadband", {"snr_db": {"min": 18, "max": 24}}),
-            ("noise_interference", "hiss", {"snr_db": {"min": 16, "max": 24}}),
             ("noise_interference", "clicks_crackle", {"click_rate_hz": {"min": 1, "max": 3}, "crackle_rate_hz": {"min": 8, "max": 20}, "click_level_db": -8, "crackle_level_db": -26}),
             ("device_mic_response", "consumer_mic", {"high_hz": 6_000, "self_noise_snr_db": 28}),
             ("codec_resampling", "resampling", {"intermediate_sample_rate": {"min": 12_000, "max": 18_000}}),
@@ -95,8 +94,6 @@ class DegradationPrimitiveTests(TestCase):
         noisy, _ = apply_operation(audio, SAMPLE_RATE, "noise_interference", "broadband", {"snr_db": 12}, rng)
         self.assertGreater(np.mean(np.square(noisy - audio)), 0)
 
-        hiss, _ = apply_operation(audio, SAMPLE_RATE, "noise_interference", "hiss", {"snr_db": 18}, rng)
-        self.assertGreater(_band_energy(hiss - audio, 6_000, 12_000), _band_energy(hiss - audio, 100, 1_000))
 
         clicks, params = apply_operation(audio, SAMPLE_RATE, "noise_interference", "clicks_crackle", {"click_rate_hz": 2, "crackle_rate_hz": 12, "click_level_db": -8, "crackle_level_db": -26}, np.random.default_rng(7))
         self.assertGreater(params["click_count"] + params["crackle_count"], 0)
