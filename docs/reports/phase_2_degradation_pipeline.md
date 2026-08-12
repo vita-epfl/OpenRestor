@@ -23,10 +23,10 @@ Phase 2 creates paired training and evaluation data by applying one explicitly s
 
 ## Implemented Single-Effect Set
 
-The active configuration contains 24 effects.
+The active configuration contains 26 effects.
 
 - SonicMaster/ARIEL baseline: comp, punch, xband, mic, bright, dark, airy, boom, clarity, mud, warm, vocal, small, big, mix, real, stereo, clip, and volume.
-- OpenRestore additions: noise, hum, codec, bandwidth, and distant_mic_capture.
+- OpenRestore additions: noise, hiss, hum, clicks_crackle, codec, bandwidth, and distant_mic_capture.
 
 distant_mic_capture is the far-from-source recording simulation: a deterministic local room model, direct-to-reverberant balance, bandwidth reduction, and microphone self-noise. It runs without external RIR assets. The real and mic ARIEL-compatible effects can use optional external assets when configured, but the baseline renderer and tests do not require them.
 
@@ -55,7 +55,7 @@ The editable install exposes openrestore-degrade; python -m openrestore.degradat
 
 Automated tests confirm canonical output properties, finite samples, determinism for a fixed seed, changed sampled values for a changed seed, recipe rendering, output-manifest creation, checksums, and CLI config validation.
 
-A local listening preview exists under build/degradation_preview/degraded_all_effects_medium_v2: 72 WAVs, representing 3 clean songs multiplied by the 25 current effects at a controlled medium-strength preview profile. It is a review artifact, not a benchmark release.
+A local listening preview exists under build/degradation_preview/degraded_all_effects_medium_v3: 78 WAVs, representing 3 clean songs multiplied by the 26 current effects at a controlled medium-strength preview profile. It is a review artifact, not a benchmark release.
 
 ## Remaining Phase 2 Work
 

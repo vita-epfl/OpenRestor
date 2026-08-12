@@ -259,6 +259,30 @@ def noise_interference(
         t = np.arange(len(audio), dtype=np.float32) / sample_rate
         noise = sum(np.sin(2 * math.pi * freq * (i + 1) * t) / (i + 1) for i in range(harmonics))
         noise = np.column_stack([noise, noise]).astype(np.float32)
+    elif variant == "clicks_crackle":
+        click_rate_hz = float(params.get("click_rate_hz", 1.5))
+        crackle_rate_hz = float(params.get("crackle_rate_hz", 14.0))
+        click_level_db = float(params.get("click_level_db", -8.0))
+        crackle_level_db = float(params.get("crackle_level_db", -26.0))
+        click_count = int(rng.poisson(click_rate_hz * len(audio) / sample_rate))
+        crackle_count = int(rng.poisson(crackle_rate_hz * len(audio) / sample_rate))
+        noise = np.zeros_like(audio, dtype=np.float32)
+        signal_rms = rms(audio)
+        for count, level_db, width_range in ((click_count, click_level_db, (8, 48)), (crackle_count, crackle_level_db, (2, 12))):
+            for _ in range(count):
+                start = int(rng.integers(0, len(audio)))
+                width = int(rng.integers(*width_range))
+                end = min(len(audio), start + width)
+                envelope = np.exp(-np.arange(end - start, dtype=np.float32) / max(width / 5.0, 1.0))
+                amplitude = signal_rms * (10 ** (level_db / 20)) * rng.choice([-1.0, 1.0])
+                noise[start:end] += (amplitude * envelope)[:, None]
+        result = audio + noise
+        return limit_audio(result), {
+            **params,
+            "variant": variant,
+            "click_count": click_count,
+            "crackle_count": crackle_count,
+        }
     elif variant == "buzz":
         noise = rng.normal(0, 1, audio.shape).astype(np.float32)
         noise = butter_filter(noise, sample_rate, "bandpass", (80, 5_000), order=2)
