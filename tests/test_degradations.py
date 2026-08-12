@@ -176,6 +176,20 @@ recipes:
                 self.assertEqual(row["degradation_tracking"]["item_seed"], row["degradation_seed"])
             self.assertEqual(len(read_jsonl(checksums)), 1)
 
+    def test_boundary_parameters_are_seed_independent(self) -> None:
+        recipe = {
+            "id": "review_min_noise",
+            "severity": "minimum_preview",
+            "operations": [{"primitive": "noise_interference", "variant": "broadband", "parameters": {"snr_db": 25, "review_boundary": "minimum"}}],
+        }
+        first, first_params = apply_recipe(_fixture_audio(), SAMPLE_RATE, "item", recipe, 1)
+        second, second_params = apply_recipe(_fixture_audio(), SAMPLE_RATE, "item", recipe, 2)
+        self.assertNotEqual(first_params[0]["seed"], second_params[0]["seed"])
+        self.assertFalse(np.allclose(first, second))
+        self.assertEqual(first_params[0]["parameters"], second_params[0]["parameters"])
+        self.assertEqual(first_params[0]["parameters"]["snr_db"], 25)
+        self.assertEqual(first_params[0]["parameters"]["review_boundary"], "minimum")
+
     def test_cli_list_recipes_and_render(self) -> None:
         with TemporaryDirectory() as directory:
             tmp = Path(directory)

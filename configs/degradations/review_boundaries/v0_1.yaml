@@ -1,0 +1,17 @@
+version: v0.1
+sample_rate: 44100
+# Fixed endpoints for listening review. Normal dataset rendering uses
+# configs/degradations/single/v0_1.yaml and samples within its ranges.
+recipes:
+  - {id: review_min_noise, severity: minimum_preview, operations: [{primitive: noise_interference, variant: broadband, parameters: {snr_db: 25, review_boundary: minimum}}]}
+  - {id: review_max_noise, severity: maximum_preview, operations: [{primitive: noise_interference, variant: broadband, parameters: {snr_db: 15, review_boundary: maximum}}]}
+  - {id: review_min_hum, severity: minimum_preview, operations: [{primitive: noise_interference, variant: hum, parameters: {snr_db: 14, frequency_hz: 50, harmonics: 3, review_boundary: minimum}}]}
+  - {id: review_max_hum, severity: maximum_preview, operations: [{primitive: noise_interference, variant: hum, parameters: {snr_db: 7, frequency_hz: 60, harmonics: 5, review_boundary: maximum}}]}
+  - {id: review_min_clicks_crackle, severity: minimum_preview, operations: [{primitive: noise_interference, variant: clicks_crackle, parameters: {click_rate_hz: 1.0, crackle_rate_hz: 8.0, click_level_db: -10, crackle_level_db: -30, review_boundary: minimum}}]}
+  - {id: review_max_clicks_crackle, severity: maximum_preview, operations: [{primitive: noise_interference, variant: clicks_crackle, parameters: {click_rate_hz: 3.0, crackle_rate_hz: 20.0, click_level_db: -6, crackle_level_db: -22, review_boundary: maximum}}]}
+  - {id: review_min_codec, severity: minimum_preview, operations: [{primitive: codec_resampling, variant: mp3, parameters: {bitrate: 80k, review_boundary: minimum}}]}
+  - {id: review_max_codec, severity: maximum_preview, operations: [{primitive: codec_resampling, variant: mp3, parameters: {bitrate: 48k, review_boundary: maximum}}]}
+  - {id: review_min_bandwidth, severity: minimum_preview, operations: [{primitive: bandwidth_filtering, variant: lowpass, parameters: {cutoff_hz: 10000, review_boundary: minimum}}]}
+  - {id: review_max_bandwidth, severity: maximum_preview, operations: [{primitive: bandwidth_filtering, variant: lowpass, parameters: {cutoff_hz: 7000, review_boundary: maximum}}]}
+  - {id: review_min_distant_mic_capture, severity: minimum_preview, operations: [{primitive: distant_mic_capture, variant: room_capture, parameters: {distance_m: 3.0, absorption: 0.30, air_absorption_cutoff_hz: 9000, room_noise_snr_db: 38, review_boundary: minimum}}]}
+  - {id: review_max_distant_mic_capture, severity: maximum_preview, operations: [{primitive: distant_mic_capture, variant: room_capture, parameters: {distance_m: 8.0, absorption: 0.12, air_absorption_cutoff_hz: 4500, room_noise_snr_db: 28, review_boundary: maximum}}]}

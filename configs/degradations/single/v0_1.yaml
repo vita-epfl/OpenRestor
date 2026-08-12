@@ -30,4 +30,4 @@ recipes:
   - {id: single_clicks_crackle, severity: openrestore_random, operations: [{primitive: noise_interference, variant: clicks_crackle, parameters: {click_rate_hz: {min: 1.0, max: 3.0}, crackle_rate_hz: {min: 8.0, max: 20.0}, click_level_db: {min: -10, max: -6}, crackle_level_db: {min: -30, max: -22}}}]}
   - {id: single_codec, severity: openrestore_random, operations: [{primitive: codec_resampling, variant: mp3, parameters: {bitrate: {choices: [48k, 64k, 80k]}}}]}
   - {id: single_bandwidth, severity: openrestore_random, operations: [{primitive: bandwidth_filtering, variant: lowpass, parameters: {cutoff_hz: {min: 7000, max: 10000}}}]}
-  - {id: single_distant_mic_capture, severity: openrestore_random, operations: [{primitive: distant_mic_capture, variant: room_capture, parameters: {}}]}
+  - {id: single_distant_mic_capture, severity: openrestore_random, operations: [{primitive: distant_mic_capture, variant: room_capture, parameters: {distance_m: {min: 3.0, max: 8.0}, absorption: {min: 0.12, max: 0.30}, air_absorption_cutoff_hz: {min: 4500, max: 9000}, room_noise_snr_db: {min: 28, max: 38}}}]}

@@ -164,6 +164,7 @@ OpenRestore is now effect-first. The active single-effect registry has 25 rows: 
 - [x] Add generated stereo fixtures and deterministic pipeline tests.
 - [x] Run a three-song, 25-effect medium listening preview: 75 WAVs with verified manifest paths and checksums.
 - [x] Perform an initial listening review and tune the medium hum profile to an audible 50 Hz signal with harmonics.
+- [x] Add fixed minimum/maximum listening-boundary recipes for the six OpenRestore additions; normal datasets still sample deterministically within approved ranges.
 
 ### Remaining research/audio work
 
