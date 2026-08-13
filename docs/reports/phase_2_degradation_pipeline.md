@@ -2,7 +2,7 @@
 
 ## Status
 
-In progress. The current v0.1 single-effect renderer is implemented and verified with unit, CLI, and listening-preview runs. The complete Phase 2 release workflow is not yet finished: compound recipe families, shard-backed degraded release, and production batch orchestration remain open.
+In progress. The current v0.1 single-effect renderer is implemented and verified with unit, CLI, and listening-preview runs. The complete Phase 2 release workflow is not yet finished: normal-parameter calibration, release-approved external assets, the `volume` decision, and production batch orchestration remain open.
 
 ## Purpose
 
@@ -15,8 +15,8 @@ Phase 2 creates paired training and evaluation data by applying one explicitly s
 | openrestore/degradations/core.py | Audio I/O, canonicalization, seeded sampling, peak safety, checksums, and FFmpeg codec round trips. |
 | openrestore/degradations/ariel_effects.py | OpenRestore-local adaptation of the 19 selected SonicMaster/ARIEL effect implementations. |
 | openrestore/degradations/effects.py | Effect registry, legacy primitive handlers, ARIEL-effect dispatch, and distant-microphone capture. |
-| openrestore/degradations/pipeline.py | Recipe loading, per-item deterministic seeds, operation execution, WAV rendering, manifest rows, and checksum output. |
-| openrestore/degradations/cli.py | openrestore-degrade commands: render, validate-config, and list-recipes. |
+| openrestore/degradations/pipeline.py | Recipe loading, per-item deterministic seeds, operation execution, WAV rendering, manifest rows, checksums, HDF5 shards, and release index writing. |
+| openrestore/degradations/cli.py | `openrestore-degrade` commands: render, shard, validate-config, and list-recipes. |
 | configs/degradations/single/v0_1.yaml | Active, effect-first v0.1 single-effect recipes. |
 | configs/degradations/review_boundaries/v0_2.yaml | Fixed mild/strong listening endpoints for the OpenRestore additions. |
 | tests/test_degradations.py | Determinism, canonical-audio, parameter-sampling, runner, and CLI tests. |
@@ -39,6 +39,7 @@ distant_mic_capture is the far-from-source recording simulation: a deterministic
 4. Parameter ranges are sampled from that seed. Mild, medium, and strong are severity bands, not fixed parameter values.
 5. The renderer applies the effect, restores canonical sample rate/channel layout, checks finite samples and peak safety, and writes a WAV.
 6. It writes one output-manifest row per degraded example and a separate SHA-256 checksum record.
+7. `shard` packages rendered WAVs into compressed HDF5 files and writes a release index with `degraded_audio_shard` plus `degraded_audio_shard_index` for every row.
 
 Every degraded manifest row preserves clean-row context and adds clean_path, degraded_path, degradation_recipe_id, severity, degradation_seed, degradation_tracking, degradation_params, and degraded_audio_sha256.
 
@@ -49,22 +50,22 @@ degradation_tracking is the compact audit trail. degradation_params stores the c
     openrestore-degrade validate-config --config configs/degradations/single/v0_1.yaml
     openrestore-degrade list-recipes --config configs/degradations/single/v0_1.yaml
     openrestore-degrade render --manifest build/clean/clean_manifest.jsonl --clean-root build/clean/audio --output-root build/degraded --config configs/degradations/single/v0_1.yaml --output-manifest build/degraded/manifest.jsonl --checksums build/degraded/checksums.jsonl --seed 20260714
+    openrestore-degrade shard --output-root build/degraded --manifest build/degraded/manifest.jsonl --shards-dir build/release/shards --output-index build/release/index.jsonl --shard-size 1000
 
 The editable install exposes openrestore-degrade; python -m openrestore.degradations.cli is the fallback when a shell has not been refreshed after installation.
 
 ## Verification In Place
 
-Automated tests confirm canonical output properties, finite samples, determinism for a fixed seed, changed sampled values for a changed seed, recipe rendering, output-manifest creation, checksums, and CLI config validation.
+Automated tests confirm canonical output properties, finite samples, determinism for a fixed seed, changed sampled values for a changed seed, recipe rendering, output-manifest creation, checksums, HDF5 shard/index layout, CLI execution, all active-effect dispatch paths, and actionable failure messages for missing assets, FFmpeg, and invalid room bounds. `python -m unittest tests.test_degradations` passes all eight tests.
 
-A local medium listening preview exists under build/degradation_preview/degraded_all_effects_medium_v4. Boundary review uses review_boundaries/v0_2.yaml: fixed minimum and maximum endpoints for each OpenRestore addition. Both are review artifacts, not benchmark releases.
+A local medium listening preview exists under build/degradation_preview/degraded_all_effects_medium_v4. Boundary review uses review_boundaries/v0_2.yaml: fixed minimum and maximum endpoints for each OpenRestore addition. The 75-output medium preview has also been packaged as `build/degradation_preview/release_candidate_v0_1`: eight HDF5 shards and an index whose paths are portable within that directory. All of these remain review artifacts, not benchmark releases.
 
 ## Remaining Phase 2 Work
 
-- Add effect-specific perceptual/regression tests and complete random-severity review for all single effects.
-- Implement production-scale deterministic partitioning, retry/resume behavior, and validated merging.
-- Connect degraded WAV/JSONL outputs to the final shard and index release flow.
-- Produce and freeze the first shard-backed degraded miniature release with its full provenance.
-- Decide whether stereo and channel_damage remain separate after formal listening and metric checks.
+- Calibrate and formally accept the normal parameter ranges through effect-by-effect listening, including the newly reviewed minimum/maximum endpoints.
+- Package or acquire release-approved microphone transfer functions and real RIRs, with provenance and checksums; the release cannot depend on developer-local ARIEL paths.
+- Decide whether `volume` is benchmark-critical or SonicMaster-parity-only. `channel_damage` is no longer in the active registry.
+- Freeze the shard-backed miniature candidate only after the parameter and asset decisions; then implement production-scale deterministic partitioning, retry/resume behavior, and validated merging.
 
 ## Next Steps For IT
 

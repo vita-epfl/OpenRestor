@@ -154,13 +154,14 @@ OpenRestore is now effect-first. The active single-effect registry has 25 rows: 
 - [x] Implement the six OpenRestore additions: noise, hum, clicks_crackle, codec, bandwidth, and distant_mic_capture.
 - [x] Keep simulated room behavior local through `pyroomacoustics`; support optional ARIEL-compatible microphone-transfer-function and real-RIR assets without requiring them for the core test suite.
 - [x] Implement deterministic per-item and per-operation seeds, with sampled values recorded in output metadata.
-- [x] Implement full operation tracking: recipe ID/type, severity label, seed, operation ID/variant, sampled parameters, output path, and SHA-256 checksum.
+- [x] Implement full operation tracking: recipe ID, severity label, seed, operation ID/variant, sampled parameters, output path, and SHA-256 checksum.
 - [x] Implement the local `openrestore-degrade` command:
   - [x] YAML config loading and validation
   - [x] recipe listing
   - [x] deterministic batch WAV rendering
   - [x] output JSONL manifest and per-file checksums
   - [x] local progress logging
+  - [x] deterministic HDF5 shard packaging and shard-index writing
 - [x] Add generated stereo fixtures and deterministic pipeline tests.
 - [x] Run a three-song, 25-effect medium listening preview: 75 WAVs with verified manifest paths and checksums.
 - [x] Perform an initial listening review and tune the medium hum profile to an audible 50 Hz signal with harmonics.
@@ -168,16 +169,16 @@ OpenRestore is now effect-first. The active single-effect registry has 25 rows: 
 
 ### Remaining research/audio work
 
-- [ ] Add effect-level automated tests for all 25 active effects. Current tests cover the generic runner and core primitives, but not every ARIEL/OpenRestore effect's audible behavior, metadata, and deterministic checksum.
+- [x] Add execution/metadata/determinism coverage for all 25 active effects. Tests execute the six OpenRestore effects and all non-asset ARIEL effects twice with fixed seeds; the `mic` and `real` missing-asset paths are tested explicitly.
 - [ ] Calibrate normal dataset parameter distributions from listening review and, where possible, real degraded music. The current medium profile is for review, not a final scientific distribution.
 - [ ] Package or acquire release-approved microphone transfer functions and real RIR assets. The current preview uses local ARIEL asset paths; the released pipeline must not depend on `/home/.../ARIEL`.
 - [ ] Decide whether `volume` is benchmark-critical or remains SonicMaster-parity-only, given overlap with existing ARIEL volume behavior.
-- [ ] Add degraded HDF5 shard writing and integration with the canonical dataset `index.jsonl`; the current renderer writes canonical WAVs plus a separate output manifest.
-- [ ] Define failure handling for unavailable assets, FFmpeg failures, and long-running room simulations, then add coverage for those paths.
+- [x] Add degraded HDF5 shard writing and a release index that points each row at `degraded_audio_shard` and `degraded_audio_shard_index`. The WAV manifest remains the rendering provenance; the shard index is the release-facing reader contract.
+- [x] Define and test failure handling for unavailable assets, FFmpeg failures, and oversized room simulations. Asset and FFmpeg errors are actionable; distant-room `max_order` is bounded to 0-10 and invalid geometry is rejected before simulation.
 
 ### Checkable evidence
 
-- [x] `python3 -m unittest discover -s tests`: 6 tests passing.
+- [x] `python -m unittest tests.test_degradations`: 8 tests passing, including all-effect execution, HDF5, CLI shard, and failure-path coverage.
 - [x] validate-config passes for the active single-effect configuration.
 - [x] The medium preview has 75 valid WAVs across 25 effects; every stored SHA-256 checksum matches its file.
 
@@ -195,7 +196,7 @@ OpenRestore is now effect-first. The active single-effect registry has 25 rows: 
 - [x] deterministic degradation Command-Line Interface ("CLI").
 - [x] first local listening preview: 75 degraded examples across 25 effects.
 - [ ] effect-by-effect listening and validation notes.
-- [ ] first shard-backed degraded miniature release.
+- [x] first local shard-backed degraded miniature candidate: 75 preview outputs in eight HDF5 shards with a portable `index.jsonl`. It remains a candidate until ranges and approved external assets are frozen.
 
 ## Phase 3 - Metrics, AAE Diagnostics, And Reports
 

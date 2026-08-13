@@ -7,7 +7,7 @@ name = "openrestore"
 version = "0.1.0"
 description = "Reproducible dataset preparation for the OpenRestore benchmark"
 requires-python = ">=3.11"
-dependencies = ["PyYAML>=6.0", "numpy>=1.24", "scipy>=1.10", "soundfile>=0.12", "librosa>=0.10", "pyloudnorm>=0.1", "pyroomacoustics>=0.7", "jsonschema>=4.0", "matplotlib>=3.7"]
+dependencies = ["PyYAML>=6.0", "numpy>=1.24", "scipy>=1.10", "soundfile>=0.12", "librosa>=0.10", "pyloudnorm>=0.1", "pyroomacoustics>=0.7", "jsonschema>=4.0", "matplotlib>=3.7", "h5py>=3.10"]
 
 [project.scripts]
 openrestore-data = "openrestore.data.cli:main"

@@ -150,8 +150,13 @@ def run_ffmpeg_codec(audio: np.ndarray, sample_rate: int, codec: str, bitrate: s
             "2",
             str(output_path),
         ]
-        subprocess.run(encode, check=True)
-        subprocess.run(decode, check=True)
+        try:
+            subprocess.run(encode, check=True)
+            subprocess.run(decode, check=True)
+        except FileNotFoundError as error:
+            raise RuntimeError("codec_resampling requires FFmpeg on PATH") from error
+        except subprocess.CalledProcessError as error:
+            raise RuntimeError(f"FFmpeg codec roundtrip failed for {codec} at {bitrate}") from error
         result, _ = read_audio(output_path)
     return match_length(result, len(audio))
 

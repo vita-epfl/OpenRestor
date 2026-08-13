@@ -38,6 +38,7 @@ The active single-effect registry has 25 degradations. Validate and inspect it w
 ```bash
 openrestore-degrade validate-config --config configs/degradations/single/v0_1.yaml
 openrestore-degrade list-recipes --config configs/degradations/single/v0_1.yaml
+openrestore-degrade shard --output-root build/degraded --manifest build/degraded/manifest.jsonl --shards-dir build/release/shards --output-index build/release/index.jsonl --shard-size 1000
 ```
 
 For the exact render contract, storage layout, optional-asset handling, acceptance checks, and IT responsibilities, read [the IT handoff](docs/it_handoff.md). The versioned task and ownership contract is [docs/benchmark_contract.md](docs/benchmark_contract.md).

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -193,3 +195,52 @@ def _compact_params(params: dict[str, Any]) -> dict[str, Any]:
         elif isinstance(value, (str, int, float, bool)) or value is None:
             compact[key] = value
     return compact
+
+
+def write_hdf5_shards(
+    output_root: Path,
+    manifest_path: Path,
+    shards_dir: Path,
+    output_index: Path,
+    shard_size: int = 1_000,
+    progress: bool = False,
+) -> list[dict[str, Any]]:
+    """Package rendered degraded WAVs into deterministic HDF5 shards and write their index."""
+    try:
+        import h5py
+    except ImportError as error:
+        raise RuntimeError("HDF5 sharding requires the h5py package") from error
+
+    rows = read_jsonl(manifest_path)
+    if shard_size < 1:
+        raise ValueError("shard_size must be at least 1")
+    shards_dir.mkdir(parents=True, exist_ok=True)
+    indexed_rows: list[dict[str, Any]] = []
+    shard_total = (len(rows) + shard_size - 1) // shard_size
+    _log(progress, f"[degrade-shard] writing {len(rows)} examples into {shard_total} HDF5 shards")
+    text_type = h5py.string_dtype(encoding="utf-8")
+
+    for shard_number, start in enumerate(range(0, len(rows), shard_size)):
+        chunk = rows[start : start + shard_size]
+        decoded = [read_audio(output_root / row["degraded_path"])[0] for row in chunk]
+        first_shape = decoded[0].shape if decoded else (0, 2)
+        if any(audio.shape != first_shape for audio in decoded):
+            raise ValueError("HDF5 sharding requires canonical equal-length degraded audio")
+        shard_path = shards_dir / f"degraded-{shard_number:05d}.h5"
+        with h5py.File(shard_path, "w") as shard:
+            shard.attrs["format"] = "openrestore.degraded.v0.1"
+            shard.attrs["sample_rate"] = CANONICAL_SAMPLE_RATE
+            shard.attrs["samples"] = first_shape[0]
+            shard.attrs["channels"] = first_shape[1]
+            shard.create_dataset("audio", data=np.stack(decoded), compression="gzip", shuffle=True)
+            shard.create_dataset("item_id", data=[str(row["id"]) for row in chunk], dtype=text_type)
+            shard.create_dataset("clean_id", data=[str(row["clean_id"]) for row in chunk], dtype=text_type)
+            shard.create_dataset("degraded_path", data=[str(row["degraded_path"]) for row in chunk], dtype=text_type)
+            shard.create_dataset("manifest_json", data=[json.dumps(row, sort_keys=True) for row in chunk], dtype=text_type)
+        shard_reference = os.path.relpath(shard_path, output_index.parent).replace(os.sep, "/")
+        for offset, row in enumerate(chunk):
+            indexed_rows.append({**row, "degraded_audio_shard": shard_reference, "degraded_audio_shard_index": offset})
+        _log(progress, f"[degrade-shard] wrote {shard_number + 1}/{shard_total}: {shard_path}")
+
+    write_jsonl(output_index, indexed_rows)
+    return indexed_rows

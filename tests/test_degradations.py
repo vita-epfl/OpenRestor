@@ -9,14 +9,15 @@ import wave
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import TestCase, skipUnless
+from unittest.mock import patch
 
 import numpy as np
 import soundfile as sf
 from scipy import signal
 
-from openrestore.degradations.core import read_jsonl, sha256_file, write_jsonl
+from openrestore.degradations.core import read_jsonl, run_ffmpeg_codec, sha256_file, write_jsonl
 from openrestore.degradations.effects import apply_operation
-from openrestore.degradations.pipeline import apply_recipe, render_degradations, validate_config
+from openrestore.degradations.pipeline import apply_recipe, render_degradations, validate_config, write_hdf5_shards
 
 SAMPLE_RATE = 44_100
 
@@ -113,6 +114,33 @@ class DegradationPrimitiveTests(TestCase):
         self.assertEqual(distant.shape, audio.shape)
         self.assertGreaterEqual(distant_params["room_noise_snr_db"], 100)
 
+    def test_ariel_effect_registry_is_deterministic_and_tracks_effects(self) -> None:
+        audio = _fixture_audio(0.25)
+        effects = (
+            "comp", "punch", "xband", "bright", "dark", "airy", "boom", "clarity",
+            "mud", "warm", "vocal", "small", "big", "mix", "stereo", "clip", "volume",
+        )
+        for effect in effects:
+            first, first_params = apply_operation(audio, SAMPLE_RATE, "ariel", effect, {}, np.random.default_rng(42))
+            second, second_params = apply_operation(audio, SAMPLE_RATE, "ariel", effect, {}, np.random.default_rng(42))
+            self.assertEqual(first.shape, audio.shape, effect)
+            self.assertTrue(np.isfinite(first).all(), effect)
+            self.assertTrue(np.allclose(first, second), effect)
+            self.assertEqual(first_params, second_params, effect)
+            self.assertEqual(first_params["effect"], effect)
+
+    def test_asset_and_external_tool_failures_are_actionable(self) -> None:
+        audio = _fixture_audio(0.1)
+        with self.assertRaisesRegex(FileNotFoundError, "mic_ir_dir"):
+            apply_operation(audio, SAMPLE_RATE, "ariel", "mic", {}, np.random.default_rng(1))
+        with self.assertRaisesRegex(FileNotFoundError, "real_rir_dir"):
+            apply_operation(audio, SAMPLE_RATE, "ariel", "real", {}, np.random.default_rng(1))
+        with patch("openrestore.degradations.core.subprocess.run", side_effect=FileNotFoundError):
+            with self.assertRaisesRegex(RuntimeError, "FFmpeg on PATH"):
+                run_ffmpeg_codec(audio, SAMPLE_RATE, "mp3", "64k")
+        with self.assertRaisesRegex(ValueError, "max_order"):
+            apply_operation(audio, SAMPLE_RATE, "distant_mic_capture", "room_capture", {"max_order": 11}, np.random.default_rng(1))
+
     @skipUnless(shutil.which("ffmpeg") is not None, "ffmpeg is required for codec roundtrip")
     def test_codec_roundtrip_produces_valid_audio(self) -> None:
         audio = _fixture_audio(0.5)
@@ -181,6 +209,17 @@ recipes:
                 self.assertIn("degradation_params", row)
                 self.assertEqual(row["degradation_tracking"]["item_seed"], row["degradation_seed"])
             self.assertEqual(len(read_jsonl(checksums)), 1)
+            shards_dir = tmp / "release" / "shards"
+            output_index = tmp / "release" / "index.jsonl"
+            shard_rows = write_hdf5_shards(output_root, output_manifest, shards_dir, output_index, shard_size=1)
+            self.assertEqual(len(shard_rows), 1)
+            self.assertEqual(shard_rows[0]["degraded_audio_shard"], "shards/degraded-00000.h5")
+            import h5py
+            with h5py.File(shards_dir / "degraded-00000.h5", "r") as shard:
+                self.assertEqual(shard.attrs["sample_rate"], SAMPLE_RATE)
+                self.assertEqual(shard["audio"].shape, (1, SAMPLE_RATE, 2))
+                self.assertEqual(shard["item_id"][0].decode(), "clip--single_eq_test")
+            self.assertEqual(read_jsonl(output_index), shard_rows)
 
     def test_boundary_parameters_are_seed_independent(self) -> None:
         recipe = {
@@ -261,3 +300,22 @@ recipes:
             rows = read_jsonl(output_manifest)
             self.assertEqual(len(rows), 1)
             self.assertTrue((output_root / rows[0]["degraded_path"]).exists())
+            release_root = tmp / "release"
+            subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "openrestore.degradations.cli",
+                    "shard",
+                    "--output-root", str(output_root),
+                    "--manifest", str(output_manifest),
+                    "--shards-dir", str(release_root / "shards"),
+                    "--output-index", str(release_root / "index.jsonl"),
+                    "--shard-size", "1",
+                    "--quiet",
+                ],
+                check=True,
+            )
+            index_rows = read_jsonl(release_root / "index.jsonl")
+            self.assertEqual(index_rows[0]["degraded_audio_shard"], "shards/degraded-00000.h5")
+            self.assertTrue((release_root / index_rows[0]["degraded_audio_shard"]).is_file())
