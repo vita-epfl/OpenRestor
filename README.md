@@ -41,6 +41,6 @@ openrestore-degrade list-recipes --config configs/degradations/single/v0_1.yaml
 openrestore-degrade shard --output-root build/degraded --manifest build/degraded/manifest.jsonl --shards-dir build/release/shards --output-index build/release/index.jsonl --shard-size 1000
 ```
 
-For the exact render contract, storage layout, optional-asset handling, acceptance checks, and IT responsibilities, read [the IT handoff](docs/it_handoff.md). The versioned task and ownership contract is [docs/benchmark_contract.md](docs/benchmark_contract.md).
+For the exact render contract, storage layout, optional-asset handling, acceptance checks, and IT responsibilities, read [the IT handoff](docs/it_handoff.md). The versioned task and ownership contract is [docs/benchmark_contract.md](docs/benchmark_contract.md). The required microphone and real-RIR artifact layout is [docs/degradation_assets.md](docs/degradation_assets.md).
 
 `docs/dataset_audits.md` records source roles and release gates. The dataset implementation renders canonical 30-second, 44.1 kHz, stereo PCM WAV clips; partial segments are rejected, mono is duplicated to stereo, multichannel sources are downmixed to stereo, and silent clips fail the RMS quality gate.

@@ -135,6 +135,14 @@ class DegradationPrimitiveTests(TestCase):
             apply_operation(audio, SAMPLE_RATE, "ariel", "mic", {}, np.random.default_rng(1))
         with self.assertRaisesRegex(FileNotFoundError, "real_rir_dir"):
             apply_operation(audio, SAMPLE_RATE, "ariel", "real", {}, np.random.default_rng(1))
+        with TemporaryDirectory() as directory:
+            rir_dir = Path(directory) / "nested"
+            impulse = np.zeros(128, dtype=np.float32)
+            impulse[0] = 1.0
+            _write_audio(rir_dir / "test_rir.wav", np.column_stack([impulse, impulse]))
+            rendered, rendered_params = apply_operation(audio, SAMPLE_RATE, "ariel", "real", {"real_rir_dir": directory}, np.random.default_rng(1))
+            self.assertEqual(rendered.shape, audio.shape)
+            self.assertEqual(rendered_params["rir_name"], "test_rir")
         with patch("openrestore.degradations.core.subprocess.run", side_effect=FileNotFoundError):
             with self.assertRaisesRegex(RuntimeError, "FFmpeg on PATH"):
                 run_ffmpeg_codec(audio, SAMPLE_RATE, "mp3", "64k")

@@ -2,7 +2,7 @@
 
 ## Status
 
-In progress. The current v0.1 single-effect renderer is implemented and verified with unit, CLI, and listening-preview runs. The complete Phase 2 release workflow is not yet finished: normal-parameter calibration, release-approved external assets, the `volume` decision, and production batch orchestration remain open.
+In progress. The current v0.1 single-effect renderer is implemented and verified with unit, CLI, and listening-preview runs. The complete Phase 2 release workflow is not yet finished: production batch orchestration remains open; parameter ranges and `volume` have been accepted, and the external asset bundle now has a reproducible installation contract.
 
 ## Purpose
 
@@ -62,10 +62,9 @@ A local medium listening preview exists under build/degradation_preview/degraded
 
 ## Remaining Phase 2 Work
 
-- Calibrate and formally accept the normal parameter ranges through effect-by-effect listening, including the newly reviewed minimum/maximum endpoints.
-- Package or acquire release-approved microphone transfer functions and real RIRs, with provenance and checksums; the release cannot depend on developer-local ARIEL paths.
-- Decide whether `volume` is benchmark-critical or SonicMaster-parity-only. `channel_damage` is no longer in the active registry.
-- Freeze the shard-backed miniature candidate only after the parameter and asset decisions; then implement production-scale deterministic partitioning, retry/resume behavior, and validated merging.
+- Publish the reviewed asset bundle to the approved artifact store and record its archive URL, license/provenance, and archive SHA-256 in the release record. IT installation and file verification are specified in `docs/degradation_assets.md`.
+- Freeze the shard-backed miniature candidate with the accepted parameter configuration and asset artifact.
+- Implement production-scale deterministic partitioning, retry/resume behavior, and validated merging.
 
 ## Next Steps For IT
 
@@ -79,10 +78,10 @@ This is the Phase 2 IT checklist from the roadmap:
 
 ### Handoff Details
 
-The runtime needs Python 3.11, FFmpeg, and the dependencies declared in pyproject.toml; docker/Dockerfile is the starting environment. Use read-only clean inputs and separate degraded-output storage. Optional RIR and microphone-transfer-function assets must be mounted through explicit configuration, never developer-local ARIEL paths. Keep the global seed, config snapshot, Git revision, output manifest, checksums, logs, and failure list for each partition, and ensure retries cannot change item seeds or overwrite validated results.
+The runtime needs Python 3.11, FFmpeg, and the dependencies declared in pyproject.toml; docker/Dockerfile is the starting environment. Use read-only clean inputs and separate degraded-output storage. IT must install the exact Git-ignored v0.1 asset bundle at `assets/degradations/v0_1/`; see `docs/degradation_assets.md` and verify every file with `docs/degradation_assets_v0_1.sha256`. Never use developer-local ARIEL paths. Keep the global seed, config snapshot, Git revision, output manifest, checksums, logs, and failure list for each partition, and ensure retries cannot change item seeds or overwrite validated results.
 
 ## Next Steps For Research
 
-- Finish the single-effect review and freeze the v0.1 severity ranges.
-- Specify the compound recipe rules only after individual effects are accepted.
-- Define the release acceptance criteria for a degraded corpus before running it at scale.
+- Publish the v0.1 binary asset archive and record its release provenance.
+- Freeze the shard-backed miniature candidate using the accepted configuration and asset archive.
+- Define release acceptance criteria before production-scale degradation rendering.

@@ -129,7 +129,8 @@ def _load_mic(audio: np.ndarray, directory: str, mic_number: int) -> tuple[np.nd
 
 
 def _real_rir(audio: np.ndarray, directory: str, index: int) -> tuple[np.ndarray, str]:
-    files = sorted(path for path in Path(directory).glob("*.wav") if path.is_file())
+    root = Path(directory)
+    files = sorted(path for path in root.rglob("*.wav") if path.is_file()) if directory and root.is_dir() else []
     if not files:
         raise FileNotFoundError("The `real` effect requires parameters.real_rir_dir containing ARIEL-compatible WAV RIRs")
     path = files[index % len(files)]

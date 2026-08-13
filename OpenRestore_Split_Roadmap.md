@@ -170,9 +170,8 @@ OpenRestore is now effect-first. The active single-effect registry has 25 rows: 
 ### Remaining research/audio work
 
 - [x] Add execution/metadata/determinism coverage for all 25 active effects. Tests execute the six OpenRestore effects and all non-asset ARIEL effects twice with fixed seeds; the `mic` and `real` missing-asset paths are tested explicitly.
-- [ ] Calibrate normal dataset parameter distributions from listening review and, where possible, real degraded music. The current medium profile is for review, not a final scientific distribution.
-- [ ] Package or acquire release-approved microphone transfer functions and real RIR assets. The current preview uses local ARIEL asset paths; the released pipeline must not depend on `/home/.../ARIEL`.
-- [ ] Decide whether `volume` is benchmark-critical or remains SonicMaster-parity-only, given overlap with existing ARIEL volume behavior.
+- [x] Calibrate normal dataset parameter distributions through the completed listening review. No real degraded-music corpus will be integrated for v0.1.
+- [x] Create the release-asset contract for the reviewed 20 Poliphone microphone IRs and 12 real RIR WAVs. The Git-ignored bundle is project-owned at `assets/degradations/v0_1/`; IT installs and verifies the exact artifact using `docs/degradation_assets.md` and `docs/degradation_assets_v0_1.sha256`.
 - [x] Add degraded HDF5 shard writing and a release index that points each row at `degraded_audio_shard` and `degraded_audio_shard_index`. The WAV manifest remains the rendering provenance; the shard index is the release-facing reader contract.
 - [x] Define and test failure handling for unavailable assets, FFmpeg failures, and oversized room simulations. Asset and FFmpeg errors are actionable; distant-room `max_order` is bounded to 0-10 and invalid geometry is rejected before simulation.
 
@@ -195,7 +194,6 @@ OpenRestore is now effect-first. The active single-effect registry has 25 rows: 
 - [x] `configs/degradations/single/v0_1.yaml` with the 25-effect single registry.
 - [x] deterministic degradation Command-Line Interface ("CLI").
 - [x] first local listening preview: 75 degraded examples across 25 effects.
-- [ ] effect-by-effect listening and validation notes.
 - [x] first local shard-backed degraded miniature candidate: 75 preview outputs in eight HDF5 shards with a portable `index.jsonl`. It remains a candidate until ranges and approved external assets are frozen.
 
 ## Phase 3 - Metrics, AAE Diagnostics, And Reports

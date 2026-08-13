@@ -6,8 +6,7 @@ recipes:
   - {id: single_comp, severity: ariel_random, operations: [{primitive: ariel, variant: comp, parameters: {}}]}
   - {id: single_punch, severity: ariel_random, operations: [{primitive: ariel, variant: punch, parameters: {}}]}
   - {id: single_xband, severity: ariel_random, operations: [{primitive: ariel, variant: xband, parameters: {}}]}
-  # Provide mic_ir_dir when rendering this recipe.
-  - {id: single_mic, severity: ariel_random, operations: [{primitive: ariel, variant: mic, parameters: {}}]}
+  - {id: single_mic, severity: ariel_random, operations: [{primitive: ariel, variant: mic, parameters: {mic_ir_dir: assets/degradations/v0_1/microphone_irs}}]}
   - {id: single_bright, severity: ariel_random, operations: [{primitive: ariel, variant: bright, parameters: {}}]}
   - {id: single_dark, severity: ariel_random, operations: [{primitive: ariel, variant: dark, parameters: {}}]}
   - {id: single_airy, severity: ariel_random, operations: [{primitive: ariel, variant: airy, parameters: {}}]}
@@ -19,8 +18,7 @@ recipes:
   - {id: single_small, severity: ariel_random, operations: [{primitive: ariel, variant: small, parameters: {}}]}
   - {id: single_big, severity: ariel_random, operations: [{primitive: ariel, variant: big, parameters: {}}]}
   - {id: single_mix, severity: ariel_random, operations: [{primitive: ariel, variant: mix, parameters: {}}]}
-  # Provide real_rir_dir when rendering this recipe.
-  - {id: single_real, severity: ariel_random, operations: [{primitive: ariel, variant: real, parameters: {}}]}
+  - {id: single_real, severity: ariel_random, operations: [{primitive: ariel, variant: real, parameters: {real_rir_dir: assets/degradations/v0_1/real_rirs}}]}
   - {id: single_stereo, severity: ariel_random, operations: [{primitive: ariel, variant: stereo, parameters: {}}]}
   - {id: single_clip, severity: ariel_random, operations: [{primitive: ariel, variant: clip, parameters: {}}]}
   - {id: single_volume, severity: ariel_random, operations: [{primitive: ariel, variant: volume, parameters: {}}]}
