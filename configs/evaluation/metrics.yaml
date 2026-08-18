@@ -1,0 +1,15 @@
+benchmark_version: v0.1
+submission_id: local
+metric_pack: cpu_core_v0_1
+sample_rate: 44100
+analysis:
+  n_fft: 2048
+  hop_length: 512
+  n_mels: 128
+  mrstft_resolutions: [512, 1024, 2048]
+validation:
+  duration_tolerance_samples: 0
+diagnostics:
+  aggregation: category_primary_with_effect_detail
+  enabled_categories: [eq_coloration, dynamics, reverb_room, amplitude, stereo_spatial, noise_interference, bandwidth_loss, clipping_saturation, codec_transmission]
+deferred_gpu_metric_pack: [CLAP, PANNS, FAD, FAD_LAION, Audiobox]

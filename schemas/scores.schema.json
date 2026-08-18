@@ -2,11 +2,18 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "OpenRestore score report",
   "type": "object",
-  "required": ["benchmark_version", "submission_id", "metrics"],
+  "required": ["benchmark_version", "submission_id", "metric_pack", "ranking", "items", "metric_definitions", "overall", "by_category", "by_effect", "by_severity", "by_split", "by_dataset", "artifacts"],
   "properties": {
     "benchmark_version": {"type": "string", "minLength": 1},
     "submission_id": {"type": "string", "minLength": 1},
-    "metrics": {"type": "object", "minProperties": 1}
+    "metric_pack": {"type": "string", "minLength": 1},
+    "ranking": {"const": "diagnostic_only_no_aggregate"},
+    "items": {"type": "object", "required": ["scored", "failures"]},
+    "metric_definitions": {"type": "object", "minProperties": 1},
+    "overall": {"type": "object"},
+    "by_category": {"type": "object"},
+    "by_effect": {"type": "object"},
+    "artifacts": {"type": "object"}
   },
   "additionalProperties": true
 }

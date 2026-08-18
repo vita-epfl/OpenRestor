@@ -203,43 +203,33 @@ Goal: make scores scientifically meaningful and operationally reproducible.
 
 ### Research/audio engineer tasks
 
-- [ ] Implement and validate pairwise reconstruction metrics:
-  - [ ] L1 absolute error
-  - [ ] L2 squared error
-  - [ ] Signal-to-Noise Ratio ("SNR")
-  - [ ] Scale-Invariant Signal-to-Distortion Ratio ("SI-SDR") or Scale-Invariant Signal-to-Noise Ratio ("SI-SNR")
-  - [ ] Log-Spectral Distance ("LSD")
-  - [ ] multi-resolution Short-Time Fourier Transform ("STFT") distance
-  - [ ] mel-spectral distance
-  - [ ] Long-Term Average Spectrum ("LTAS") distance
-- [ ] Implement structural and embedding metrics where feasible:
-  - [ ] Structural Similarity Index Measure ("SSIM") on log-mel or magnitude spectrograms
-  - [ ] Contrastive Language-Audio Pretraining ("CLAP") audio embedding similarity
-  - [ ] CLAP audio-text consistency for SDD captions if used
-- [ ] Implement or integrate distributional and perceptual metrics:
+- [x] Implement and validate CPU pairwise reconstruction metrics: L1, RMSE/L2, SNR, SI-SDR, SI-SNR, LSD, multi-resolution STFT distance, log-mel distance, and LTAS distance.
+- [x] Implement CPU log-mel SSIM and spectral-profile KL divergence.
+- [ ] Add CLAP audio embedding similarity and optional SDD audio-text consistency in the deferred GPU metric pack.
+- [ ] Add FAD, FAD-LAION, and Audiobox metrics in the deferred GPU metric pack with pinned models and fail-closed cache/model handling:
   - [ ] Frechet Audio Distance ("FAD") restored vs clean
   - [ ] FAD with Large-scale Artificial Intelligence Open Network ("LAION") audio embeddings ("FAD-LAION") restored vs clean
   - [ ] FAD-LAION against a selected high-quality music reference distribution, if a suitable redistributable reference is approved
   - [ ] Meta Audiobox Aesthetics Content Enjoyment ("CE"), Content Usefulness ("CU"), Production Complexity ("PC"), and Production Quality ("PQ"), if practical for the release environment
-- [ ] Implement first AAE descriptors:
-  - [ ] EQ/coloration
-  - [ ] bandwidth loss
-  - [ ] noise/ambience
-  - [ ] clipping/saturation
-  - [ ] dynamics
-  - [ ] reverb/room
-  - [ ] stereo/spatial
-  - [ ] codec/transmission, marked experimental until robust
-- [ ] Define metric caveats and interpretation rules for the benchmark report.
-- [ ] Build the runnable scoring and reporting pipeline that IT will host:
-  - [ ] read clean/degraded/restored audio
-  - [ ] validate file correspondence
-  - [ ] compute selected metrics
-  - [ ] cache expensive embeddings/statistics locally when possible
-  - [ ] aggregate metrics by primitive family, recipe type, severity, split, and source subset
-  - [ ] write `scores.json`
-  - [ ] generate summary and per-degradation reports
-  - [ ] report failure rates and invalid outputs
+- [x] Implement first transparent AAE descriptors, aggregated by category with individual-effect detail:
+  - [x] EQ/coloration
+  - [x] bandwidth loss
+  - [x] noise/ambience
+  - [x] clipping/saturation
+  - [x] dynamics
+  - [x] reverb/room
+  - [x] stereo/spatial
+  - [x] codec/transmission, marked experimental until robust
+- [x] Define metric caveats and interpretation rules for the diagnostic report; no leaderboard aggregate is defined.
+- [x] Build the runnable CPU scoring and reporting pipeline that IT can host:
+  - [x] read clean/degraded/restored audio
+  - [x] validate file correspondence and fail closed on invalid/missing output
+  - [x] compute selected CPU metrics and AAE diagnostics
+  - [ ] cache expensive embeddings/statistics locally when the optional GPU pack is implemented
+  - [x] aggregate metrics by category, effect, severity, split, and dataset
+  - [x] write `scores.json`
+  - [x] generate summary, per-item, category, and effect reports
+  - [x] report failure counts and invalid outputs
 
 ### IT/software engineer tasks
 
@@ -251,11 +241,11 @@ Goal: make scores scientifically meaningful and operationally reproducible.
 
 ### Shared deliverables
 
-- [ ] public local evaluation command
-- [ ] `configs/evaluation/metrics.yaml`
-- [ ] metric validation fixtures
-- [ ] `scores.json` schema
-- [ ] first metric report for the no-restoration baseline
+- [x] public local scoring command and restored-output contract
+- [x] `configs/evaluation/metrics.yaml`
+- [x] metric validation fixtures
+- [x] `scores.json` schema
+- [x] first metric report for the no-restoration baseline: 75 preview outputs, zero invalid outputs, and zero reported improvement as expected.
 
 ## Phase 4 - Baselines
 
