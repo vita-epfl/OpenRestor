@@ -1,9 +1,5 @@
 # Phase 2 Report: Degradation Pipeline
 
-## Status
-
-In progress. The current v0.1 single-effect renderer is implemented and verified with unit, CLI, and listening-preview runs. The complete Phase 2 release workflow is not yet finished: production batch orchestration remains open; parameter ranges and `volume` have been accepted, and the external asset bundle now has a reproducible installation contract.
-
 ## Purpose
 
 Phase 2 creates paired training and evaluation data by applying one explicitly selected degradation to a canonical clean clip. Each output is traceable to the clean input, configuration recipe, seed, fully sampled parameters, and checksum. Randomness applies only to the selected effects parameters; effect choices are neither sampled nor combined.
