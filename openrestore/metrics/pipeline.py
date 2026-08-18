@@ -61,13 +61,13 @@ def validate_restored_manifest(
         )
     restored_by_id: dict[str, dict[str, Any]] = {}
     for index, row in enumerate(restored_rows, start=1):
-        item_id, path = row.get("id"), row.get("restored_path")
+        item_id, path = row.get("id"), row.get("restored_audio_path")
         if not isinstance(item_id, str) or not item_id or not isinstance(path, str) or not path:
             failures.append(
                 {
                     "line": index,
                     "code": "invalid_restored_row",
-                    "message": "id and restored_path are required strings",
+                    "message": "id and restored_audio_path are required strings",
                 }
             )
             continue
@@ -101,9 +101,11 @@ def validate_restored_manifest(
     for item_id, row in restored_by_id.items():
         if item_id not in degraded_by_id:
             continue
-        path = _resolve(root, row["restored_path"])
+        path = _resolve(root, row["restored_audio_path"])
         if not path.is_file():
-            failures.append({"id": item_id, "code": "missing_restored_file", "message": str(path)})
+            failures.append(
+                {"id": item_id, "code": "missing_restored_audio_file", "message": str(path)}
+            )
             continue
         degraded = degraded_by_id[item_id]
         try:
@@ -123,6 +125,38 @@ def validate_restored_manifest(
             {"degraded": degraded_by_id[item_id], "restored": row, "restored_file": path}
         )
     return validated, failures
+
+
+def restoration_metadata(
+    validated: list[dict[str, Any]], degraded_root: Path, clean_root: Path
+) -> list[dict[str, Any]]:
+    """Join participant run fields to trusted clean and degraded provenance."""
+    result: list[dict[str, Any]] = []
+    for item in validated:
+        degraded, restored = item["degraded"], item["restored"]
+        result.append(
+            {
+                "id": degraded["id"],
+                "degraded_audio_path": str(_resolve(degraded_root, degraded["degraded_path"])),
+                "clean_audio_path": str(_resolve(clean_root, degraded["clean_path"])),
+                "degradation_type": effect_name(degraded),
+                "source_id": str(
+                    degraded.get("clean_id") or degraded.get("source_id") or degraded["id"]
+                ),
+                "restored_audio_path": str(item["restored_file"]),
+                "restored_latent_shape": restored.get("restored_latent_shape"),
+                "duration_sec": restored.get("duration_sec"),
+                "inference_steps": restored.get("inference_steps"),
+                "batch_time_seconds": restored.get("batch_time_seconds"),
+                "timestamp": restored.get("timestamp"),
+                "dataset": degraded.get("dataset"),
+                "split": degraded.get("split"),
+                "severity": degraded.get("severity"),
+                "degradation_recipe_id": degraded.get("degradation_recipe_id"),
+                "degradation_tracking": degraded.get("degradation_tracking"),
+            }
+        )
+    return result
 
 
 def _score_failures(output_dir: Path, failures: list[dict[str, Any]]) -> None:
@@ -187,7 +221,7 @@ def score(
             item_rows.append(
                 {
                     "id": item_id,
-                    "restored_path": str(restored_file),
+                    "restored_audio_path": str(restored_file),
                     "split": row.get("split"),
                     "dataset": row.get("dataset"),
                     "severity": row.get("severity"),
@@ -206,6 +240,10 @@ def score(
             f"Scoring rejected {len(failures)} manifest/audio failures; see {output_dir / 'failures.json'}"
         )
     write_jsonl(output_dir / "per_item_scores.jsonl", item_rows)
+    write_jsonl(
+        output_dir / "restoration_metadata.jsonl",
+        restoration_metadata(validated, degraded_root, clean_root),
+    )
     report = _report(config, item_rows, output_dir)
     (output_dir / "scores.json").write_text(
         json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8"
@@ -255,6 +293,7 @@ def _report(config: dict[str, Any], rows: list[dict[str, Any]], output_dir: Path
         "by_dataset": _group(rows, "dataset"),
         "artifacts": {
             "per_item_scores": "per_item_scores.jsonl",
+            "restoration_metadata": "restoration_metadata.jsonl",
             "report": "report.md",
             "failures": "failures.json",
         },
@@ -310,7 +349,12 @@ def no_restoration(
         result.append(
             {
                 "id": row["id"],
-                "restored_path": target.relative_to(output_manifest.parent).as_posix(),
+                "restored_audio_path": target.relative_to(output_manifest.parent).as_posix(),
+                "restored_latent_shape": None,
+                "duration_sec": float(row["duration_seconds"]),
+                "inference_steps": None,
+                "batch_time_seconds": None,
+                "timestamp": None,
                 "restored_audio_sha256": sha256_file(target),
             }
         )

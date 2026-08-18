@@ -2,22 +2,21 @@
 
 ## Status
 
-Implemented: CPU-only local scoring, strict restored-output validation, separate diagnostic reports, and a no-restoration baseline helper. No leaderboard aggregate is defined. Learned embedding, distributional, and aesthetic metrics remain a future optional GPU metric pack.
+Implemented: CPU local scoring, strict participant restoration manifests, trusted restoration metadata joins, and an optional GPU perceptual metric pack. No leaderboard aggregate is defined.
 
-## Implementation
+## Current Pipeline
 
-The `openrestore-score` CLI validates a restored-output JSONL against a degraded manifest, scores clean/degraded/restored audio, and writes `scores.json`, `per_item_scores.jsonl`, `report.md`, and `failures.json`. The first run used the 75-item medium preview with the no-restoration helper: it completed with zero invalid outputs and every reported improvement was zero, as expected.
+Participants write `restoration_outputs.jsonl`: each row supplies an OpenRestore item ID, a restored WAV path, and nullable run metadata such as inference steps and batch time. `openrestore-score` validates every output, joins trusted degraded-manifest data, and writes `restoration_metadata.jsonl`. This ensures that clean/degraded paths, source ID, effect, severity, split, dataset, and degradation tracking are benchmark-owned rather than participant-provided.
 
-The CPU metric pack contains L1, RMSE, SNR, SI-SDR, SI-SNR, LSD, multi-resolution STFT distance, log-mel distance, LTAS distance, log-mel SSIM, and spectral-profile KL. It reports degraded-to-clean and restored-to-clean values, with improvement always oriented so positive is better.
+The CPU report contains L1, RMSE, SNR, SI-SDR, SI-SNR, LSD, MRSTFT, log-mel, LTAS, SSIM, spectral KL, and category/effect AAE diagnostics. The no-restoration baseline on the 75-item preview had zero artificial improvement.
 
-AAE descriptors are reported primarily by category and then by effect: EQ/coloration, dynamics, reverb/room, amplitude, stereo/spatial, noise/interference, bandwidth loss, clipping/saturation, and experimental codec/transmission. The restored-output contract is documented in `docs/phase_3_scoring.md` and reused by future participant containers.
+The separate GPU pack preserves ARIEL's learned-metric behavior: CLAP audio cosine similarity, `fadtk` using the `clap-laion-music` backend for restored-vs-clean and restored-vs-built-in-`fma_pop`, and Audiobox CE/CU/PC/PQ. FADTK embeddings use ARIEL's PCM temporary-WAV workaround around TorchCodec. The public `setup-perceptual` command downloads the model weights and loads the built-in FMA-Pop statistics before recording package versions and cache hashes.
 
-## Remaining Work
+## Remaining Release Work
 
-- Review the no-restoration metric report and use it to decide whether any metric needs recalibration before an official aggregate is considered.
-- Add the optional GPU metric pack with pinned model versions, explicit weight/cache provisioning, and fail-closed model errors.
-- Keep hidden-evaluation execution and leaderboard orchestration in Phases 5 and 6.
+- Run the opt-in real-GPU integration test after the FADTK, CLAP, and Audiobox cache is prepared; current CI uses deterministic mock backends and does not download models.
+- Review CPU and perceptual baseline reports before defining any official leaderboard policy. SDD audio-text and PANNS remain deferred.
 
 ## IT Handoff
 
-IT can host the CPU scorer directly with the repository dependencies. Jobs require read-only clean/degraded inputs, a restored-output JSONL plus audio, and writable report storage. The GPU metric pack is not a prerequisite for v0.1 CPU scoring.
+IT hosts the same package extras and `setup-perceptual` cache used by public users. Evaluation jobs need read-only clean/degraded input, participant restoration output, the verified model cache, CUDA, and writable report storage. Cache/hash failures, invalid submissions, and model inference errors are emitted separately as structured failures.

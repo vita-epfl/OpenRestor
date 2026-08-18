@@ -1,0 +1,19 @@
+benchmark_version: v0.1
+submission_id: local
+metric_pack: perceptual_gpu_fadtk_v0_1
+sample_rate: 44100
+validation:
+  duration_tolerance_samples: 0
+device:
+  default: cuda
+  deterministic: true
+cache:
+  directory: ~/.cache/openrestore/perceptual-fadtk-v0_1
+  preprocessing_version: v0_1
+models:
+  clap_similarity: laion-clap==1.1.7
+  fadtk: fadtk:clap-laion-music
+  audiobox: audiobox-aesthetics==0.0.4
+fma_pop_reference:
+  backend: fadtk:clap-laion-music
+  reference: built-in fma_pop statistics loaded by fadtk

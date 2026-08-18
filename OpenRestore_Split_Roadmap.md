@@ -205,12 +205,12 @@ Goal: make scores scientifically meaningful and operationally reproducible.
 
 - [x] Implement and validate CPU pairwise reconstruction metrics: L1, RMSE/L2, SNR, SI-SDR, SI-SNR, LSD, multi-resolution STFT distance, log-mel distance, and LTAS distance.
 - [x] Implement CPU log-mel SSIM and spectral-profile KL divergence.
-- [ ] Add CLAP audio embedding similarity and optional SDD audio-text consistency in the deferred GPU metric pack.
-- [ ] Add FAD, FAD-LAION, and Audiobox metrics in the deferred GPU metric pack with pinned models and fail-closed cache/model handling:
-  - [ ] Frechet Audio Distance ("FAD") restored vs clean
-  - [ ] FAD with Large-scale Artificial Intelligence Open Network ("LAION") audio embeddings ("FAD-LAION") restored vs clean
-  - [ ] FAD-LAION against a selected high-quality music reference distribution, if a suitable redistributable reference is approved
-  - [ ] Meta Audiobox Aesthetics Content Enjoyment ("CE"), Content Usefulness ("CU"), Production Complexity ("PC"), and Production Quality ("PQ"), if practical for the release environment
+- [x] Add CLAP audio embedding similarity in the GPU perceptual pack. SDD audio-text consistency remains deferred.
+- [x] Add FADTK (LAION Music, local clean and built-in FMA-Pop references) and Audiobox metrics in the GPU perceptual pack with pinned models and fail-closed cache/model handling:
+  - [x] FADTK `clap-laion-music` restored vs clean distribution
+  - [x] FADTK local clean-reference score using LAION Music embeddings
+  - [x] FADTK against its built-in FMA-Pop reference distribution using the same `clap-laion-music` backend as ARIEL.
+  - [x] Meta Audiobox Aesthetics Content Enjoyment ("CE"), Content Usefulness ("CU"), Production Complexity ("PC"), and Production Quality ("PQ")
 - [x] Implement first transparent AAE descriptors, aggregated by category with individual-effect detail:
   - [x] EQ/coloration
   - [x] bandwidth loss

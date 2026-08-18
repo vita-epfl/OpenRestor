@@ -41,10 +41,14 @@ openrestore-degrade list-recipes --config configs/degradations/single/v0_1.yaml
 openrestore-degrade shard --output-root build/degraded --manifest build/degraded/manifest.jsonl --shards-dir build/release/shards --output-index build/release/index.jsonl --shard-size 1000
 
 # Metrics and local restored-output validation
-openrestore-score validate-restored --degraded-manifest build/degraded/manifest.jsonl --restored-manifest build/restored/restored_outputs.jsonl
-openrestore-score score --degraded-manifest build/degraded/manifest.jsonl --degraded-root build/degraded --clean-root build/clean --restored-manifest build/restored/restored_outputs.jsonl --config configs/evaluation/metrics.yaml --output-dir build/scores
+openrestore-score validate-restored --degraded-manifest build/degraded/manifest.jsonl --restored-manifest build/restored/restoration_outputs.jsonl
+openrestore-score score --degraded-manifest build/degraded/manifest.jsonl --degraded-root build/degraded --clean-root build/clean --restored-manifest build/restored/restoration_outputs.jsonl --config configs/evaluation/metrics.yaml --output-dir build/scores
 ```
 
-For the exact render contract, storage layout, optional-asset handling, acceptance checks, and IT responsibilities, read [the IT handoff](docs/it_handoff.md). The versioned task and ownership contract is [docs/benchmark_contract.md](docs/benchmark_contract.md). The required microphone and real-RIR artifact layout is [docs/degradation_assets.md](docs/degradation_assets.md).
+For the scoring contracts, perceptual-cache setup, and artifact meanings, read [the Phase 3 scoring guide](docs/phase_3_scoring.md). The versioned task and ownership contract is [docs/benchmark_contract.md](docs/benchmark_contract.md). The required microphone and real-RIR artifact layout is [docs/degradation_assets.md](docs/degradation_assets.md).
 
 `docs/dataset_audits.md` records source roles and release gates. The dataset implementation renders canonical 30-second, 44.1 kHz, stereo PCM WAV clips; partial segments are rejected, mono is duplicated to stereo, multichannel sources are downmixed to stereo, and silent clips fail the RMS quality gate.
+
+## Perceptual Metrics
+
+The optional GPU pack is documented in [Phase 3 scoring](docs/phase_3_scoring.md). Install it with `python -m pip install -e '.[perceptual]'`, run `openrestore-score setup-perceptual` once to populate a verified model cache, then use `openrestore-score perceptual` for the separate learned-metric report.

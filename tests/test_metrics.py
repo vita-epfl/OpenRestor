@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import subprocess
 import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from unittest import TestCase
+from unittest import TestCase, skipUnless
 
 import numpy as np
 import soundfile as sf
@@ -119,21 +120,21 @@ class MetricTests(TestCase):
             write_jsonl(
                 restored,
                 [
-                    {"id": "unknown", "restored_path": "missing.wav"},
-                    {"id": "unknown", "restored_path": "other.wav"},
+                    {"id": "unknown", "restored_audio_path": "missing.wav"},
+                    {"id": "unknown", "restored_audio_path": "other.wav"},
                 ],
             )
             invalid_audio = root / "wrong-rate.wav"
             _write(invalid_audio, _audio(), 48_000)
-            write_jsonl(restored, [{"id": "item", "restored_path": invalid_audio.name}])
+            write_jsonl(restored, [{"id": "item", "restored_audio_path": invalid_audio.name}])
             valid_audio, audio_failures = validate_restored_manifest(manifest, restored)
             self.assertFalse(valid_audio)
             self.assertEqual(audio_failures[0]["code"], "invalid_restored_audio")
             write_jsonl(
                 restored,
                 [
-                    {"id": "unknown", "restored_path": "missing.wav"},
-                    {"id": "unknown", "restored_path": "other.wav"},
+                    {"id": "unknown", "restored_audio_path": "missing.wav"},
+                    {"id": "unknown", "restored_audio_path": "other.wav"},
                 ],
             )
             valid, failures = validate_restored_manifest(manifest, restored)
@@ -186,3 +187,123 @@ class MetricTests(TestCase):
                 text=True,
             )
             self.assertIn('"valid_items": 1', result.stdout)
+
+
+class _FakePerceptualBackend:
+    identifier = "fake-perceptual-v1"
+
+    @staticmethod
+    def _vector(audio: np.ndarray) -> np.ndarray:
+        mono = audio.mean(axis=1)
+        return np.array(
+            [[mono.mean(), mono.std(), np.mean(np.abs(mono)), mono.max()]], dtype=np.float64
+        )
+
+    def clap(self, audio: np.ndarray, sample_rate: int) -> np.ndarray:
+        return self._vector(audio)
+
+    def fadtk(self, audio: np.ndarray, sample_rate: int) -> np.ndarray:
+        vector = self._vector(audio)[0]
+        return np.vstack([vector, vector * 1.001])
+
+    def fadtk_distance(self, reference: np.ndarray, estimate: np.ndarray) -> float:
+        return float(np.sum((reference.mean(axis=0) - estimate.mean(axis=0)) ** 2))
+
+    def fadtk_fma_pop_distance(self, estimate: np.ndarray) -> float:
+        return float(np.sum(estimate.mean(axis=0) ** 2))
+
+    def verify_fma_pop(self) -> dict[str, object]:
+        return {"backend": "fake-fadtk", "reference": "fma_pop"}
+
+    def aesthetics(self, audio: np.ndarray, sample_rate: int) -> dict[str, float]:
+        value = float(np.mean(np.abs(audio)))
+        return {"CE": value, "CU": value + 0.1, "PC": value + 0.2, "PQ": value + 0.3}
+
+
+class PerceptualMetricTests(TestCase):
+    def test_mock_perceptual_scoring_and_metadata_join(self) -> None:
+        from openrestore.metrics.perceptual import perceptual_score
+
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            clean = _audio()
+            _write(root / "audio/clean/clean.wav", clean)
+            _write(root / "audio/degraded/a.wav", clean * 0.75)
+            _write(root / "audio/degraded/b.wav", clean * 0.55)
+            manifest = root / "degraded.jsonl"
+            write_jsonl(manifest, [_row("a", "noise"), _row("b", "codec")])
+            restored = root / "restoration.jsonl"
+            write_jsonl(
+                restored,
+                [
+                    {
+                        "id": "a",
+                        "restored_audio_path": "audio/degraded/a.wav",
+                        "inference_steps": 25,
+                    },
+                    {
+                        "id": "b",
+                        "restored_audio_path": "audio/degraded/b.wav",
+                        "timestamp": "2026-08-14T00:00:00Z",
+                    },
+                ],
+            )
+            config = root / "perceptual.yaml"
+            config.write_text(
+                "benchmark_version: v0.1\nsubmission_id: test\nmetric_pack: perceptual_gpu_v0_1\n"
+                "validation: {duration_tolerance_samples: 0}\ncache: {directory: "
+                + str(root / "cache")
+                + "}\n",
+                encoding="utf-8",
+            )
+            report = perceptual_score(
+                manifest,
+                root / "audio",
+                root / "audio",
+                restored,
+                config,
+                root / "scores",
+                backend=_FakePerceptualBackend(),
+            )
+            self.assertEqual(report["items"]["scored"], 2)
+            self.assertIn("fadtk_fma_pop", report["overall"])
+            metadata = [
+                json.loads(line)
+                for line in (root / "scores/restoration_metadata.jsonl").read_text().splitlines()
+            ]
+            self.assertEqual(metadata[0]["degradation_type"], "noise")
+            self.assertEqual(metadata[0]["inference_steps"], 25)
+            cache_files = list((root / "cache/embeddings").rglob("*.npz"))
+            self.assertTrue(cache_files)
+            repeated = perceptual_score(
+                manifest,
+                root / "audio",
+                root / "audio",
+                restored,
+                config,
+                root / "scores-repeat",
+                backend=_FakePerceptualBackend(),
+            )
+            self.assertEqual(report["overall"]["clap_cosine"], repeated["overall"]["clap_cosine"])
+
+
+@skipUnless(
+    os.environ.get("OPENRESTORE_PERCEPTUAL_INTEGRATION") == "1",
+    "set OPENRESTORE_PERCEPTUAL_INTEGRATION=1 after running setup-perceptual",
+)
+class RealPerceptualIntegrationTests(TestCase):
+    def test_real_backends_encode_audio(self) -> None:
+        import torch
+
+        if not torch.cuda.is_available():
+            self.skipTest("CUDA is required")
+        from openrestore.metrics.perceptual import LearnedBackends
+
+        cache = Path(
+            os.environ.get("OPENRESTORE_PERCEPTUAL_CACHE", "~/.cache/openrestore/perceptual-v0_1")
+        ).expanduser()
+        backend = LearnedBackends(cache, "cuda")
+        audio = _audio()
+        self.assertEqual(backend.clap(audio, SAMPLE_RATE).shape[0], 1)
+        self.assertGreaterEqual(backend.fadtk(audio, SAMPLE_RATE).shape[0], 1)
+        self.assertEqual(set(backend.aesthetics(audio, SAMPLE_RATE)), {"CE", "CU", "PC", "PQ"})

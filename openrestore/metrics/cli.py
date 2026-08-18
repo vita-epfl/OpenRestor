@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+from .perceptual import perceptual_score, setup_perceptual
 from .pipeline import no_restoration, score, validate_restored_manifest
 
 
@@ -26,6 +27,22 @@ def build_parser() -> argparse.ArgumentParser:
     scoring.add_argument("--config", type=_path, required=True)
     scoring.add_argument("--output-dir", type=_path, required=True)
     scoring.add_argument("--submission-id", type=str)
+    perceptual = commands.add_parser("perceptual")
+    for name in (
+        "degraded-manifest",
+        "degraded-root",
+        "clean-root",
+        "restored-manifest",
+        "config",
+        "output-dir",
+    ):
+        perceptual.add_argument(f"--{name}", type=_path, required=True)
+    perceptual.add_argument("--cache-dir", type=_path)
+    perceptual.add_argument("--device", type=str, default="cuda")
+    perceptual.add_argument("--submission-id", type=str)
+    setup = commands.add_parser("setup-perceptual")
+    setup.add_argument("--config", type=_path, required=True)
+    setup.add_argument("--cache-dir", type=_path)
     baseline = commands.add_parser("no-restoration")
     baseline.add_argument("--degraded-manifest", type=_path, required=True)
     baseline.add_argument("--degraded-root", type=_path, required=True)
@@ -55,6 +72,20 @@ def main() -> None:
             args.output_dir,
             args.submission_id,
         )
+    elif args.command == "perceptual":
+        perceptual_score(
+            args.degraded_manifest,
+            args.degraded_root,
+            args.clean_root,
+            args.restored_manifest,
+            args.config,
+            args.output_dir,
+            args.cache_dir,
+            args.device,
+            args.submission_id,
+        )
+    elif args.command == "setup-perceptual":
+        setup_perceptual(args.config, args.cache_dir)
     else:
         no_restoration(
             args.degraded_manifest, args.degraded_root, args.output_root, args.output_manifest
