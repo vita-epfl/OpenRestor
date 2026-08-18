@@ -10,7 +10,8 @@ The benchmark reports separate diagnostic metrics. It does not currently define 
 
 | Artifact | Availability | Purpose |
 | --- | --- | --- |
-| Repository code, configurations, schemas, documentation, and tests | Public | Build datasets, render degradations, validate outputs, and score local results reproducibly. |
+| Repository code, configurations, schemas, documentation, and tests | Public | Build datasets, render degradations, and inspect the benchmark implementation. |
+| Validation and evaluation package (`openrestore-score`), metric configurations, schemas, templates, and command documentation | Public and downloadable from the Git repository and versioned release archive | Validate restored WAVs and generate the same local CPU and optional GPU diagnostic reports used by OpenRestore. The interface is model-agnostic, so it can be called from any training or inference pipeline. |
 | Public release manifests, checksums, clean clips/shards, and paired OpenRestore-rendered degraded clips/shards | Downloadable with a benchmark release | Train on approved clean data and run consistent validation/public-test inference on the exact released degraded inputs. Each degraded manifest row joins one input to its clean reference and full degradation metadata. |
 | SonicMaster clean originals | Obtain under the upstream release terms | Default main-track training source; held-out items also support validation and public test. |
 | SDD and MUSDB18-HQ source audio | Obtain under their respective terms | Validation-only transfer and mixed-music checks. They are not main-track training or public-test data. |
@@ -41,7 +42,7 @@ Users do not need to render their own degradations to train or evaluate from an 
 
 ## Public Evaluation Code
 
-OpenRestore publishes the validation and evaluation code. Users should run the supplied scorer rather than reimplement the metrics, so reports remain comparable across models. The interface is deliberately pipeline-agnostic: it does not import a model, training framework, checkpoint format, or inference library. Any system can participate by reading a degraded manifest, writing canonical restored WAVs, and emitting `restoration_outputs.jsonl`.
+OpenRestore publishes the validation and evaluation scripts as the downloadable `openrestore-score` package, including metric configurations, schemas, templates, and documentation. Users should run the supplied scorer rather than reimplement the metrics, so reports remain comparable across models. The interface is deliberately pipeline-agnostic: it does not import a model, training framework, checkpoint format, or inference library. Any system can participate by reading a degraded manifest, writing canonical restored WAVs, and emitting `restoration_outputs.jsonl`.
 
 The CPU scorer is part of the base package and runs locally wherever the clean references are available. The GPU perceptual pack is optional. Both commands produce versioned, machine-readable reports as well as Markdown summaries, making them suitable for local experiments, training-validation hooks, and later organizer-side execution.
 
@@ -78,7 +79,7 @@ openrestore-degrade list-recipes --config configs/degradations/single/v0_1.yaml
 
 Use the renderer when reproducing or preparing an approved degradation release. Do not replace release assets or alter recipe configurations while comparing methods: that changes the benchmark input distribution.
 
-## What A Submission Must Contain
+## Local Output Contract
 
 For each supplied degraded item, provide a valid restored WAV and one row in `restoration_outputs.jsonl`:
 
@@ -88,7 +89,30 @@ For each supplied degraded item, provide a valid restored WAV and one row in `re
 
 `id` and `restored_audio_path` are required. The other fields are optional run metadata. Relative output paths resolve from the JSONL file. The scorer rejects duplicate or unknown IDs, missing items/files, non-finite audio, or sample-rate, channel, and duration mismatches.
 
-For an official containerized submission, participants also provide the required submission manifest, inference code, weights, and an inference command. Organizers run that container on the hidden degraded inputs and retain the resulting restoration manifest and reports.
+## Official Hidden Evaluation
+
+Official hidden evaluation is planned for Phase 5. Participants do **not** submit restored hidden-evaluation audio. They submit an immutable OCI/Docker image by digest, its build recipe (`Dockerfile` or equivalent), a submission manifest, model weights included in the image or fetched during an approved build, and an inference command. The organizers run that image themselves against the hidden degraded split.
+
+The Phase 5 container interface will use these fixed in-container locations and environment variables:
+
+| Container resource | Value | Access |
+| --- | --- | --- |
+| Hidden degraded manifest | `/input/degraded/index.jsonl` via `OPENRESTORE_INPUT_MANIFEST` | Read-only |
+| Hidden degraded WAV root | `/input/degraded/audio` via `OPENRESTORE_INPUT_ROOT` | Read-only |
+| Restored WAV directory | `/output/audio` via `OPENRESTORE_OUTPUT_ROOT` | Write-only for the submission |
+| Required restoration manifest | `/output/restoration_outputs.jsonl` via `OPENRESTORE_OUTPUT_MANIFEST` | Write-only for the submission |
+
+The declared `inference_command` must read those environment variables, restore every input item, and write canonical 44.1 kHz stereo WAVs plus the required restoration manifest. This keeps hidden-set paths out of participant code: the organizer supplies the same fixed mounts and variables to every container. The clean references are never mounted into the participant container.
+
+The organizer evaluation procedure is:
+
+1. Validate the submission manifest, immutable image digest, track declaration, and container interface on public fixture audio.
+2. Run the declared inference command with network disabled, hidden degraded inputs mounted read-only, an empty output mount, and enforced time, memory, disk, and GPU limits.
+3. Run `openrestore-score validate-restored` on the generated output. Duplicate IDs, missing files, invalid WAVs, mismatched canonical audio, or incomplete manifests fail the run rather than being silently skipped.
+4. Join valid output with the private clean references outside the submission container, then run the public CPU scorer and the selected organizer perceptual pack.
+5. Retain the image digest, submission manifest, command, resource configuration, logs, checksums, trusted `restoration_metadata.jsonl`, and metric reports. Publish only the approved scores and summaries, never hidden audio or private reference paths.
+
+OpenRestore will provide a submission-container template and an organizer dry-run command before this track opens. The exact schema and execution wrapper are Phase 5 work; the mount and output contract above is the interface they must implement.
 
 ## Where To Go Next
 

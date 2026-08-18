@@ -20,7 +20,7 @@ OpenRestore is a benchmark, not a single model. The main training source should 
 - Public train, validation, and test splits for development and diagnostics, including the OpenRestore-rendered degraded inputs needed for reproducible local evaluation where redistribution permits.
 - A hidden organizer-only evaluation split for official leaderboard scoring.
 - A container-based submission workflow.
-- Public, model-agnostic validation and scoring code covering reconstruction, perceptual quality, embedding similarity, distributional quality, and degradation-specific AAE diagnostics. Any inference pipeline participates through manifests and canonical WAV files.
+- Public, model-agnostic validation and scoring code covering reconstruction, perceptual quality, embedding similarity, distributional quality, and degradation-specific AAE diagnostics, distributed through versioned repository and release artifacts. Any inference pipeline participates through manifests and canonical WAV files.
 - Baselines that make leaderboard scores interpretable.
 - A lightweight release process with public artifacts, DOI snapshots, and a static leaderboard.
 
@@ -652,10 +652,13 @@ Keep optional infrastructure optional. RenkuLab, DaSCH, or other preservation pl
 
 ### 6. Build Container Evaluation
 
-- Define the submission container interface: input directory, metadata path, output directory, inference command, and expected audio format.
-- Implement submission manifest validation, including container digest, training-data declaration, weight URL/checksum, and hardware request.
-- Implement organizer-side evaluation: pull container, prepare hidden evaluation input, run inference, validate outputs, compute metrics, store logs/checksums.
-- Add safeguards for timeouts, invalid files, missing outputs, sample-rate mismatches, and unstable weight downloads.
+- Publish the reusable validation/evaluation package (`openrestore-score`, configurations, schemas, templates, and documentation) through versioned repository and release artifacts so users can run the benchmark tools from any inference pipeline.
+- Freeze a container interface with fixed organizer mounts and environment variables: hidden degraded manifest `/input/degraded/index.jsonl` (`OPENRESTORE_INPUT_MANIFEST`), hidden degraded audio `/input/degraded/audio` (`OPENRESTORE_INPUT_ROOT`), restored WAV root `/output/audio` (`OPENRESTORE_OUTPUT_ROOT`), and restoration manifest `/output/restoration_outputs.jsonl` (`OPENRESTORE_OUTPUT_MANIFEST`).
+- Require the participant `inference_command` to consume that interface and write one canonical 44.1 kHz stereo restored WAV and one `restoration_outputs.jsonl` row per hidden degraded item. Do not expose clean references or their paths to the container.
+- Implement submission manifest validation, including immutable container digest, build recipe reference, training-data declaration, weight URL/checksum, inference command, and hardware request.
+- Implement organizer-side evaluation: validate metadata, smoke-test the image on fixtures, run inference with hidden input read-only and network disabled, validate all outputs, attach private clean references only to the scorer, compute CPU and approved perceptual metrics, then store logs/checksums and trusted metadata.
+- Add safeguards for timeouts, resource limits, invalid files, incomplete outputs, sample-rate mismatches, and unstable weight downloads. An invalid or partial hidden run fails rather than being silently partially scored.
+- Provide an example container and a documented local organizer dry run before opening submissions.
 
 ### 7. Publish The First Release
 
