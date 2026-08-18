@@ -90,8 +90,8 @@ def validate_split_policy(rows: Iterable[dict[str, Any]]) -> None:
         seen[key] = split
         if dataset == "sonicmaster_clean" and split not in {"train", "validation", "test"}:
             raise ValueError(f"Invalid SonicMaster split: {split}")
-        if dataset in {"sdd", "musdb18_hq"} and split != "validation":
-            raise ValueError(f"{dataset} is validation-only, got {split}")
+        if dataset in {"sdd", "musdb18_hq"} and split != "transfer":
+            raise ValueError(f"{dataset} is public-transfer-only, got {split}")
 
 
 def combine_and_split(

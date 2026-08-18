@@ -15,7 +15,7 @@ The benchmark reports separate diagnostic metrics. It does not currently define 
 | Optional perceptual-model cache: CLAP, FADTK LAION Music/FMA-Pop reference, and Audiobox Aesthetics | Downloaded by `openrestore-score setup-perceptual` into a user- or IT-selected cache directory | The setup script downloads the approved checkpoint assets through the model backends, then records package versions, FMA-Pop reference provenance, and a cache hash in `perceptual_cache_manifest.json`. The GPU scorer refuses an absent or modified cache. |
 | Public release manifests, checksums, clean clips/shards, and paired OpenRestore-rendered degraded clips/shards | Downloadable with a benchmark release | Train on approved clean data and run consistent validation/public-test inference on the exact released degraded inputs. Each degraded manifest row joins one input to its clean reference and full degradation metadata. |
 | SonicMaster clean originals | Obtain under the upstream release terms | Default main-track training source; held-out items also support validation and public test. |
-| SDD and MUSDB18-HQ source audio | Obtain under their respective terms | Validation-only transfer and mixed-music checks. They are not main-track training or public-test data. |
+| SDD and MUSDB18-HQ source audio | Obtain under their respective terms | Separately reported public transfer/local-evaluation sets. They are not main-track training or in-distribution public-test data. |
 | Degradation asset bundle: Poliphone microphone IRs and real RIR WAVs | Versioned release artifact, outside Git | Required only to render the corresponding microphone and real-room degradations. See [degradation_assets.md](degradation_assets.md). |
 | Hidden evaluation audio, clean references, and hidden manifests | Organizer-only | Official evaluation. These files are never distributed to participants. |
 
@@ -24,8 +24,9 @@ FMA-Pop is not an OpenRestore music dataset. FADTK uses its built-in FMA-Pop ref
 ## Dataset Roles
 
 - **Main-track training:** SonicMaster clean originals only.
-- **Validation:** held-out SonicMaster clean audio, SDD, and MUSDB18-HQ mixture audio.
-- **Public test:** held-out SonicMaster clean audio.
+- **Validation/model selection:** held-out SonicMaster clean audio only.
+- **Public in-distribution test:** held-out SonicMaster clean audio.
+- **Public transfer/local evaluation:** SDD and MUSDB18-HQ mixture audio, reported separately by dataset.
 - **Hidden official evaluation:** a separate organizer-controlled music dataset.
 - **Organic degradation material:** sound-effect/noise sources may supply degradation layers but never clean benchmark music.
 
@@ -35,11 +36,11 @@ SonicMaster's original degraded pairs are not reused. OpenRestore renders its ow
 
 1. Install the repository and obtain only the source/release artifacts permitted for the track they are using.
 2. Train a restoration system on the approved main-track data, or declare external data for a separate external-data track.
-3. Use the supplied degraded manifest and WAVs for validation or public test inference. Each degradation row identifies the degraded audio and its recipe metadata.
+3. Use the supplied degraded manifest and WAVs for validation, public-test, or transfer-evaluation inference. Each degradation row identifies the degraded audio and its recipe metadata.
 4. Write a restored WAV for every input item and one `restoration_outputs.jsonl` row for every item.
 5. Run local validation and scoring before a submission. CPU scoring works with the base installation; learned perceptual scoring is an optional GPU pack.
 
-Users do not need to render their own degradations to train or evaluate from an official release: released validation and public-test packages contain the corresponding OpenRestore-rendered degraded WAVs, their clean references where the split is public, manifests, and checksums. The renderer is provided so research and organizers can reproduce, inspect, extend, and build approved dataset releases.
+Users do not need to render their own degradations to train or evaluate from an official release: released validation, public-test, and transfer-evaluation packages contain the corresponding OpenRestore-rendered degraded WAVs, their clean references where the split is public, manifests, and checksums. The renderer is provided so research and organizers can reproduce, inspect, extend, and build approved dataset releases.
 
 ## Public Evaluation Code
 

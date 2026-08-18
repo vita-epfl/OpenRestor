@@ -1,9 +1,9 @@
 dataset: sdd
 version: local-audio-release
 source_root: /mnt/ssd2/datasets/OpenRestoreDataset/SDD/audio
-role: validation-only
-fixed_split: validation
+role: public-transfer-evaluation
+fixed_split: transfer
 license: verify against the SDD release before redistribution
 redistribution: do not redistribute source audio until license review is complete
-quality_notes: MP3 source material; decode and render only canonical validation clips. Never include in main-track training or public test.
+quality_notes: MP3 source material; decode and render only canonical transfer-evaluation clips. Never include in main-track training or the in-distribution public test.
 min_source_seconds: 30

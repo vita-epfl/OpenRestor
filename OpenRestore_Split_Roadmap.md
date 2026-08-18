@@ -2,7 +2,7 @@
 
 This roadmap splits the OpenRestore implementation into the runnable research/audio pipeline and the hosted Information Technology ("IT") platform around it. It is written for a small collaborative team where the research engineer owns what will be hosted: the scientific validity, audio processing, dataset generation, degradation code, metric code, baselines, schemas, command-line tools, and reproducible local pipeline. IT/software engineers own how that runnable pipeline is hosted, secured, deployed, monitored, scaled, stored, and exposed to users.
 
-OpenRestore is a benchmark rather than a single restoration model. The critical shared contract is simple: each item is a 30-second 44.1 kHz musical clip with one degraded input, one clean reference, deterministic degradation metadata, and a portable manifest row. Main-track training uses SonicMaster clean originals only. Validation uses held-out SonicMaster clean audio, the Song Describer Dataset ("SDD"), and Music Demixing Dataset 2018 High Quality ("MUSDB18-HQ") mixture audio. Public test uses held-out SonicMaster clean audio. Official leaderboard scoring uses a hidden organizer-only evaluation set.
+OpenRestore is a benchmark rather than a single restoration model. The critical shared contract is simple: each item is a 30-second 44.1 kHz musical clip with one degraded input, one clean reference, deterministic degradation metadata, and a portable manifest row. Main-track training uses SonicMaster clean originals only. Validation/model selection uses held-out SonicMaster clean audio. The source-separated SonicMaster public test is the in-distribution test. The Song Describer Dataset ("SDD") and Music Demixing Dataset 2018 High Quality ("MUSDB18-HQ") mixture audio are separately reported public transfer/local-evaluation sets. Official leaderboard scoring uses a hidden organizer-only evaluation set.
 
 ## Ownership Summary
 
@@ -90,8 +90,8 @@ Goal: build a trustworthy data pipeline before generating large degraded release
 
 - [x] Perform source audits for each candidate dataset:
   - [x] SonicMaster clean originals as the only main-track training source and as the public test source through source-separated held-out items.
-  - [x] SDD as a validation source only.
-  - [x] Music Demixing Dataset 2018 High Quality ("MUSDB18-HQ") mixtures as a validation source only.
+  - [x] SDD as a public transfer/local-evaluation source only.
+  - [x] Music Demixing Dataset 2018 High Quality ("MUSDB18-HQ") mixtures as a public transfer/local-evaluation source only.
   - [x] Secret custom dataset as hidden evaluation source.
 - [x] For each dataset, produce a decision record:
   - [x] dataset name and version
@@ -101,7 +101,7 @@ Goal: build a trustworthy data pipeline before generating large degraded release
   - [x] redistribution status
   - [x] quality notes
 - [x] Define SonicMaster source-level split rules so no recording leaks across train/validation/public test.
-- [x] Define SDD and MUSDB18-HQ validation selection rules so validation items remain separate from main-track training.
+- [x] Define SDD and MUSDB18-HQ public transfer selection rules so these items remain separate from main-track training and SonicMaster model-selection validation.
 - [x] Define deterministic 30-second segmentation rules:
   - [x] window start policy
   - [x] partial segment policy
@@ -130,11 +130,11 @@ Goal: build a trustworthy data pipeline before generating large degraded release
 ### Shared deliverables
 
 - [x] `configs/datasets/sonicmaster_clean.yaml`
-- [x] `configs/datasets/sdd_validation.yaml`
-- [x] `configs/datasets/musdb18_hq_validation.yaml`
+- [x] `configs/datasets/sdd_transfer.yaml`
+- [x] `configs/datasets/musdb18_hq_transfer.yaml`
 - [x] dataset audit records
 - [x] SonicMaster public train/validation/test split manifests
-- [x] SDD and MUSDB18-HQ validation manifests
+- [x] SDD and MUSDB18-HQ public transfer manifests
 - [x] private evaluation manifest template
 - [x] reproducible miniature dataset build
 - [x] dataset statistics report
@@ -174,7 +174,7 @@ OpenRestore is now effect-first. The active single-effect registry has 25 rows: 
 - [x] Create the release-asset contract for the reviewed 20 Poliphone microphone IRs and 12 real RIR WAVs. The Git-ignored bundle is project-owned at `assets/degradations/v0_1/`; IT installs and verifies the exact artifact using `docs/degradation_assets.md` and `docs/degradation_assets_v0_1.sha256`.
 - [ ] Upload `build/release_assets/openrestore-degradation-assets-v0_1.tar.gz` and its SHA-256 file as a private GitHub/GitLab release asset tagged `degradation-assets-v0.1`; record its URL, archive SHA-256, and Poliphone/OpenAIR provenance and redistribution terms in the release record. Mirror the final approved public bundle to Zenodo only if those terms permit redistribution.
 - [x] Add degraded HDF5 shard writing and a release index that points each row at `degraded_audio_shard` and `degraded_audio_shard_index`. The WAV manifest remains the rendering provenance; the shard index is the release-facing reader contract.
-- [ ] Build the approved v0.1 paired degradation sets for every public clean split that OpenRestore releases: main-track SonicMaster training, held-out SonicMaster validation and public test, plus SDD and MUSDB18-HQ validation. Render the configured single effects, preserve the matching clean IDs, and keep the hidden evaluation set in a separate organizer-only build.
+- [ ] Build the approved v0.1 paired degradation sets for every public clean split that OpenRestore releases: main-track SonicMaster training, held-out SonicMaster validation and public test, plus SDD and MUSDB18-HQ public transfer evaluation. Render the configured single effects, preserve the matching clean IDs, and keep the hidden evaluation set in a separate organizer-only build.
 - [ ] Freeze a release manifest for each paired public split. It must include clean and degraded relative paths or shard locations, recipe ID, sampled degradation metadata, dataset/split labels, audio properties, and SHA-256 checksums.
 - [ ] Package the public paired release as canonical WAVs and/or documented HDF5 shards with portable indexes, checksums, the exact degradation configuration, asset-bundle version, Git revision, and release notes. Do not publish an artifact until source redistribution terms are confirmed.
 - [x] Define and test failure handling for unavailable assets, FFmpeg failures, and oversized room simulations. Asset and FFmpeg errors are actionable; distant-room `max_order` is bounded to 0-10 and invalid geometry is rejected before simulation.
