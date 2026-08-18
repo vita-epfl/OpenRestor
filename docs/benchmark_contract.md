@@ -14,7 +14,7 @@ The v0.1 single-effect registry contains 25 deterministic, metadata-tracked effe
 
 ## Reproducibility
 
-A release is identified by its code commit, versioned configs, input manifest, global seed, optional asset package, output manifest, checksums, and execution environment. IT hosts these artifacts without changing their scientific content.
+A release is identified by its code commit, versioned configs, clean and degraded manifests, paired public audio artifacts where redistribution permits, global seed, optional asset package, checksums, and execution environment. The public scorer and schemas are part of the release so users can validate any inference pipeline through the same manifest-and-WAV interface. IT hosts these artifacts without changing their scientific content.
 
 ## Ownership
 

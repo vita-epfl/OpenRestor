@@ -6,6 +6,8 @@ The pipeline uses only clean SonicMaster originals for main-track training and s
 
 Install the local package with `python -m pip install -e .`. Commands print progress by default; add `--quiet` for automated runs.
 
+Start with the [OpenRestore Guide](docs/openrestore_guide.md) for the public artifacts, dataset roles, local validation workflow, degradation pipeline, and submission contract. The released validation and public-test packages include OpenRestore-rendered degraded counterparts and manifests where source redistribution permits; use the public scorer rather than reimplementing the metrics.
+
 ## Repository Context
 
 This repository pins Node.js 20 for Repomix via `.nvmrc`, `.node-version`,

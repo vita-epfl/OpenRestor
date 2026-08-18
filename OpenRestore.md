@@ -15,12 +15,12 @@ The benchmark should stay focused: one degraded mixed musical signal in, one res
 OpenRestore is a benchmark, not a single model. The main training source should be the clean original audio from SonicMaster Dataset only. Validation should cover held-out SonicMaster clean audio, SDD (Song Describer Dataset), and MUSDB18-HQ mixture audio. The public test source should be held-out SonicMaster clean audio, while the official hidden evaluation set should come from a separate secret custom dataset that is not publicly released. Sound datasets can support degradations, but they are not benchmark music sources. It consists of:
 
 - A SonicMaster-clean training source, held-out SonicMaster public test source, and validation sources spanning SonicMaster, SDD, and MUSDB18-HQ mixture audio.
-- A deterministic degradation pipeline that creates paired clean/degraded examples.
+- A deterministic degradation pipeline that creates paired clean/degraded examples and releases the approved degraded counterparts, manifests, and checksums for public development splits where redistribution permits.
 - A JSONL manifest format close to the current restoration pipeline schema.
-- Public train, validation, and test splits for development and diagnostics.
+- Public train, validation, and test splits for development and diagnostics, including the OpenRestore-rendered degraded inputs needed for reproducible local evaluation where redistribution permits.
 - A hidden organizer-only evaluation split for official leaderboard scoring.
 - A container-based submission workflow.
-- Metrics covering reconstruction, perceptual quality, embedding similarity, distributional quality, and degradation-specific AAE diagnostics.
+- Public, model-agnostic validation and scoring code covering reconstruction, perceptual quality, embedding similarity, distributional quality, and degradation-specific AAE diagnostics. Any inference pipeline participates through manifests and canonical WAV files.
 - Baselines that make leaderboard scores interpretable.
 - A lightweight release process with public artifacts, DOI snapshots, and a static leaderboard.
 
