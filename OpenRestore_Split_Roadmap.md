@@ -244,7 +244,7 @@ Goal: make scores scientifically meaningful and operationally reproducible.
 - [ ] Publish the versioned, downloadable validation/evaluation package: `openrestore-score`, metric configurations, schemas, templates, documentation, and a release archive or tagged repository revision.
 - [ ] Host the research-owned scoring command for public and hidden evaluation jobs.
 - [ ] Provide GPU-capable workers if selected metrics require them.
-- [ ] Manage caches for external metric models, embeddings, and reference statistics in the hosted environment.
+- [ ] Run `openrestore-score setup-perceptual` in the shared GPU cache to download and verify the approved CLAP, FADTK LAION Music/FMA-Pop, and Audiobox assets; manage that cache, embeddings, and reference statistics in the hosted environment.
 - [ ] Store scores, reports, logs, and intermediate metric artifacts in hosted storage.
 - [ ] Publish generated reports and leaderboard-ready JSON artifacts to the agreed internal or public location.
 
