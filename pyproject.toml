@@ -9,9 +9,13 @@ description = "Reproducible dataset preparation for the OpenRestore benchmark"
 requires-python = ">=3.11"
 dependencies = ["PyYAML>=6.0", "numpy>=1.24", "scipy>=1.10", "soundfile>=0.12", "librosa>=0.10", "pyloudnorm>=0.1", "pyroomacoustics>=0.7", "jsonschema>=4.0", "matplotlib>=3.7", "h5py>=3.10"]
 
+[project.optional-dependencies]
+perceptual = ["torch>=2.9,<2.10", "torchaudio>=2.9,<2.10", "laion-clap==1.1.7", "fadtk", "audiobox-aesthetics==0.0.4"]
+
 [project.scripts]
 openrestore-data = "openrestore.data.cli:main"
 openrestore-degrade = "openrestore.degradations.cli:main"
+openrestore-score = "openrestore.metrics.cli:main"
 openrestore-validate = "openrestore.validation.cli:main"
 
 [tool.setuptools.packages.find]

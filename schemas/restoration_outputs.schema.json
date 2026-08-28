@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OpenRestore participant restoration row",
+  "type": "object",
+  "required": ["id", "restored_audio_path"],
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "restored_audio_path": {"type": "string", "minLength": 1},
+    "restored_latent_shape": {"type": ["array", "null"], "items": {"type": "integer"}},
+    "duration_sec": {"type": ["number", "null"], "minimum": 0},
+    "inference_steps": {"type": ["integer", "null"], "minimum": 0},
+    "batch_time_seconds": {"type": ["number", "null"], "minimum": 0},
+    "timestamp": {"type": ["string", "null"]},
+    "restored_audio_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "additionalProperties": true
+}
