@@ -19,7 +19,6 @@ class SchemaValidationTests(TestCase):
             "index": {"id": "item", "dataset": "clean", "split": "train", "clean_path": "train/item.wav"},
             "degradation_tracking": {
                 "recipe_id": "single_noise",
-                "recipe_type": "single",
                 "severity": "random",
                 "item_seed": 1,
                 "operations": [{"primitive": "noise_interference", "seed": 2, "summary": {}}],

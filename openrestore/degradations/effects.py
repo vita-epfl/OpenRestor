@@ -59,15 +59,27 @@ def distant_mic_capture(
     room_size = np.asarray(params.get("room_size_m", [12.0, 16.0, 5.0]), dtype=float)
     distance = float(params.get("distance_m", rng.uniform(5.0, 8.0)))
     absorption = float(params.get("absorption", rng.uniform(0.12, 0.28)))
+    max_order = int(params.get("max_order", 10))
+    if room_size.shape != (3,) or np.any(room_size <= 1.0):
+        raise ValueError("distant_mic_capture room_size_m must contain three values above 1 metre")
+    if not 0.0 < distance < room_size[0] - 0.5:
+        raise ValueError("distant_mic_capture distance_m must fit inside the simulated room")
+    if not 0.0 <= absorption < 1.0:
+        raise ValueError("distant_mic_capture absorption must be in [0, 1)")
+    if not 0 <= max_order <= 10:
+        raise ValueError("distant_mic_capture max_order must be between 0 and 10")
     source = np.array([room_size[0] * 0.35, room_size[1] * 0.45, 1.5])
     microphone = source + np.array([distance, 0.0, -0.2])
     if microphone[0] >= room_size[0] - 0.5:
         source[0] = room_size[0] - distance - 0.6
         microphone[0] = room_size[0] - 0.6
-    room = pra.ShoeBox(room_size, absorption=absorption, max_order=10, fs=sample_rate)
+    room = pra.ShoeBox(room_size, absorption=absorption, max_order=max_order, fs=sample_rate)
     room.add_source(source)
     room.add_microphone_array(np.array([microphone]).T)
-    room.compute_rir()
+    try:
+        room.compute_rir()
+    except Exception as error:
+        raise RuntimeError("distant_mic_capture room simulation failed") from error
     rir = room.rir[0][0]
     rir = rir[np.argmax(rir):]
     captured = np.column_stack(
@@ -75,7 +87,7 @@ def distant_mic_capture(
     )
     air_cutoff = float(params.get("air_absorption_cutoff_hz", rng.uniform(4_500, 7_000)))
     captured = butter_filter(captured, sample_rate, "lowpass", air_cutoff, order=2)
-    snr_db = float(params.get("room_noise_snr_db", rng.uniform(30, 38)))
+    snr_db = float(params.get("room_noise_snr_db", 1_000))
     if snr_db < 100:
         noise = rng.normal(0, 1, captured.shape).astype(np.float32)
         captured += noise * (rms(captured) / max(rms(noise) * (10 ** (snr_db / 20)), 1e-8))
@@ -89,6 +101,7 @@ def distant_mic_capture(
         "microphone_position_m": microphone.tolist(),
         "distance_m": distance,
         "absorption": absorption,
+        "max_order": max_order,
         "air_absorption_cutoff_hz": air_cutoff,
         "room_noise_snr_db": snr_db,
     }
@@ -259,6 +272,34 @@ def noise_interference(
         t = np.arange(len(audio), dtype=np.float32) / sample_rate
         noise = sum(np.sin(2 * math.pi * freq * (i + 1) * t) / (i + 1) for i in range(harmonics))
         noise = np.column_stack([noise, noise]).astype(np.float32)
+    elif variant == "clicks_crackle":
+        click_rate_hz = float(params.get("click_rate_hz", 1.5))
+        crackle_rate_hz = float(params.get("crackle_rate_hz", 14.0))
+        click_level_db = float(params.get("click_level_db", -2.0))
+        crackle_level_db = float(params.get("crackle_level_db", -18.0))
+        click_duration_ms = float(params.get("click_duration_ms", 3.0))
+        crackle_duration_ms = float(params.get("crackle_duration_ms", 0.5))
+        click_count = int(rng.poisson(click_rate_hz * len(audio) / sample_rate))
+        crackle_count = int(rng.poisson(crackle_rate_hz * len(audio) / sample_rate))
+        noise = np.zeros_like(audio, dtype=np.float32)
+        signal_rms = rms(audio)
+        for count, level_db, duration_ms in ((click_count, click_level_db, click_duration_ms), (crackle_count, crackle_level_db, crackle_duration_ms)):
+            for _ in range(count):
+                start = int(rng.integers(0, len(audio)))
+                width = max(1, int(sample_rate * duration_ms / 1000))
+                end = min(len(audio), start + width)
+                envelope = np.exp(-np.arange(end - start, dtype=np.float32) / max(width / 5.0, 1.0))
+                amplitude = signal_rms * (10 ** (level_db / 20)) * rng.choice([-1.0, 1.0])
+                noise[start:end] += (amplitude * envelope)[:, None]
+        result = audio + noise
+        return limit_audio(result), {
+            **params,
+            "variant": variant,
+            "click_count": click_count,
+            "crackle_count": crackle_count,
+            "click_duration_ms": click_duration_ms,
+            "crackle_duration_ms": crackle_duration_ms,
+        }
     elif variant == "buzz":
         noise = rng.normal(0, 1, audio.shape).astype(np.float32)
         noise = butter_filter(noise, sample_rate, "bandpass", (80, 5_000), order=2)

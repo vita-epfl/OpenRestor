@@ -145,41 +145,41 @@ Goal: generate deterministic, realistic degraded musical audio with complete met
 
 ### Current v0.1 Contract
 
-OpenRestore is now effect-first. The active single-effect registry has 25 rows: the 19 ARIEL/SonicMaster parity effects plus six OpenRestore additions (`noise`, `hum`, `codec`, `bandwidth`, `channel_damage`, and `distant_mic_capture`). Categories remain metadata and reporting groups, not the recipe IDs. Normal dataset recipes use deterministic randomized ranges; `medium_preview` is a separate, fixed-central listening profile.
+OpenRestore is now effect-first. The active single-effect registry has 25 rows: the 19 ARIEL/SonicMaster parity effects plus six OpenRestore additions. Categories remain metadata and reporting groups, not recipe IDs. Every output has one explicitly selected effect; the runner never samples effect choices or combines effects. Normal dataset recipes use deterministic randomized parameters within that selected effect; medium_preview is a separate, fixed-central listening profile.
 
 ### Research/audio engineer tasks
 
 - [x] Define and document the 25-effect v0.1 registry, including origin, group, relevance, status, and benchmark role.
 - [x] Port the 19 ARIEL/SonicMaster single effects: `comp`, `punch`, `xband`, `mic`, `bright`, `dark`, `airy`, `boom`, `clarity`, `mud`, `warm`, `vocal`, `small`, `big`, `mix`, `real`, `stereo`, `clip`, and `volume`.
-- [x] Implement the six OpenRestore additions: `noise`, `hum`, `codec`, `bandwidth`, `channel_damage`, and `distant_mic_capture`.
+- [x] Implement the six OpenRestore additions: noise, hum, clicks_crackle, codec, bandwidth, and distant_mic_capture.
 - [x] Keep simulated room behavior local through `pyroomacoustics`; support optional ARIEL-compatible microphone-transfer-function and real-RIR assets without requiring them for the core test suite.
 - [x] Implement deterministic per-item and per-operation seeds, with sampled values recorded in output metadata.
-- [x] Implement full operation tracking: recipe ID/type, severity label, seed, operation ID/variant, sampled parameters, output path, and SHA-256 checksum.
+- [x] Implement full operation tracking: recipe ID, severity label, seed, operation ID/variant, sampled parameters, output path, and SHA-256 checksum.
 - [x] Implement the local `openrestore-degrade` command:
   - [x] YAML config loading and validation
   - [x] recipe listing
   - [x] deterministic batch WAV rendering
   - [x] output JSONL manifest and per-file checksums
   - [x] local progress logging
+  - [x] deterministic HDF5 shard packaging and shard-index writing
 - [x] Add generated stereo fixtures and deterministic pipeline tests.
 - [x] Run a three-song, 25-effect medium listening preview: 75 WAVs with verified manifest paths and checksums.
 - [x] Perform an initial listening review and tune the medium hum profile to an audible 50 Hz signal with harmonics.
+- [x] Add fixed minimum/maximum listening-boundary recipes for the six OpenRestore additions; normal datasets still sample deterministically within approved ranges.
 
 ### Remaining research/audio work
 
-- [ ] Add effect-level automated tests for all 25 active effects. Current tests cover the generic runner and core primitives, but not every ARIEL/OpenRestore effect's audible behavior, metadata, and deterministic checksum.
-- [ ] Complete structured listening notes for every effect and decide whether `channel_damage` remains distinct enough from `stereo` for the final registry.
-- [ ] Calibrate normal dataset parameter distributions from listening review and, where possible, real degraded music. The current medium profile is for review, not a final scientific distribution.
-- [ ] Package or acquire release-approved microphone transfer functions and real RIR assets. The current preview uses local ARIEL asset paths; the released pipeline must not depend on `/home/.../ARIEL`.
-- [ ] Decide whether `volume` is benchmark-critical or remains SonicMaster-parity-only, given overlap with existing ARIEL volume behavior.
-- [ ] Design and validate `paired`, `organic`, and `stress` recipes only after the single-effect registry is frozen. Existing config files validate, but they have not been reconciled with the new effect-first registry.
-- [ ] Add degraded HDF5 shard writing and integration with the canonical dataset `index.jsonl`; the current renderer writes canonical WAVs plus a separate output manifest.
-- [ ] Define failure handling for unavailable assets, FFmpeg failures, and long-running room simulations, then add coverage for those paths.
+- [x] Add execution/metadata/determinism coverage for all 25 active effects. Tests execute the six OpenRestore effects and all non-asset ARIEL effects twice with fixed seeds; the `mic` and `real` missing-asset paths are tested explicitly.
+- [x] Calibrate normal dataset parameter distributions through the completed listening review. No real degraded-music corpus will be integrated for v0.1.
+- [x] Create the release-asset contract for the reviewed 20 Poliphone microphone IRs and 12 real RIR WAVs. The Git-ignored bundle is project-owned at `assets/degradations/v0_1/`; IT installs and verifies the exact artifact using `docs/degradation_assets.md` and `docs/degradation_assets_v0_1.sha256`.
+- [ ] Upload `build/release_assets/openrestore-degradation-assets-v0_1.tar.gz` and its SHA-256 file as a private GitHub/GitLab release asset tagged `degradation-assets-v0.1`; record its URL, archive SHA-256, and Poliphone/OpenAIR provenance and redistribution terms in the release record. Mirror the final approved public bundle to Zenodo only if those terms permit redistribution.
+- [x] Add degraded HDF5 shard writing and a release index that points each row at `degraded_audio_shard` and `degraded_audio_shard_index`. The WAV manifest remains the rendering provenance; the shard index is the release-facing reader contract.
+- [x] Define and test failure handling for unavailable assets, FFmpeg failures, and oversized room simulations. Asset and FFmpeg errors are actionable; distant-room `max_order` is bounded to 0-10 and invalid geometry is rejected before simulation.
 
 ### Checkable evidence
 
-- [x] `python3 -m unittest discover -s tests`: 6 tests passing.
-- [x] `validate-config` passes for `single`, `paired`, `organic`, and `stress` configuration files.
+- [x] `python -m unittest tests.test_degradations`: 8 tests passing, including all-effect execution, HDF5, CLI shard, and failure-path coverage.
+- [x] validate-config passes for the active single-effect configuration.
 - [x] The medium preview has 75 valid WAVs across 25 effects; every stored SHA-256 checksum matches its file.
 
 ### IT/software engineer tasks
@@ -195,9 +195,7 @@ OpenRestore is now effect-first. The active single-effect registry has 25 rows: 
 - [x] `configs/degradations/single/v0_1.yaml` with the 25-effect single registry.
 - [x] deterministic degradation Command-Line Interface ("CLI").
 - [x] first local listening preview: 75 degraded examples across 25 effects.
-- [ ] effect-by-effect listening and validation notes.
-- [ ] reconciled `paired`, `organic`, and `stress` configs.
-- [ ] first shard-backed degraded miniature release.
+- [x] first local shard-backed degraded miniature candidate: 75 preview outputs in eight HDF5 shards with a portable `index.jsonl`. It remains a candidate until ranges and approved external assets are frozen.
 
 ## Phase 3 - Metrics, AAE Diagnostics, And Reports
 

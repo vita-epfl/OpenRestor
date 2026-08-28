@@ -9,14 +9,15 @@ import wave
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import TestCase, skipUnless
+from unittest.mock import patch
 
 import numpy as np
 import soundfile as sf
 from scipy import signal
 
-from openrestore.degradations.core import read_jsonl, sha256_file, write_jsonl
+from openrestore.degradations.core import read_jsonl, run_ffmpeg_codec, sha256_file, write_jsonl
 from openrestore.degradations.effects import apply_operation
-from openrestore.degradations.pipeline import apply_recipe, render_degradations, validate_config
+from openrestore.degradations.pipeline import apply_recipe, render_degradations, validate_config, write_hdf5_shards
 
 SAMPLE_RATE = 44_100
 
@@ -51,13 +52,13 @@ class DegradationPrimitiveTests(TestCase):
             ("stereo_spatial", "width", {"width": {"min": 0.3, "max": 0.8}}),
             ("bandwidth_filtering", "lowpass", {"cutoff_hz": {"min": 4_000, "max": 8_000}}),
             ("noise_interference", "broadband", {"snr_db": {"min": 18, "max": 24}}),
+            ("noise_interference", "clicks_crackle", {"click_rate_hz": {"min": 1, "max": 3}, "crackle_rate_hz": {"min": 8, "max": 20}, "click_level_db": -8, "crackle_level_db": -26}),
             ("device_mic_response", "consumer_mic", {"high_hz": 6_000, "self_noise_snr_db": 28}),
             ("codec_resampling", "resampling", {"intermediate_sample_rate": {"min": 12_000, "max": 18_000}}),
         ]
         for primitive, variant, params in recipes:
             recipe = {
                 "id": f"test_{primitive}",
-                "recipe_type": "single",
                 "severity": "medium",
                 "operations": [{"primitive": primitive, "variant": variant, "parameters": params}],
             }
@@ -94,6 +95,13 @@ class DegradationPrimitiveTests(TestCase):
         noisy, _ = apply_operation(audio, SAMPLE_RATE, "noise_interference", "broadband", {"snr_db": 12}, rng)
         self.assertGreater(np.mean(np.square(noisy - audio)), 0)
 
+
+        clicks, params = apply_operation(audio, SAMPLE_RATE, "noise_interference", "clicks_crackle", {"click_rate_hz": 2, "crackle_rate_hz": 12, "click_level_db": -2, "crackle_level_db": -18, "click_duration_ms": 3, "crackle_duration_ms": 0.5}, np.random.default_rng(7))
+        self.assertGreater(params["click_count"] + params["crackle_count"], 0)
+        self.assertEqual(params["click_duration_ms"], 3)
+        self.assertEqual(params["crackle_duration_ms"], 0.5)
+        self.assertGreater(np.mean(np.square(clicks - audio)), 0)
+
         reverb, _ = apply_operation(audio, SAMPLE_RATE, "reverb_room", "small", {"wet": 0.25, "decay_seconds": 0.35}, rng)
         self.assertGreater(np.mean(np.abs(reverb[-4_000:])), np.mean(np.abs(audio[-4_000:])) * 0.8)
 
@@ -101,6 +109,45 @@ class DegradationPrimitiveTests(TestCase):
         self.assertEqual(params["variant"], "bluetooth_small_speaker_recapture")
         self.assertTrue(params["child_operations"])
         self.assertEqual(damaged.shape, audio.shape)
+
+        distant, distant_params = apply_operation(audio, SAMPLE_RATE, "distant_mic_capture", "room_capture", {"distance_m": 1.5, "absorption": 0.45, "air_absorption_cutoff_hz": 12_000}, np.random.default_rng(2))
+        self.assertEqual(distant.shape, audio.shape)
+        self.assertGreaterEqual(distant_params["room_noise_snr_db"], 100)
+
+    def test_ariel_effect_registry_is_deterministic_and_tracks_effects(self) -> None:
+        audio = _fixture_audio(0.25)
+        effects = (
+            "comp", "punch", "xband", "bright", "dark", "airy", "boom", "clarity",
+            "mud", "warm", "vocal", "small", "big", "mix", "stereo", "clip", "volume",
+        )
+        for effect in effects:
+            first, first_params = apply_operation(audio, SAMPLE_RATE, "ariel", effect, {}, np.random.default_rng(42))
+            second, second_params = apply_operation(audio, SAMPLE_RATE, "ariel", effect, {}, np.random.default_rng(42))
+            self.assertEqual(first.shape, audio.shape, effect)
+            self.assertTrue(np.isfinite(first).all(), effect)
+            self.assertTrue(np.allclose(first, second), effect)
+            self.assertEqual(first_params, second_params, effect)
+            self.assertEqual(first_params["effect"], effect)
+
+    def test_asset_and_external_tool_failures_are_actionable(self) -> None:
+        audio = _fixture_audio(0.1)
+        with self.assertRaisesRegex(FileNotFoundError, "mic_ir_dir"):
+            apply_operation(audio, SAMPLE_RATE, "ariel", "mic", {}, np.random.default_rng(1))
+        with self.assertRaisesRegex(FileNotFoundError, "real_rir_dir"):
+            apply_operation(audio, SAMPLE_RATE, "ariel", "real", {}, np.random.default_rng(1))
+        with TemporaryDirectory() as directory:
+            rir_dir = Path(directory) / "nested"
+            impulse = np.zeros(128, dtype=np.float32)
+            impulse[0] = 1.0
+            _write_audio(rir_dir / "test_rir.wav", np.column_stack([impulse, impulse]))
+            rendered, rendered_params = apply_operation(audio, SAMPLE_RATE, "ariel", "real", {"real_rir_dir": directory}, np.random.default_rng(1))
+            self.assertEqual(rendered.shape, audio.shape)
+            self.assertEqual(rendered_params["rir_name"], "test_rir")
+        with patch("openrestore.degradations.core.subprocess.run", side_effect=FileNotFoundError):
+            with self.assertRaisesRegex(RuntimeError, "FFmpeg on PATH"):
+                run_ffmpeg_codec(audio, SAMPLE_RATE, "mp3", "64k")
+        with self.assertRaisesRegex(ValueError, "max_order"):
+            apply_operation(audio, SAMPLE_RATE, "distant_mic_capture", "room_capture", {"max_order": 11}, np.random.default_rng(1))
 
     @skipUnless(shutil.which("ffmpeg") is not None, "ffmpeg is required for codec roundtrip")
     def test_codec_roundtrip_produces_valid_audio(self) -> None:
@@ -140,7 +187,6 @@ class DegradationPipelineTests(TestCase):
 version: test
 recipes:
   - id: single_eq_test
-    recipe_type: single
     severity: mild
     operations:
       - primitive: eq_coloration
@@ -152,26 +198,17 @@ recipes:
           mix:
             min: 0.2
             max: 0.4
-  - id: paired_device_noise
-    recipe_type: paired
-    severity: medium
-    operations:
-      - primitive: device_mic_response
-        variant: bluetooth_small_speaker_recapture
-        parameters: {}
-      - primitive: noise_interference
-        variant: hum
-        parameters:
-          snr_db: 24
 """.strip(),
                 encoding="utf-8",
             )
             validate_config(__import__("yaml").safe_load(config.read_text()))
+            with self.assertRaisesRegex(ValueError, "exactly one operation"):
+                validate_config({"recipes": [{"id": "invalid", "severity": "test", "operations": [{"primitive": "eq_coloration"}, {"primitive": "dynamics"}]}]})
             output_root = tmp / "degraded"
             output_manifest = tmp / "degraded.jsonl"
             checksums = tmp / "checksums.jsonl"
             rows = render_degradations(manifest, clean_root, output_root, config, output_manifest, checksums, 99)
-            self.assertEqual(len(rows), 2)
+            self.assertEqual(len(rows), 1)
             for row in rows:
                 path = output_root / row["degraded_path"]
                 self.assertTrue(path.is_file())
@@ -179,7 +216,32 @@ recipes:
                 self.assertIn("degradation_tracking", row)
                 self.assertIn("degradation_params", row)
                 self.assertEqual(row["degradation_tracking"]["item_seed"], row["degradation_seed"])
-            self.assertEqual(len(read_jsonl(checksums)), 2)
+            self.assertEqual(len(read_jsonl(checksums)), 1)
+            shards_dir = tmp / "release" / "shards"
+            output_index = tmp / "release" / "index.jsonl"
+            shard_rows = write_hdf5_shards(output_root, output_manifest, shards_dir, output_index, shard_size=1)
+            self.assertEqual(len(shard_rows), 1)
+            self.assertEqual(shard_rows[0]["degraded_audio_shard"], "shards/degraded-00000.h5")
+            import h5py
+            with h5py.File(shards_dir / "degraded-00000.h5", "r") as shard:
+                self.assertEqual(shard.attrs["sample_rate"], SAMPLE_RATE)
+                self.assertEqual(shard["audio"].shape, (1, SAMPLE_RATE, 2))
+                self.assertEqual(shard["item_id"][0].decode(), "clip--single_eq_test")
+            self.assertEqual(read_jsonl(output_index), shard_rows)
+
+    def test_boundary_parameters_are_seed_independent(self) -> None:
+        recipe = {
+            "id": "review_min_noise",
+            "severity": "minimum_preview",
+            "operations": [{"primitive": "noise_interference", "variant": "broadband", "parameters": {"snr_db": 25, "review_boundary": "minimum"}}],
+        }
+        first, first_params = apply_recipe(_fixture_audio(), SAMPLE_RATE, "item", recipe, 1)
+        second, second_params = apply_recipe(_fixture_audio(), SAMPLE_RATE, "item", recipe, 2)
+        self.assertNotEqual(first_params[0]["seed"], second_params[0]["seed"])
+        self.assertFalse(np.allclose(first, second))
+        self.assertEqual(first_params[0]["parameters"], second_params[0]["parameters"])
+        self.assertEqual(first_params[0]["parameters"]["snr_db"], 25)
+        self.assertEqual(first_params[0]["parameters"]["review_boundary"], "minimum")
 
     def test_cli_list_recipes_and_render(self) -> None:
         with TemporaryDirectory() as directory:
@@ -198,7 +260,6 @@ recipes:
 version: test
 recipes:
   - id: single_gain_test
-    recipe_type: single
     severity: mild
     operations:
       - primitive: gain_level
@@ -247,3 +308,22 @@ recipes:
             rows = read_jsonl(output_manifest)
             self.assertEqual(len(rows), 1)
             self.assertTrue((output_root / rows[0]["degraded_path"]).exists())
+            release_root = tmp / "release"
+            subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "openrestore.degradations.cli",
+                    "shard",
+                    "--output-root", str(output_root),
+                    "--manifest", str(output_manifest),
+                    "--shards-dir", str(release_root / "shards"),
+                    "--output-index", str(release_root / "index.jsonl"),
+                    "--shard-size", "1",
+                    "--quiet",
+                ],
+                check=True,
+            )
+            index_rows = read_jsonl(release_root / "index.jsonl")
+            self.assertEqual(index_rows[0]["degraded_audio_shard"], "shards/degraded-00000.h5")
+            self.assertTrue((release_root / index_rows[0]["degraded_audio_shard"]).is_file())

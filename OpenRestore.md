@@ -1,6 +1,6 @@
 # OpenRestore
 
-OpenRestore is an open, reproducible benchmark for musical audio restoration. It curates high-quality clean audio, generates controlled and organic degradation chains, evaluates restoration systems with reconstruction and perceptual metrics, and publishes datasets, baselines, reports, and a public leaderboard.
+OpenRestore is an open, reproducible benchmark for musical audio restoration. It curates high-quality clean audio, generates controlled single degradations, evaluates restoration systems with reconstruction and perceptual metrics, and publishes datasets, baselines, reports, and a public leaderboard.
 
 Internal application link: [CHORD-VITA application](https://docs.google.com/document/d/1jHbahFTKmkAgQGIGbRLSNHwxb-EY-tgN)
 
@@ -188,7 +188,6 @@ OpenRestore should keep the row close to the current restoration pipeline format
     "noise_interference": [],
     "device_mic_response": [],
     "codec_resampling": [],
-    "recipe_type": "single",
     "severity": "medium"
   },
 
@@ -249,19 +248,18 @@ OpenRestore v0.1 is effect-first: every single-degradation recipe names the audi
 | `volume` | Amplitude | Normalizes then attenuates audio using one of ARIEL's low-volume multipliers. | ARIEL implementation of SonicMaster's `volume` effect. | Covers severe gain mismatch; it remains listed for parity with ARIEL, even if later evaluation decides it duplicates an existing volume task. | Baseline parity | Single-effect |
 | `noise` | Noise | Adds colored broadband noise at a controlled SNR. | OpenRestore addition; ARIEL already contains calibrated white, pink, and brown noise helpers. | Covers persistent recording noise that is absent from the SonicMaster parity set. | OpenRestore addition - implemented | Listening review |
 | `hum` | Noise | Adds 50 or 60 Hz electrical hum with decaying harmonics. | OpenRestore addition; ARIEL already contains a hum helper. | A recognizable real-world electrical fault with clear diagnostic behavior. | OpenRestore addition - implemented | Listening review |
+| `clicks_crackle` | Impulse noise | Adds sparse decaying clicks plus a low-level crackle bed. | OpenRestore addition, implemented locally with deterministic transient sampling. | Covers archival, vinyl, and damaged-recording impulse noise that is distinct from continuous noise. | OpenRestore addition - implemented | Listening review |
 | `codec` | Codec | Encodes and decodes through a lossy codec such as MP3, AAC, or Opus. | OpenRestore addition; ARIEL and OpenRestore have codec helpers. | Distribution and platform transcodes are common in music restoration inputs. | OpenRestore addition - implemented | Listening review |
 | `bandwidth` | Filtering | Applies telephone, low-pass, high-pass, or low-sample-rate bandwidth loss. | OpenRestore addition; ARIEL has telephone and high-pass helpers. | Separates capture or transmission bandwidth loss from the broader SonicMaster EQ effects. | OpenRestore addition - implemented | Listening review |
-| `channel_damage` | Stereo | Damages one channel through attenuation, filtering, delay, polarity inversion, or dropout. | OpenRestore addition, based on the prior OpenRestore one-channel-damage proposal. | Represents asymmetric capture, cable, and playback faults more precisely than collapsed stereo alone. | OpenRestore addition - implemented | Listening review |
-| `distant_mic_capture` | Capture | Simulates a microphone recording several metres from the source: reduced direct-to-reverberant ratio, distance-related high-frequency loss, and optional low room noise. | OpenRestore addition, using a physically constrained Pyroomacoustics source/microphone geometry. | Covers acoustic distance as a capture problem, not merely reverb added to a close recording. | OpenRestore addition - implemented | Listening review |
+| `distant_mic_capture` | Capture | Simulates a microphone recording several metres from the source: reduced direct-to-reverberant ratio, distance-related high-frequency loss, and no added noise in v0.1. | OpenRestore addition, using a physically constrained Pyroomacoustics source/microphone geometry. | Covers acoustic distance as a capture problem, not merely reverb added to a close recording. | OpenRestore addition - implemented | Listening review |
 
 #### Asset Requirements
 
-The `mic` effect needs ARIEL-compatible microphone transfer functions in `parameters.mic_ir_dir`. The `real` effect needs compatible RIR WAV files in `parameters.real_rir_dir`. The remaining 23 effects run without external assets. Simulated room effects use the local `pyroomacoustics` dependency.
+The `mic` effect needs ARIEL-compatible microphone transfer functions in `parameters.mic_ir_dir`. The `real` effect needs compatible RIR WAV files in `parameters.real_rir_dir`. The remaining 24 effects run without external assets. Simulated room effects use the local `pyroomacoustics` dependency.
 
 #### Recipe Inventory
 
-- `single`: one named degradation from the table above. This is the current implementation and the main listening-review inventory.
-- `paired`, `organic`, and `stress`: deferred until the single-effect set has been reviewed and its parameter ranges adjusted.
+Each recipe contains one named degradation from the table above. Every active effect is rendered explicitly; the runner never samples an effect choice or combines effects. Randomness is limited to the parameters of that selected effect.
 
 Do not use mild, medium, and strong as separate recipe IDs. Intensity remains random within the effect's ARIEL range, with the item-level seed and every sampled value stored in metadata.
 
@@ -465,8 +463,6 @@ openrestore/
       bbc_sound_effects.yaml
     degradations/
       single/
-      organic/
-      stress/
     evaluation/
       metrics.yaml
       leaderboard.yaml
@@ -635,7 +631,7 @@ Keep optional infrastructure optional. RenkuLab, DaSCH, or other preservation pl
 - Implement the v0.1 primitive degradations first: `eq_coloration`, `dynamics`, `reverb_room`, `gain_level`, `clipping_distortion`, `stereo_spatial`, `bandwidth_filtering`, `noise_interference`, `device_mic_response`, and `codec_resampling`.
 - Keep first-release modules close to SonicMaster: EQ/filtering, dynamics, reverb, gain, clipping/saturation, stereo, microphone/device response, noise/hum/ambience, bandwidth loss, and conventional codec/resampling loss.
 - Store compact per-item metadata in `degradation_tracking` and keep full recipe/config files versioned with the release.
-- Make isolated single-primitive recipes the main v0.1 benchmark inventory; keep paired, organic, and stress recipes for validation, listening review, and later expansion.
+- Use one explicitly selected degradation per output in v0.1. Do not sample effect choices or combine effects; sample only the selected effects parameters.
 - Validate each degradation on a small fixed fixture set so outputs are reproducible across releases.
 
 ### 4. Implement Metrics And Reports
