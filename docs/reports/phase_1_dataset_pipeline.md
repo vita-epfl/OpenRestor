@@ -8,6 +8,20 @@ Implemented and verified locally. Phase 1 turns declared source datasets into a 
 
 Phase 1 owns the clean side of the benchmark. Its output is the reference material consumed by the in-progress degradation pipeline in Phase 2 and, later, restoration evaluation. Source audio is inspected before it is copied, every generated clip is tied to its original source, and manifests retain the information required to reproduce a build.
 
+## Dataset Allocation
+
+This is the Phase 1 implementation of the dataset strategy defined in `OpenRestore.md`. Every benchmark item is a clean 30-second music clip and an OpenRestore-generated degraded counterpart; naturally degraded SonicMaster pairs are not reused.
+
+| Dataset | OpenRestore use | Explicit exclusions |
+| --- | --- | --- |
+| SonicMaster clean originals | The only default main-track training source. Source-separated held-out items also supply in-distribution validation and the public test split. | Do not use SonicMaster degraded pairs as benchmark or leaderboard data. |
+| Song Describer Dataset (SDD) | Separately reported public transfer/local evaluation, for transfer to curated captioned music. | Never use for main-track training or the in-distribution public test. |
+| MUSDB18-HQ mixture audio | Separately reported public transfer/local evaluation, as a real mixed-music robustness check. | Never use for main-track training, the in-distribution public test, or stems. |
+| Secret custom music dataset | Organizer-only hidden official evaluation. | Never release publicly or expose to participants. |
+| BBC Sound Effects, Freesound, FSD50K, MUSAN | Optional source material for Phase 2 organic degradation layers. | Never use as clean benchmark music. |
+
+Any other training data belongs to the external-data track unless the benchmark contract is explicitly revised. FMA is not a Phase 1 benchmark source.
+
 ## Implementation Map
 
 | Path | Responsibility |
@@ -35,12 +49,41 @@ The current on-disk contract is WAV plus JSONL. A clean manifest row is the join
 
 ## Primary Commands
 
-    openrestore-data audit --dataset-config configs/datasets/sonicmaster_clean.yaml
-    openrestore-data ingest --dataset-config configs/datasets/sonicmaster_clean.yaml --output build/clean/index.jsonl
-    openrestore-data split --manifest build/clean/index.jsonl --config configs/datasets/pipeline.yaml
-    openrestore-data segment --manifest build/clean/index.jsonl --output-root build/clean/audio --output-manifest build/clean/clean_manifest.jsonl --config configs/datasets/pipeline.yaml
-    openrestore-data shard --manifest build/clean/clean_manifest.jsonl --output-dir build/clean/shards
-    openrestore-data verify --manifest build/clean/clean_manifest.jsonl
+Run the following sequence for an auditable local build. The commands use the current `openrestore-data` interface; replace `build/` paths with the release workspace used by IT.
+
+```bash
+# 1. Inspect candidate source trees and write auditable source summaries.
+openrestore-data audit --config configs/datasets/sonicmaster_clean.yaml --output build/audits/sonicmaster_clean.json
+openrestore-data audit --config configs/datasets/sdd_transfer.yaml --output build/audits/sdd.json
+openrestore-data audit --config configs/datasets/musdb18_hq_transfer.yaml --output build/audits/musdb18_hq.json
+
+# 2. Index approved source files with media metadata and source checksums.
+openrestore-data ingest --config configs/datasets/sonicmaster_clean.yaml --output build/indexes/sonicmaster.jsonl
+openrestore-data ingest --config configs/datasets/sdd_transfer.yaml --output build/indexes/sdd.jsonl
+openrestore-data ingest --config configs/datasets/musdb18_hq_transfer.yaml --output build/indexes/musdb18_hq.jsonl
+
+# 3. Deterministically split SonicMaster and combine the fixed public transfer-evaluation sources.
+openrestore-data split --indexes build/indexes/sonicmaster.jsonl build/indexes/sdd.jsonl build/indexes/musdb18_hq.jsonl --output build/sources.jsonl
+
+# 4. Render canonical clean clips and write their manifest and checksums.
+openrestore-data segment --sources build/sources.jsonl --output-root build/clean --manifest build/index.jsonl --checksums build/checksums.jsonl
+
+# 5. Package canonical WAVs into portable TAR shards, then verify every checksum.
+openrestore-data shard --output-root build/clean --manifest build/index.jsonl --shards-dir build/shards
+openrestore-data verify --root build/clean --checksums build/checksums.jsonl
+
+# 6. Report source and rendered-corpus composition for release review.
+openrestore-data source-stats --manifest build/sources.jsonl --output build/source_statistics.json
+openrestore-data stats --manifest build/index.jsonl --output build/statistics.json
+```
+
+- `audit` discovers supported audio files below a configured source root and records a bounded media-quality sample. It is the first check that the expected local dataset is present and plausible.
+- `ingest` writes one JSONL source row per eligible file, including source path, source ID, duration, sample rate, channel count, split role, and SHA-256. It does not render or modify audio.
+- `split` applies the fixed seeded split to SonicMaster source IDs, then combines it with SDD and MUSDB18-HQ, which remain fixed `transfer` sources by policy. It rejects split leakage.
+- `segment` selects deterministic 30-second windows, invokes FFmpeg to produce 44.1 kHz stereo PCM WAV, applies the configured loudness normalization, rejects invalid or silent clips, and writes the clean manifest plus checksums.
+- `shard` packages the rendered WAVs and manifest records into fixed-size TAR archives for transfer or hosted storage. The canonical WAV/JSONL contract remains unchanged.
+- `verify` recomputes each rendered WAV checksum and fails on missing or altered files.
+- `source-stats` and `stats` summarize, respectively, the source index and finished clean manifest for release auditing.
 
 ## Verification In Place
 

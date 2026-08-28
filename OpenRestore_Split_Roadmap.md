@@ -2,7 +2,7 @@
 
 This roadmap splits the OpenRestore implementation into the runnable research/audio pipeline and the hosted Information Technology ("IT") platform around it. It is written for a small collaborative team where the research engineer owns what will be hosted: the scientific validity, audio processing, dataset generation, degradation code, metric code, baselines, schemas, command-line tools, and reproducible local pipeline. IT/software engineers own how that runnable pipeline is hosted, secured, deployed, monitored, scaled, stored, and exposed to users.
 
-OpenRestore is a benchmark rather than a single restoration model. The critical shared contract is simple: each item is a 30-second 44.1 kHz musical clip with one degraded input, one clean reference, deterministic degradation metadata, and a portable manifest row. Main-track training uses SonicMaster clean originals only. Validation uses held-out SonicMaster clean audio, the Song Describer Dataset ("SDD"), and Music Demixing Dataset 2018 High Quality ("MUSDB18-HQ") mixture audio. Public test uses held-out SonicMaster clean audio. Official leaderboard scoring uses a hidden organizer-only evaluation set.
+OpenRestore is a benchmark rather than a single restoration model. The critical shared contract is simple: each item is a 30-second 44.1 kHz musical clip with one degraded input, one clean reference, deterministic degradation metadata, and a portable manifest row. Main-track training uses SonicMaster clean originals only. Validation/model selection uses held-out SonicMaster clean audio. The source-separated SonicMaster public test is the in-distribution test. The Song Describer Dataset ("SDD") and Music Demixing Dataset 2018 High Quality ("MUSDB18-HQ") mixture audio are separately reported public transfer/local-evaluation sets. Official leaderboard scoring uses a hidden organizer-only evaluation set.
 
 ## Ownership Summary
 
@@ -90,8 +90,8 @@ Goal: build a trustworthy data pipeline before generating large degraded release
 
 - [x] Perform source audits for each candidate dataset:
   - [x] SonicMaster clean originals as the only main-track training source and as the public test source through source-separated held-out items.
-  - [x] SDD as a validation source only.
-  - [x] Music Demixing Dataset 2018 High Quality ("MUSDB18-HQ") mixtures as a validation source only.
+  - [x] SDD as a public transfer/local-evaluation source only.
+  - [x] Music Demixing Dataset 2018 High Quality ("MUSDB18-HQ") mixtures as a public transfer/local-evaluation source only.
   - [x] Secret custom dataset as hidden evaluation source.
 - [x] For each dataset, produce a decision record:
   - [x] dataset name and version
@@ -101,7 +101,7 @@ Goal: build a trustworthy data pipeline before generating large degraded release
   - [x] redistribution status
   - [x] quality notes
 - [x] Define SonicMaster source-level split rules so no recording leaks across train/validation/public test.
-- [x] Define SDD and MUSDB18-HQ validation selection rules so validation items remain separate from main-track training.
+- [x] Define SDD and MUSDB18-HQ public transfer selection rules so these items remain separate from main-track training and SonicMaster model-selection validation.
 - [x] Define deterministic 30-second segmentation rules:
   - [x] window start policy
   - [x] partial segment policy
@@ -130,11 +130,11 @@ Goal: build a trustworthy data pipeline before generating large degraded release
 ### Shared deliverables
 
 - [x] `configs/datasets/sonicmaster_clean.yaml`
-- [x] `configs/datasets/sdd_validation.yaml`
-- [x] `configs/datasets/musdb18_hq_validation.yaml`
+- [x] `configs/datasets/sdd_transfer.yaml`
+- [x] `configs/datasets/musdb18_hq_transfer.yaml`
 - [x] dataset audit records
 - [x] SonicMaster public train/validation/test split manifests
-- [x] SDD and MUSDB18-HQ validation manifests
+- [x] SDD and MUSDB18-HQ public transfer manifests
 - [x] private evaluation manifest template
 - [x] reproducible miniature dataset build
 - [x] dataset statistics report
@@ -174,6 +174,9 @@ OpenRestore is now effect-first. The active single-effect registry has 25 rows: 
 - [x] Create the release-asset contract for the reviewed 20 Poliphone microphone IRs and 12 real RIR WAVs. The Git-ignored bundle is project-owned at `assets/degradations/v0_1/`; IT installs and verifies the exact artifact using `docs/degradation_assets.md` and `docs/degradation_assets_v0_1.sha256`.
 - [ ] Upload `build/release_assets/openrestore-degradation-assets-v0_1.tar.gz` and its SHA-256 file as a private GitHub/GitLab release asset tagged `degradation-assets-v0.1`; record its URL, archive SHA-256, and Poliphone/OpenAIR provenance and redistribution terms in the release record. Mirror the final approved public bundle to Zenodo only if those terms permit redistribution.
 - [x] Add degraded HDF5 shard writing and a release index that points each row at `degraded_audio_shard` and `degraded_audio_shard_index`. The WAV manifest remains the rendering provenance; the shard index is the release-facing reader contract.
+- [ ] Build the approved v0.1 paired degradation sets for every public clean split that OpenRestore releases: main-track SonicMaster training, held-out SonicMaster validation and public test, plus SDD and MUSDB18-HQ public transfer evaluation. Render the configured single effects, preserve the matching clean IDs, and keep the hidden evaluation set in a separate organizer-only build.
+- [ ] Freeze a release manifest for each paired public split. It must include clean and degraded relative paths or shard locations, recipe ID, sampled degradation metadata, dataset/split labels, audio properties, and SHA-256 checksums.
+- [ ] Package the public paired release as canonical WAVs and/or documented HDF5 shards with portable indexes, checksums, the exact degradation configuration, asset-bundle version, Git revision, and release notes. Do not publish an artifact until source redistribution terms are confirmed.
 - [x] Define and test failure handling for unavailable assets, FFmpeg failures, and oversized room simulations. Asset and FFmpeg errors are actionable; distant-room `max_order` is bounded to 0-10 and invalid geometry is rejected before simulation.
 
 ### Checkable evidence
@@ -187,6 +190,9 @@ OpenRestore is now effect-first. The active single-effect registry has 25 rows: 
 - [ ] Provide hosted compute for running the research-owned degradation command at release scale.
 - [ ] Configure job scheduling, retries, logs, and monitoring around degradation runs.
 - [ ] Store degraded shards, manifests, checksums, and logs in agreed hosted artifact locations.
+- [ ] Host versioned public paired-degradation releases for download: train, validation, and public-test degraded audio/shards where source terms permit, plus their clean/degraded manifests, portable shard indexes, checksums, configs, and release notes.
+- [ ] Publish stable download URLs and a dataset/release record for every public artifact; preserve prior versions and make the matching code/config revision discoverable.
+- [ ] Keep hidden-evaluation degraded sets, clean references, manifests, and reports in organizer-only storage with no participant download path.
 - [ ] Provide enough parallel execution capacity for large dataset builds without changing the degradation code.
 - [ ] Report infrastructure, quota, and timeout failures separately from scientific/pipeline failures.
 
@@ -196,6 +202,8 @@ OpenRestore is now effect-first. The active single-effect registry has 25 rows: 
 - [x] deterministic degradation Command-Line Interface ("CLI").
 - [x] first local listening preview: 75 degraded examples across 25 effects.
 - [x] first local shard-backed degraded miniature candidate: 75 preview outputs in eight HDF5 shards with a portable `index.jsonl`. It remains a candidate until ranges and approved external assets are frozen.
+- [ ] v0.1 public paired degradation release for every approved public split: downloadable degraded audio/shards, clean/degraded manifests, portable indexes, checksums, recipe config, asset-bundle version, Git revision, and release notes.
+- [ ] hosted private paired degradation release for the hidden evaluation split, with the same provenance but no public download path.
 
 ## Phase 3 - Metrics, AAE Diagnostics, And Reports
 
@@ -233,15 +241,17 @@ Goal: make scores scientifically meaningful and operationally reproducible.
 
 ### IT/software engineer tasks
 
+- [ ] Publish the versioned, downloadable validation/evaluation package: `openrestore-score`, metric configurations, schemas, templates, documentation, and a release archive or tagged repository revision.
 - [ ] Host the research-owned scoring command for public and hidden evaluation jobs.
 - [ ] Provide GPU-capable workers if selected metrics require them.
-- [ ] Manage caches for external metric models, embeddings, and reference statistics in the hosted environment.
+- [ ] Run `openrestore-score setup-perceptual` in the shared GPU cache to download and verify the approved CLAP, FADTK LAION Music/FMA-Pop, and Audiobox assets; manage that cache, embeddings, and reference statistics in the hosted environment.
 - [ ] Store scores, reports, logs, and intermediate metric artifacts in hosted storage.
 - [ ] Publish generated reports and leaderboard-ready JSON artifacts to the agreed internal or public location.
 
 ### Shared deliverables
 
 - [x] public local scoring command and restored-output contract
+- [ ] downloadable versioned evaluation package and release notes
 - [x] `configs/evaluation/metrics.yaml`
 - [x] metric validation fixtures
 - [x] `scores.json` schema
@@ -285,50 +295,65 @@ Goal: make the leaderboard interpretable from the first release.
 
 ## Phase 5 - Container Submission And Organizer Evaluation
 
-Goal: support official hidden evaluation without exposing evaluation audio.
+Goal: support official hidden evaluation without exposing evaluation audio. Participants submit a runnable immutable container, not precomputed hidden-set outputs.
+
+### Frozen container interface to implement
+
+The organizer mounts only hidden degraded data at `/input` and provides these environment variables to the declared `inference_command`:
+
+| Variable | In-container value | Permission |
+| --- | --- | --- |
+| `OPENRESTORE_INPUT_MANIFEST` | `/input/degraded/index.jsonl` | read-only |
+| `OPENRESTORE_INPUT_ROOT` | `/input/degraded/audio` | read-only |
+| `OPENRESTORE_OUTPUT_ROOT` | `/output/audio` | write-only |
+| `OPENRESTORE_OUTPUT_MANIFEST` | `/output/restoration_outputs.jsonl` | write-only |
+
+The command must read these variables, restore every manifest item, and write canonical 44.1 kHz stereo WAVs plus `restoration_outputs.jsonl`. Clean references and their paths are never available inside the participant container. The organizer controls the fixed mounts, so participants need no hidden-path changes in their Dockerfile or code.
 
 ### Research/audio engineer tasks
 
+- [ ] Extend and freeze the participant submission manifest:
+  - [ ] immutable OCI image digest and build recipe reference
+  - [ ] `inference_command` using the fixed environment-variable interface
+  - [ ] track and training-data disclosure
+  - [ ] model-weight location/checksum and requested runtime resources
 - [ ] Define scientific validity checks for participant outputs:
-  - [ ] duration tolerance
-  - [ ] sample-rate match
-  - [ ] channel-count match
-  - [ ] loudness bounds
-  - [ ] invalid samples
-  - [ ] item ID/file naming
-  - [ ] no extra outputs
-- [ ] Define invalid submission policy:
-  - [ ] hard failures
-  - [ ] partial failures
-  - [ ] timeout behavior
-  - [ ] how missing files affect scores
-- [ ] Define training-data disclosure rules for:
-  - [ ] SonicMaster-clean-only main track
-  - [ ] external-data track
-- [ ] Review evaluation logs and metrics for anomalous submissions.
+  - [ ] complete one-to-one item ID correspondence and no untracked outputs
+  - [ ] 44.1 kHz sample rate, stereo channel count, and duration tolerance
+  - [ ] finite samples, safe peak/loudness bounds, readable WAV encoding
+  - [ ] required `restoration_outputs.jsonl` schema and path resolution
+- [ ] Freeze the invalid-submission policy: malformed manifest, missing/invalid output, timeout, resource breach, and inference failure are hard failures; never score a partial hidden run.
+- [ ] Define training-data disclosure rules for SonicMaster-clean-only main and external-data tracks.
 - [ ] Implement the local organizer evaluation command that IT will host:
-  - [ ] parse and validate submission manifests
-  - [ ] run the declared inference command on fixture data
-  - [ ] validate outputs before scoring
-  - [ ] compute scores with the research-owned scoring pipeline
-  - [ ] write logs, checksums, and audit metadata
-- [ ] Provide an example participant container for interface testing.
+  - [ ] validate submission metadata and image digest
+  - [ ] run a fixture smoke test with the fixed `/input` and `/output` mounts
+  - [ ] execute the hidden inference run
+  - [ ] run `openrestore-score validate-restored` before any scoring
+  - [ ] join outputs with private clean references outside the participant container
+  - [ ] run CPU and approved perceptual reports
+  - [ ] write logs, checksums, trusted restoration metadata, and audit metadata
+- [ ] Review evaluation logs and metrics for anomalous submissions.
+- [ ] Provide a participant container template that consumes only the declared variables.
 
 ### IT/software engineer tasks
 
+- [ ] Publish the versioned submission-container template and validation/evaluation package for participants to download.
 - [ ] Host the organizer evaluation command in a secure container execution environment.
-- [ ] Pull submitted images by digest and run them with the approved mounts, timeouts, and resource limits.
-- [ ] Manage secrets, network policy, private evaluation mounts, and output permissions.
-- [ ] Store submission manifests, container digests, logs, restored outputs, checksums, and metrics securely.
-- [ ] Expose operational status and failure logs to organizers without exposing hidden evaluation audio.
+- [ ] Pull submitted images by immutable digest; build only from the submitted, audited recipe when a build is required.
+- [ ] Run images with network disabled, hidden `/input` mounted read-only, an empty `/output` mounted writable, no clean mount, and no participant-visible secrets.
+- [ ] Enforce non-root execution where feasible, read-only container filesystems, time, CPU, memory, disk, and GPU limits.
+- [ ] Run the same public validation/scoring package after inference, with private clean references accessible only to the organizer-side scorer.
+- [ ] Store submission manifests, container digests, commands, runtime configuration, logs, restored outputs, checksums, trusted metadata, and metrics securely.
+- [ ] Expose operational status and failure logs to organizers without exposing hidden evaluation audio or private paths.
 
 ### Shared deliverables
 
-- [ ] `submission_manifest.schema.json`
+- [ ] extended `submission_manifest.schema.json` and documented field definitions
 - [ ] example submission manifest
-- [ ] example inference container
+- [ ] example inference `Dockerfile`/container using the fixed environment variables
+- [ ] local organizer dry-run command and public fixture
 - [ ] hidden evaluation dry run using internal fixtures
-- [ ] documented organizer evaluation procedure
+- [ ] documented organizer evaluation procedure and invalid-submission policy
 
 ## Phase 6 - Release, Website, And Leaderboard
 

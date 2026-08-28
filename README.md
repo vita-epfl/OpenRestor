@@ -2,9 +2,11 @@
 
 OpenRestore is a reproducible benchmark for musical audio restoration. This repository currently contains the Phase 1 dataset preparation pipeline and the Phase 2 local degradation renderer.
 
-The pipeline uses only clean SonicMaster originals for main-track training and source-separated SonicMaster validation/test. SDD and MUSDB18-HQ mixture audio are validation-only; FMA is not part of this release.
+The pipeline uses only clean SonicMaster originals for main-track training and source-separated SonicMaster validation/test. SDD and MUSDB18-HQ mixture audio are separate public transfer/local-evaluation sets; FMA is not part of this release.
 
 Install the local package with `python -m pip install -e .`. Commands print progress by default; add `--quiet` for automated runs.
+
+Start with the [OpenRestore Guide](docs/openrestore_guide.md) for the public artifacts, dataset roles, local validation workflow, degradation pipeline, and submission contract. The released validation and public-test packages include OpenRestore-rendered degraded counterparts and manifests where source redistribution permits; use the public scorer rather than reimplementing the metrics.
 
 ## Repository Context
 
@@ -21,8 +23,8 @@ npm run repomix
 ```bash
 openrestore-data audit --config configs/datasets/sonicmaster_clean.yaml --output build/audits/sonicmaster_clean.json
 openrestore-data ingest --config configs/datasets/sonicmaster_clean.yaml --output build/indexes/sonicmaster.jsonl
-openrestore-data ingest --config configs/datasets/sdd_validation.yaml --output build/indexes/sdd.jsonl
-openrestore-data ingest --config configs/datasets/musdb18_hq_validation.yaml --output build/indexes/musdb18_hq.jsonl
+openrestore-data ingest --config configs/datasets/sdd_transfer.yaml --output build/indexes/sdd.jsonl
+openrestore-data ingest --config configs/datasets/musdb18_hq_transfer.yaml --output build/indexes/musdb18_hq.jsonl
 openrestore-data split --indexes build/indexes/sonicmaster.jsonl build/indexes/sdd.jsonl build/indexes/musdb18_hq.jsonl --output build/sources.jsonl
 openrestore-data source-stats --manifest build/sources.jsonl --output build/source_statistics.json
 openrestore-data segment --sources build/sources.jsonl --output-root /path/to/openrestore-clips --manifest build/index.jsonl --checksums build/checksums.jsonl

@@ -32,7 +32,7 @@ def _config(dataset: str, root: Path, fixed_split: str) -> dict[str, str | int]:
     return {
         "dataset": dataset,
         "source_root": str(root),
-        "role": "validation-only" if fixed_split == "validation" else "main-track-training-and-public-evaluation",
+        "role": "public-transfer-evaluation" if fixed_split == "transfer" else "main-track-training-and-public-evaluation",
         "fixed_split": fixed_split,
         "min_source_seconds": 30,
         "license": "test",
@@ -42,7 +42,7 @@ def _config(dataset: str, root: Path, fixed_split: str) -> dict[str, str | int]:
 
 
 class PhaseOnePipelineTests(TestCase):
-    def test_pipeline_is_deterministic_and_validation_only(self) -> None:
+    def test_pipeline_is_deterministic_and_transfer_separated(self) -> None:
         with TemporaryDirectory() as directory:
             tmp_path = Path(directory)
             sonic_root = tmp_path / "sonic" / "clean"
@@ -57,12 +57,12 @@ class PhaseOnePipelineTests(TestCase):
             sdd_index = tmp_path / "sdd.jsonl"
             musdb_index = tmp_path / "musdb.jsonl"
             ingest(_config("sonicmaster_clean", sonic_root, "unassigned"), sonic_index)
-            ingest(_config("sdd", sdd_root, "validation"), sdd_index)
-            ingest(_config("musdb18_hq", musdb_root, "validation"), musdb_index)
+            ingest(_config("sdd", sdd_root, "transfer"), sdd_index)
+            ingest(_config("musdb18_hq", musdb_root, "transfer"), musdb_index)
 
             source_manifest = tmp_path / "sources.jsonl"
             rows = combine_and_split([sonic_index, sdd_index, musdb_index], source_manifest, 42, 0.7, 0.15)
-            self.assertTrue(all(row["split"] == "validation" for row in rows if row["dataset"] in {"sdd", "musdb18_hq"}))
+            self.assertTrue(all(row["split"] == "transfer" for row in rows if row["dataset"] in {"sdd", "musdb18_hq"}))
             self.assertLessEqual({row["split"] for row in rows if row["dataset"] == "sonicmaster_clean"}, {"train", "validation", "test"})
             source_report = source_statistics(rows)
             self.assertEqual(source_report["sources"], len(rows))
