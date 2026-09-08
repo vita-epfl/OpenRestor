@@ -62,8 +62,8 @@ Stable Audio 3 evaluates instrumental music on the Song Describer Dataset (SDD).
 | Role | Decision | Rationale |
 | --- | --- | --- |
 | Training pool | Use only the clean original audio from SonicMaster Dataset as the default approved training source, if it passes license and quality checks. Do not use SonicMaster's degraded pairs as benchmark or leaderboard data. | SonicMaster clean originals provide the main public training scale for v1, while OpenRestore generates its own real-world degradations on top. Excluding SonicMaster's degraded pairs prevents the benchmark from inheriting their degradation design. |
-| Validation split | Use held-out SonicMaster clean audio only. | This is the model-selection split: it measures in-distribution behavior without repeatedly tuning on transfer datasets. |
-| Public in-distribution test | Use a separate held-out SonicMaster clean split. | This is the primary public main-track test: source-separated from SonicMaster training and validation, but drawn from the same distribution. |
+| Validation split | Use SonicMaster's supplied validation split. | This imposed upstream split is the model-selection set; do not resample or merge it with transfer datasets. |
+| Public in-distribution test | Use SonicMaster's supplied test split. | This is the primary public main-track test. It is the given SonicMaster test set, not an OpenRestore source-separated re-split. |
 | Public transfer/local evaluation | Use SDD and MUSDB18-HQ mixture audio in separate `transfer` manifests. Do not use either for main-track training. | These robustness diagnostics test different curated and mixed-music source distributions. Report them by dataset; do not merge them into the primary main-track result. |
 | Hidden evaluation split | Use a separate secret custom dataset that is not publicly released. | A private organizer-only evaluation set prevents leakage of official leaderboard audio while the public SonicMaster train, validation, and in-distribution test splits plus separate transfer/local-evaluation sets remain reproducible from documented sources. |
 
@@ -73,14 +73,14 @@ Stable Audio 3 evaluates instrumental music on the Song Describer Dataset (SDD).
 | --- | --- | --- |
 | Organic degradation material | Use sound datasets only as source material for degradation layers, not as clean benchmark audio. | BBC Sound Effects, Freesound, FSD50K, and MUSAN can provide ambience, noise, interference, or environmental beds for organic degradation chains that are mixed into clean music clips. |
 
-The OpenRestore main-track training source is SonicMaster clean originals only. We split SonicMaster clean originals by source recording into training, validation, and public test subsets, then generate clean 30-second music clips and degraded 30-second versions for each split. SDD and MUSDB18-HQ mixture audio instead use separate public `transfer` manifests for local robustness evaluation; they are not model-selection validation data. Official leaderboard scoring uses a separate secret custom evaluation dataset that is not publicly released. SonicMaster's degraded pairs are not reused as benchmark or leaderboard data, and MUSDB18-HQ stems are not used as benchmark items in the main track. Degradation-source datasets are used only to synthesize degraded audio and are not part of the clean benchmark distribution. Any other training source belongs in the separate external-data track unless we explicitly revise the benchmark contract.
+The OpenRestore main-track training source is SonicMaster clean originals only. Use the frozen original SonicMaster source assignment (23,500 train, 500 validation, 1,000 test); never resample these memberships. Generate clean 30-second music clips and degraded 30-second versions within each supplied split. SDD and MUSDB18-HQ mixture audio instead use separate public `transfer` manifests for local robustness evaluation; they are not model-selection validation data. Official leaderboard scoring uses a separate secret custom evaluation dataset that is not publicly released. SonicMaster's degraded pairs are not reused as benchmark or leaderboard data, and MUSDB18-HQ stems are not used as benchmark items in the main track. Degradation-source datasets are used only to synthesize degraded audio and are not part of the clean benchmark distribution. Any other training source belongs in the separate external-data track unless we explicitly revise the benchmark contract.
 
 ### Source Policy
 
 - Do not make the benchmark a grab bag of every available audio dataset.
 - Use SonicMaster clean originals as the only default main-track training source unless a specific license or quality audit blocks that role.
 - Use a separate secret custom dataset for the organizer-only hidden evaluation split.
-- Use held-out SonicMaster clean audio for validation and the in-distribution public test. Use SDD and MUSDB18-HQ mixture audio only in separately reported public transfer/local evaluation. Do not train main-track models on SDD or MUSDB18-HQ.
+- Use the supplied SonicMaster validation and test sets for in-distribution validation and public testing; do not re-split them. Use SDD and MUSDB18-HQ mixture audio only in separately reported public transfer/local evaluation and testing. Do not train main-track models on SDD or MUSDB18-HQ.
 - Do not reuse SonicMaster's degraded set as benchmark or leaderboard data.
 - Use sound datasets only for degradation material, not as benchmark source music.
 - Put any training source outside the approved pool in the external-data track.
@@ -224,7 +224,7 @@ For public releases, avoid machine-specific absolute paths such as `/work/vita/.
 
 OpenRestore v0.1 is effect-first: every single-degradation recipe names the audible degradation directly. The high-level group is retained only for organization, filtering, and reporting. Each effect samples deterministic random parameters from the ARIEL implementation; `ariel_random` is not a three-level preset.
 
-#### v0.1 Degradation Set
+#### Degradation Set
 
 | ID | Group | What the degradation does | Origin | Why it matters | Status | Benchmark role |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -237,9 +237,9 @@ OpenRestore v0.1 is effect-first: every single-degradation recipe names the audi
 | `airy` | EQ | Cuts the high shelf around 10 kHz. | ARIEL implementation of SonicMaster's `airy` effect. | Represents missing air and reduced openness in the extreme high frequencies. | Baseline parity | Single-effect |
 | `boom` | EQ | Cuts the low shelf around 120 Hz. | ARIEL implementation of SonicMaster's `boom` effect. | Covers low-end imbalance and loss of weight in bass and kick content. | Baseline parity | Single-effect |
 | `clarity` | EQ | Applies a low-pass filter around 4 kHz with randomized order. | ARIEL implementation of SonicMaster's `clarity` effect. | Models a clear, common loss of definition and intelligibility. | Baseline parity | Single-effect |
-| `mud` | EQ | Isolates the 200-500 Hz region through a Chebyshev band-pass response. | ARIEL implementation of SonicMaster's `mud` effect. | Targets congested low-mid coloration that masks detail. | Baseline parity | Single-effect |
+| `mud` | EQ | Replaces the full-band signal with a 2nd-order Chebyshev Type II band-pass response covering 200-500 Hz; the sampled 6-15 dB value is stop-band attenuation. | Exact ARIEL/SonicMaster `increase_muddiness` implementation. | Produces the intentionally band-limited, congested low-mid reference used by SonicMaster. | Baseline parity | Single-effect |
 | `warm` | EQ | Cuts the low shelf around 400 Hz. | ARIEL implementation of SonicMaster's `warm` effect. | Covers insufficient warmth and thin lower-mid content. | Baseline parity | Single-effect |
-| `vocal` | EQ | Applies a 350-3500 Hz Chebyshev band-stop response. | ARIEL implementation of SonicMaster's `vocal` effect. | Simulates recessed vocal and midrange content in a full mix. | Baseline parity | Single-effect |
+| `vocal` | EQ | Applies a 2nd-order Chebyshev Type II 350-3500 Hz band-stop to the complete mix; the sampled 6-20 dB value is stop-band attenuation. It is not vocal source separation. | Exact ARIEL/SonicMaster `lower_vocals3` implementation. | Suppresses vocal-range and other midrange content together, producing the SonicMaster recessed-midrange reference. | Baseline parity | Single-effect |
 | `small` | Reverb | Convolves audio with a randomized small Pyroomacoustics room. | SonicMaster small-room simulation, ported from ARIEL. | Represents close-room reflections and short acoustic coloration. | Baseline parity | Single-effect |
 | `big` | Reverb | Convolves audio with a randomized large Pyroomacoustics room. | SonicMaster big-room simulation, ported from ARIEL. | Covers longer, more spacious room coloration and decay. | Baseline parity | Single-effect |
 | `mix` | Reverb | Simulates a room with mixed absorptive and reflective wall materials. | SonicMaster mixed-room simulation, ported from ARIEL. | Adds frequency-dependent room coloration closer to varied real spaces. | Baseline parity | Single-effect |
@@ -252,6 +252,7 @@ OpenRestore v0.1 is effect-first: every single-degradation recipe names the audi
 | `clicks_crackle` | Impulse noise | Adds sparse decaying clicks plus a low-level crackle bed. | OpenRestore addition, implemented locally with deterministic transient sampling. | Covers archival, vinyl, and damaged-recording impulse noise that is distinct from continuous noise. | OpenRestore addition - implemented | Listening review |
 | `codec` | Codec | Encodes and decodes through a lossy codec such as MP3, AAC, or Opus. | OpenRestore addition; ARIEL and OpenRestore have codec helpers. | Distribution and platform transcodes are common in music restoration inputs. | OpenRestore addition - implemented | Listening review |
 | `bandwidth` | Filtering | Applies telephone, low-pass, high-pass, or low-sample-rate bandwidth loss. | OpenRestore addition; ARIEL has telephone and high-pass helpers. | Separates capture or transmission bandwidth loss from the broader SonicMaster EQ effects. | OpenRestore addition - implemented | Listening review |
+| `channel_damage` | Stereo | Degrades one channel only through attenuation, bandwidth loss, delay, or polarity inversion while preserving the other channel. | OpenRestore addition; implemented as the `one_channel_damage` stereo variant. | Covers an asymmetric capture, cable, speaker, or transfer failure that mono collapse cannot represent. | OpenRestore addition - implemented | Listening review |
 | `distant_mic_capture` | Capture | Simulates a microphone recording several metres from the source: reduced direct-to-reverberant ratio, distance-related high-frequency loss, and no added noise in v0.1. | OpenRestore addition, using a physically constrained Pyroomacoustics source/microphone geometry. | Covers acoustic distance as a capture problem, not merely reverb added to a close recording. | OpenRestore addition - implemented | Listening review |
 
 #### Asset Requirements

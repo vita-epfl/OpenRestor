@@ -129,6 +129,22 @@ class DegradationPrimitiveTests(TestCase):
             self.assertEqual(first_params, second_params, effect)
             self.assertEqual(first_params["effect"], effect)
 
+    def test_mud_matches_sonicmaster_ariel_filter(self) -> None:
+        audio = _fixture_audio(0.25)
+        output, params = apply_operation(audio, SAMPLE_RATE, "ariel", "mud", {}, np.random.default_rng(42))
+        attenuation = params["gain"]
+        expected_sos = signal.cheby2(2, attenuation, [200, 500], "bandpass", fs=SAMPLE_RATE, output="sos")
+        expected = signal.sosfilt(expected_sos, audio, axis=0)
+        self.assertTrue(np.array_equal(output, expected))
+
+    def test_vocal_matches_sonicmaster_ariel_filter(self) -> None:
+        audio = _fixture_audio(0.25)
+        output, params = apply_operation(audio, SAMPLE_RATE, "ariel", "vocal", {}, np.random.default_rng(42))
+        attenuation = params["gain"]
+        expected_sos = signal.cheby2(2, attenuation, [350, 3_500], "bandstop", fs=SAMPLE_RATE, output="sos")
+        expected = signal.sosfilt(expected_sos, audio, axis=0)
+        self.assertTrue(np.array_equal(output, expected))
+
     def test_asset_and_external_tool_failures_are_actionable(self) -> None:
         audio = _fixture_audio(0.1)
         with self.assertRaisesRegex(FileNotFoundError, "mic_ir_dir"):

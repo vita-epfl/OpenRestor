@@ -70,6 +70,7 @@ def ingest(
 
 
 def split_sonicmaster(rows: Iterable[dict[str, Any]], seed: int, train_fraction: float, validation_fraction: float) -> list[dict[str, Any]]:
+    """Assign a reproducible OpenRestore-native hash split."""
     if not 0 < train_fraction < 1 or not 0 <= validation_fraction < 1 or train_fraction + validation_fraction >= 1:
         raise ValueError("Split fractions must leave a non-empty public test fraction")
     assigned: list[dict[str, Any]] = []
@@ -77,6 +78,72 @@ def split_sonicmaster(rows: Iterable[dict[str, Any]], seed: int, train_fraction:
         value = stable_fraction(row["source_id"], seed)
         split = "train" if value < train_fraction else "validation" if value < train_fraction + validation_fraction else "test"
         assigned.append({**row, "split": split})
+    return assigned
+
+
+def ariel_split_membership(train_manifest: Path, test_manifest: Path) -> dict[str, str]:
+    """Load ARIEL's authoritative SonicMaster train/test source membership."""
+    membership: dict[str, str] = {}
+    for split, manifest in (("train", train_manifest), ("test", test_manifest)):
+        rows = read_jsonl(manifest)
+        if not rows:
+            raise ValueError(f"ARIEL {split} manifest is empty or unavailable: {manifest}")
+        for line_number, row in enumerate(rows, start=1):
+            source_id = str(row.get("source_id", "")).strip()
+            if not source_id:
+                raise ValueError(f"ARIEL {split} manifest has no source_id at line {line_number}: {manifest}")
+            previous = membership.get(source_id)
+            if previous is not None:
+                raise ValueError(f"ARIEL manifests assign source {source_id!r} to both {previous!r} and {split!r}")
+            membership[source_id] = split
+    return membership
+
+
+def sonicmaster_split_membership(manifest: Path) -> dict[str, str]:
+    """Load the frozen original SonicMaster source assignment."""
+    rows = read_jsonl(manifest)
+    if not rows:
+        raise ValueError(f"SonicMaster split manifest is empty or unavailable: {manifest}")
+    membership: dict[str, str] = {}
+    for line_number, row in enumerate(rows, start=1):
+        source_id = str(row.get("source_id", "")).strip()
+        split = str(row.get("split", "")).strip()
+        if not source_id or split not in {"train", "validation", "test"}:
+            raise ValueError(f"Invalid SonicMaster split row at line {line_number}: {manifest}")
+        if source_id in membership:
+            raise ValueError(f"Duplicate SonicMaster source {source_id!r}: {manifest}")
+        membership[source_id] = split
+    return membership
+
+
+def split_sonicmaster_from_manifest(rows: Iterable[dict[str, Any]], manifest: Path) -> list[dict[str, Any]]:
+    """Apply the exact frozen SonicMaster split and reject missing sources."""
+    membership = sonicmaster_split_membership(manifest)
+    row_list = list(rows)
+    found = {row["source_id"] for row in row_list}
+    missing = sorted(set(membership) - found)
+    if missing:
+        preview = ", ".join(missing[:10])
+        suffix = "..." if len(missing) > 10 else ""
+        raise ValueError(f"Frozen SonicMaster split sources are absent from the OpenRestore input ({len(missing)}): {preview}{suffix}")
+    unexpected = sorted(found - set(membership))
+    if unexpected:
+        preview = ", ".join(unexpected[:10])
+        suffix = "..." if len(unexpected) > 10 else ""
+        raise ValueError(f"OpenRestore input contains sources outside the frozen SonicMaster split ({len(unexpected)}): {preview}{suffix}")
+    return [{**row, "split": membership[row["source_id"]]} for row in row_list]
+
+
+def split_sonicmaster_from_ariel(rows: Iterable[dict[str, Any]], train_manifest: Path, test_manifest: Path) -> list[dict[str, Any]]:
+    """Preserve ARIEL membership and assign local-only SonicMaster sources to train."""
+    membership = ariel_split_membership(train_manifest, test_manifest)
+    assigned = [{**row, "split": membership.get(row["source_id"], "train")} for row in rows]
+    found = {row["source_id"] for row in assigned}
+    missing = sorted(set(membership) - found)
+    if missing:
+        preview = ", ".join(missing[:10])
+        suffix = "..." if len(missing) > 10 else ""
+        raise ValueError(f"ARIEL split sources are absent from the OpenRestore input ({len(missing)}): {preview}{suffix}")
     return assigned
 
 
@@ -100,8 +167,15 @@ def combine_and_split(
     seed: int,
     train_fraction: float,
     validation_fraction: float,
+    ariel_train_manifest: Path | None = None,
+    ariel_test_manifest: Path | None = None,
+    sonicmaster_split_manifest: Path | None = None,
     progress: bool = False,
 ) -> list[dict[str, Any]]:
+    if (ariel_train_manifest is None) != (ariel_test_manifest is None):
+        raise ValueError("Provide both ARIEL train and test manifests, or neither")
+    if sonicmaster_split_manifest is not None and ariel_train_manifest is not None:
+        raise ValueError("Choose the frozen SonicMaster manifest or ARIEL manifests, not both")
     rows: list[dict[str, Any]] = []
     for path in index_paths:
         path_rows = read_jsonl(path)
@@ -110,11 +184,18 @@ def combine_and_split(
     output_rows: list[dict[str, Any]] = []
     for dataset, group in _group_by_dataset(rows).items():
         _log(progress, f"[split] assigning {len(group)} rows for {dataset}")
-        output_rows.extend(
-            split_sonicmaster(group, seed, train_fraction, validation_fraction)
-            if dataset == "sonicmaster_clean"
-            else group
-        )
+        if dataset == "sonicmaster_clean" and sonicmaster_split_manifest is not None:
+            assigned = split_sonicmaster_from_manifest(group, sonicmaster_split_manifest)
+            _log(progress, f"[split] applied frozen SonicMaster assignment to {len(assigned)} sources")
+            output_rows.extend(assigned)
+        elif dataset == "sonicmaster_clean" and ariel_train_manifest is not None and ariel_test_manifest is not None:
+            assigned = split_sonicmaster_from_ariel(group, ariel_train_manifest, ariel_test_manifest)
+            _log(progress, f"[split] assigned {len(assigned)}/{len(group)} SonicMaster rows; {len(group) - len(ariel_split_membership(ariel_train_manifest, ariel_test_manifest))} local-only rows added to train")
+            output_rows.extend(assigned)
+        elif dataset == "sonicmaster_clean":
+            output_rows.extend(split_sonicmaster(group, seed, train_fraction, validation_fraction))
+        else:
+            output_rows.extend(group)
     output_rows.sort(key=lambda row: (row["dataset"], row["source_id"]))
     validate_split_policy(output_rows)
     write_jsonl(output, output_rows)

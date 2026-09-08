@@ -6,7 +6,7 @@ A system receives one degraded 30-second musical clip and returns one restored c
 
 ## Data
 
-Main-track training uses clean SonicMaster originals only. SonicMaster validation and in-distribution public-test items are source-separated. SDD and MUSDB18-HQ are separately reported public transfer/local-evaluation sets. Official evaluation uses an organizer-only hidden set.
+Main-track training uses clean SonicMaster originals only. Main-track validation and in-distribution public testing use SonicMaster's supplied validation and test splits; OpenRestore does not re-split them. SDD and MUSDB18-HQ are separately reported public transfer/local-evaluation sets. Official evaluation uses an organizer-only hidden set.
 
 ## Degradations
 
