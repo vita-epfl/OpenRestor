@@ -28,6 +28,24 @@ target-version = "py311"
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "W"]
 
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+check_untyped_defs = true
+exclude = ["tests/"]
+
+[[tool.mypy.overrides]]
+module = "openrestore.metrics.perceptual"
+# self.fadtk is both an instance attribute (FrechetAudioDistance) and a method name;
+# the collision is intentional (ARIEL workaround), so these two codes are suppressed here.
+disable_error_code = ["method-assign", "attr-defined"]
+
+[[tool.mypy.overrides]]
+module = "openrestore.degradations.ariel_effects"
+# `threshold`, `reduction`, and `absorption` are assigned under mutually exclusive
+# effect branches with different types; on a real run each branch uses only its own type.
+disable_error_code = ["assignment"]
+
 [dependency-groups]
 dev = [
     "codespell>=2.4.3",
@@ -43,3 +61,11 @@ doc = [
     "sphinx>=9.0.4",
     "sphinx-rtd-theme>=3.1.0",
 ]
+
+[tool.commitizen]
+name = "cz_conventional_commits"
+version = "0.1.0"
+tag_format = "v$version"
+
+[tool.codespell]
+skip = "./uv.lock,./site,./tests,./scripts,./code-docs/_build"
