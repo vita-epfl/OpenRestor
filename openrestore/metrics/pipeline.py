@@ -238,7 +238,8 @@ def score(
     _score_failures(output_dir, failures)
     if failures:
         raise ValueError(
-            f"Scoring rejected {len(failures)} manifest/audio failures; see {output_dir / 'failures.json'}"
+            f"Scoring rejected {len(failures)} manifest/audio failures; see "
+            f"{output_dir / 'failures.json'}"
         )
     write_jsonl(output_dir / "per_item_scores.jsonl", item_rows)
     write_jsonl(
@@ -308,7 +309,8 @@ def _write_markdown(report: dict[str, Any], path: Path) -> None:
         "",
         "This report is diagnostic only. It defines no leaderboard aggregate or rank.",
         "",
-        "Lower is better for distances/errors; higher is better for SNR, SI-SDR, SI-SNR, and SSIM. `improvement` is always positive when restoration improves over degraded audio.",
+        "Lower is better for distances/errors; higher is better for SNR, SI-SDR, SI-SNR, and SSIM. "
+        "`improvement` is always positive when restoration improves over degraded audio.",
         "",
         f"Scored items: {report['items']['scored']}",
         "",
@@ -320,7 +322,9 @@ def _write_markdown(report: dict[str, Any], path: Path) -> None:
     for category, data in report["by_category"].items():
         metrics = data["metrics"]
         lines.append(
-            f"| {category} | {data['items']} | {metrics['l1']['restored']:.6f} | {metrics['snr_db']['restored']:.3f} | {metrics['lsd_db']['restored']:.3f} | {metrics['aae']['reduction']:.3f} |"
+            f"| {category} | {data['items']} | {metrics['l1']['restored']:.6f} | "
+            f"{metrics['snr_db']['restored']:.3f} | {metrics['lsd_db']['restored']:.3f} | "
+            f"{metrics['aae']['reduction']:.3f} |"
         )
     lines.extend(
         ["", "## Effect Summary", "", "| Effect | Items | AAE reduction |", "| --- | ---: | ---: |"]
@@ -330,7 +334,8 @@ def _write_markdown(report: dict[str, Any], path: Path) -> None:
     lines.extend(
         [
             "",
-            "Learned embedding, distributional, and aesthetic metrics are deferred to the optional GPU metric pack.",
+            "Learned embedding, distributional, and aesthetic metrics are deferred "
+            "to the optional GPU metric pack.",
         ]
     )
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -338,10 +343,10 @@ def _write_markdown(report: dict[str, Any], path: Path) -> None:
 
 def no_restoration(
     degraded_manifest: Path, degraded_root: Path, output_root: Path, output_manifest: Path
-) -> list[dict[str, str]]:
+) -> list[dict[str, Any]]:
     rows = read_jsonl(degraded_manifest)
     output_manifest.parent.mkdir(parents=True, exist_ok=True)
-    result: list[dict[str, str]] = []
+    result: list[dict[str, Any]] = []
     for row in rows:
         source = _resolve(degraded_root, row["degraded_path"])
         target = output_root / f"{row['id']}.wav"

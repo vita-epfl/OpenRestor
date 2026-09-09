@@ -62,7 +62,8 @@ def _verify_cache(cache: Path) -> dict[str, Any]:
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     if manifest.get("cache_sha256") != _sha256_tree(cache):
         raise RuntimeError(
-            "Perceptual model cache does not match its verified setup manifest; run setup-perceptual again"
+            "Perceptual model cache does not match its verified setup manifest; "
+            "run setup-perceptual again"
         )
     return manifest
 
@@ -311,7 +312,8 @@ def _write_markdown(report: dict[str, Any], path: Path) -> None:
         "",
         "This report is diagnostic only. It defines no leaderboard aggregate or rank.",
         "",
-        "Higher is better for CLAP cosine and Audiobox CE/CU/PC/PQ. Lower is better for FADTK. Improvements are oriented so positive means better than degraded audio.",
+        "Higher is better for CLAP cosine and Audiobox CE/CU/PC/PQ. Lower is better for FADTK. "
+        "Improvements are oriented so positive means better than degraded audio.",
         "",
         f"Scored items: {report['items']['scored']}",
         "",
@@ -332,7 +334,8 @@ def _write_markdown(report: dict[str, Any], path: Path) -> None:
         if name in overall:
             metric = overall[name]
             lines.append(
-                f"| {name} | {metric['degraded']:.6f} | {metric['restored']:.6f} | {metric['improvement']:.6f} |"
+                f"| {name} | {metric['degraded']:.6f} | {metric['restored']:.6f} | "
+                f"{metric['improvement']:.6f} |"
             )
     lines.extend(
         [
@@ -460,7 +463,8 @@ def perceptual_score(
     )
     if failures:
         raise ValueError(
-            f"Perceptual scoring rejected {len(failures)} failures; see {output_dir / 'perceptual_failures.json'}"
+            f"Perceptual scoring rejected {len(failures)} failures; see "
+            f"{output_dir / 'perceptual_failures.json'}"
         )
     report = {
         "benchmark_version": config["benchmark_version"],
