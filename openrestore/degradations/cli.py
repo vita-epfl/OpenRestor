@@ -55,7 +55,12 @@ def main() -> None:
         )
     elif args.command == "shard":
         write_hdf5_shards(
-            args.output_root, args.manifest, args.shards_dir, args.output_index, args.shard_size, progress=not args.quiet
+            args.output_root,
+            args.manifest,
+            args.shards_dir,
+            args.output_index,
+            args.shard_size,
+            progress=not args.quiet,
         )
     elif args.command == "validate-config":
         validate_config(load_yaml(args.config))

@@ -99,7 +99,11 @@ def main() -> None:
         )
     elif args.command == "shard":
         write_shards(
-            args.output_root, read_jsonl(args.manifest), args.shards_dir, args.shard_size, progress=progress
+            args.output_root,
+            read_jsonl(args.manifest),
+            args.shards_dir,
+            args.shard_size,
+            progress=progress,
         )
     elif args.command == "verify":
         failures = verify_checksums(args.root, args.checksums, progress=progress)

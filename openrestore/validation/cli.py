@@ -10,7 +10,18 @@ from .core import validate_file
 
 def main() -> None:
     parser = argparse.ArgumentParser(prog="openrestore-validate")
-    parser.add_argument("kind", choices=["index", "degradation_tracking", "submission_manifest", "restoration_outputs", "restoration_metadata", "scores", "leaderboard_entry"])
+    parser.add_argument(
+        "kind",
+        choices=[
+            "index",
+            "degradation_tracking",
+            "submission_manifest",
+            "restoration_outputs",
+            "restoration_metadata",
+            "scores",
+            "leaderboard_entry",
+        ],
+    )
     parser.add_argument("--input", type=Path, required=True)
     args = parser.parse_args()
     count = validate_file(args.kind, args.input)

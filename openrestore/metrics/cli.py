@@ -1,9 +1,11 @@
 """Command-line interface for local OpenRestore scoring."""
 
 from __future__ import annotations
+
 import argparse
 import json
 from pathlib import Path
+
 from .perceptual import perceptual_score, setup_perceptual
 from .pipeline import no_restoration, score, validate_restored_manifest
 

@@ -15,6 +15,7 @@ import numpy as np
 import soundfile as sf
 
 from openrestore.degradations.core import load_yaml, sha256_file, write_jsonl
+
 from .core import category_for_row, effect_name
 from .pipeline import _audio, _resolve, restoration_metadata, validate_restored_manifest
 
@@ -214,7 +215,7 @@ def _cached_embedding(
     sample_rate: int,
 ) -> np.ndarray:
     key = hashlib.sha256(
-        f"{sha256_file(audio_path)}:{backend.identifier}:{backend_name}:v0_1".encode("utf-8")
+        f"{sha256_file(audio_path)}:{backend.identifier}:{backend_name}:v0_1".encode()
     ).hexdigest()
     path = _embedding_cache_path(cache_dir, backend_name, key)
     if path.is_file():
@@ -235,7 +236,7 @@ def _cached_aesthetics(
     sample_rate: int,
 ) -> dict[str, float]:
     key = hashlib.sha256(
-        f"{sha256_file(audio_path)}:{backend.identifier}:aesthetics:v0_1".encode("utf-8")
+        f"{sha256_file(audio_path)}:{backend.identifier}:aesthetics:v0_1".encode()
     ).hexdigest()
     path = _embedding_cache_path(cache_dir, "aesthetics", key)
     if path.is_file():

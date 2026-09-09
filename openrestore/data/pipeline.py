@@ -9,11 +9,19 @@ import sys
 import tarfile
 import wave
 from collections import Counter, defaultdict
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
-from .core import SourceItem, audio_files, probe_audio, read_jsonl, sha256_file, stable_fraction, write_jsonl
-
+from .core import (
+    SourceItem,
+    audio_files,
+    probe_audio,
+    read_jsonl,
+    sha256_file,
+    stable_fraction,
+    write_jsonl,
+)
 
 CANONICAL_SAMPLE_RATE = 44_100
 CLIP_SECONDS = 30
@@ -44,8 +52,14 @@ def ingest(
     items: list[dict[str, Any]] = []
     skipped_short = 0
     for index, audio_path in enumerate(files, start=1):
-        metadata = probe_audio(audio_path) if probe else {"duration_seconds": 0.0, "sample_rate": 0, "channels": 0}
-        if probe and metadata["duration_seconds"] < float(config.get("min_source_seconds", CLIP_SECONDS)):
+        metadata = (
+            probe_audio(audio_path)
+            if probe
+            else {"duration_seconds": 0.0, "sample_rate": 0, "channels": 0}
+        )
+        if probe and metadata["duration_seconds"] < float(
+            config.get("min_source_seconds", CLIP_SECONDS)
+        ):
             skipped_short += 1
         else:
             item = SourceItem(
@@ -69,13 +83,25 @@ def ingest(
     return items
 
 
-def split_sonicmaster(rows: Iterable[dict[str, Any]], seed: int, train_fraction: float, validation_fraction: float) -> list[dict[str, Any]]:
-    if not 0 < train_fraction < 1 or not 0 <= validation_fraction < 1 or train_fraction + validation_fraction >= 1:
+def split_sonicmaster(
+    rows: Iterable[dict[str, Any]], seed: int, train_fraction: float, validation_fraction: float
+) -> list[dict[str, Any]]:
+    if (
+        not 0 < train_fraction < 1
+        or not 0 <= validation_fraction < 1
+        or train_fraction + validation_fraction >= 1
+    ):
         raise ValueError("Split fractions must leave a non-empty public test fraction")
     assigned: list[dict[str, Any]] = []
     for row in rows:
         value = stable_fraction(row["source_id"], seed)
-        split = "train" if value < train_fraction else "validation" if value < train_fraction + validation_fraction else "test"
+        split = (
+            "train"
+            if value < train_fraction
+            else "validation"
+            if value < train_fraction + validation_fraction
+            else "test"
+        )
         assigned.append({**row, "split": split})
     return assigned
 
@@ -141,10 +167,24 @@ def _clip_start(source_id: str, source_duration: float, clip_index: int, seed: i
 
 def _render_clip(source: Path, output: Path, start_seconds: float, normalize: bool) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
-    command = ["ffmpeg", "-nostdin", "-v", "error", "-y", "-ss", str(start_seconds), "-i", str(source), "-t", str(CLIP_SECONDS)]
+    command = [
+        "ffmpeg",
+        "-nostdin",
+        "-v",
+        "error",
+        "-y",
+        "-ss",
+        str(start_seconds),
+        "-i",
+        str(source),
+        "-t",
+        str(CLIP_SECONDS),
+    ]
     if normalize:
         command.extend(["-af", "loudnorm=I=-18:LRA=11:TP=-1.0"])
-    command.extend(["-ar", str(CANONICAL_SAMPLE_RATE), "-ac", "2", "-c:a", "pcm_s16le", str(output)])
+    command.extend(
+        ["-ar", str(CANONICAL_SAMPLE_RATE), "-ac", "2", "-c:a", "pcm_s16le", str(output)]
+    )
     subprocess.run(command, check=True)
 
 
@@ -190,7 +230,10 @@ def segment(
             output_path = output_root / relative_path
             _render_clip(Path(source["audio_path"]), output_path, start, normalize)
             quality = _wave_quality(output_path)
-            if abs(float(quality["duration_seconds"]) - CLIP_SECONDS) > 0.01 or float(quality["rms"]) < min_rms:
+            if (
+                abs(float(quality["duration_seconds"]) - CLIP_SECONDS) > 0.01
+                or float(quality["rms"]) < min_rms
+            ):
                 output_path.unlink(missing_ok=True)
                 rejected += 1
                 if progress and (processed % progress_interval == 0 or processed == total):
@@ -201,22 +244,26 @@ def segment(
                     )
                 continue
             checksum = sha256_file(output_path)
-            result.append({
-                "id": item_id,
-                "dataset": source["dataset"],
-                "split": source["split"],
-                "source_id": source["source_id"],
-                "clean_path": relative_path.as_posix(),
-                "start_seconds": start,
-                "duration_seconds": CLIP_SECONDS,
-                "sample_rate": CANONICAL_SAMPLE_RATE,
-                "channels": 2,
-                "normalization": "loudnorm I=-18 LRA=11 TP=-1.0" if normalize else "none",
-                "quality": quality,
-                "audio_sha256": checksum,
-            })
+            result.append(
+                {
+                    "id": item_id,
+                    "dataset": source["dataset"],
+                    "split": source["split"],
+                    "source_id": source["source_id"],
+                    "clean_path": relative_path.as_posix(),
+                    "start_seconds": start,
+                    "duration_seconds": CLIP_SECONDS,
+                    "sample_rate": CANONICAL_SAMPLE_RATE,
+                    "channels": 2,
+                    "normalization": "loudnorm I=-18 LRA=11 TP=-1.0" if normalize else "none",
+                    "quality": quality,
+                    "audio_sha256": checksum,
+                }
+            )
             checksum_rows.append({"path": relative_path.as_posix(), "sha256": checksum})
-            if progress and (processed == 1 or processed % progress_interval == 0 or processed == total):
+            if progress and (
+                processed == 1 or processed % progress_interval == 0 or processed == total
+            ):
                 _log(
                     progress,
                     f"[segment] {processed}/{total} processed, "
@@ -280,8 +327,14 @@ def statistics(manifest_rows: Iterable[dict[str, Any]]) -> dict[str, Any]:
         "items": len(rows),
         "total_hours": round(sum(float(row["duration_seconds"]) for row in rows) / 3600, 3),
         "by_split": dict(sorted(Counter(row["split"] for row in rows).items())),
-        "by_dataset_and_split": {f"{dataset}/{split}": count for (split, dataset), count in sorted(groups.items())},
-        "canonical_format": {"sample_rate": CANONICAL_SAMPLE_RATE, "channels": 2, "duration_seconds": CLIP_SECONDS},
+        "by_dataset_and_split": {
+            f"{dataset}/{split}": count for (split, dataset), count in sorted(groups.items())
+        },
+        "canonical_format": {
+            "sample_rate": CANONICAL_SAMPLE_RATE,
+            "channels": 2,
+            "duration_seconds": CLIP_SECONDS,
+        },
     }
 
 
@@ -290,8 +343,7 @@ def source_statistics(source_rows: Iterable[dict[str, Any]]) -> dict[str, Any]:
     groups = Counter((row["split"], row["dataset"]) for row in rows)
     source_seconds = sum(float(row.get("duration_seconds", 0.0)) for row in rows)
     clip_capacity = sum(
-        max(math.floor(float(row.get("duration_seconds", 0.0)) / CLIP_SECONDS), 0)
-        for row in rows
+        max(math.floor(float(row.get("duration_seconds", 0.0)) / CLIP_SECONDS), 0) for row in rows
     )
     hours_by_dataset_and_split: dict[str, float] = {}
     for split, dataset in sorted(groups):
@@ -320,7 +372,9 @@ def source_statistics(source_rows: Iterable[dict[str, Any]]) -> dict[str, Any]:
         },
         "channels": {
             str(key): value
-            for key, value in sorted(Counter(row.get("channels", "unknown") for row in rows).items())
+            for key, value in sorted(
+                Counter(row.get("channels", "unknown") for row in rows).items()
+            )
         },
         "source_manifest_schema": "source-index-v1",
     }
@@ -362,7 +416,9 @@ def audit(
         "redistribution": config["redistribution"],
         "audio_file_count": len(files),
         "probed_file_count": len(sampled),
-        "sampled_sample_rates": dict(sorted(Counter(item["sample_rate"] for item in sampled).items())),
+        "sampled_sample_rates": dict(
+            sorted(Counter(item["sample_rate"] for item in sampled).items())
+        ),
         "sampled_channels": dict(sorted(Counter(item["channels"] for item in sampled).items())),
         "quality_notes": config["quality_notes"],
     }

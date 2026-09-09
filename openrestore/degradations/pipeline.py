@@ -102,10 +102,14 @@ def render_degradations(
             raise ValueError(f"Expected {CANONICAL_SAMPLE_RATE} Hz input: {clean_path}")
         for recipe in config["recipes"]:
             processed += 1
-            degraded, operation_params = apply_recipe(audio, sample_rate, clean_row["id"], recipe, seed)
+            degraded, operation_params = apply_recipe(
+                audio, sample_rate, clean_row["id"], recipe, seed
+            )
             recipe_id = recipe["id"]
             degraded_id = f"{clean_row['id']}--{recipe_id}"
-            relative_path = Path(clean_row["split"]) / clean_row["dataset"] / recipe_id / f"{degraded_id}.wav"
+            relative_path = (
+                Path(clean_row["split"]) / clean_row["dataset"] / recipe_id / f"{degraded_id}.wav"
+            )
             degraded_path = output_root / relative_path
             write_audio(degraded_path, degraded, sample_rate)
             digest = sha256_file(degraded_path)
@@ -234,12 +238,26 @@ def write_hdf5_shards(
             shard.attrs["channels"] = first_shape[1]
             shard.create_dataset("audio", data=np.stack(decoded), compression="gzip", shuffle=True)
             shard.create_dataset("item_id", data=[str(row["id"]) for row in chunk], dtype=text_type)
-            shard.create_dataset("clean_id", data=[str(row["clean_id"]) for row in chunk], dtype=text_type)
-            shard.create_dataset("degraded_path", data=[str(row["degraded_path"]) for row in chunk], dtype=text_type)
-            shard.create_dataset("manifest_json", data=[json.dumps(row, sort_keys=True) for row in chunk], dtype=text_type)
+            shard.create_dataset(
+                "clean_id", data=[str(row["clean_id"]) for row in chunk], dtype=text_type
+            )
+            shard.create_dataset(
+                "degraded_path", data=[str(row["degraded_path"]) for row in chunk], dtype=text_type
+            )
+            shard.create_dataset(
+                "manifest_json",
+                data=[json.dumps(row, sort_keys=True) for row in chunk],
+                dtype=text_type,
+            )
         shard_reference = os.path.relpath(shard_path, output_index.parent).replace(os.sep, "/")
         for offset, row in enumerate(chunk):
-            indexed_rows.append({**row, "degraded_audio_shard": shard_reference, "degraded_audio_shard_index": offset})
+            indexed_rows.append(
+                {
+                    **row,
+                    "degraded_audio_shard": shard_reference,
+                    "degraded_audio_shard_index": offset,
+                }
+            )
         _log(progress, f"[degrade-shard] wrote {shard_number + 1}/{shard_total}: {shard_path}")
 
     write_jsonl(output_index, indexed_rows)
