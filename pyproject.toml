@@ -24,3 +24,19 @@ include = ["openrestore*"]
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+
+[dependency-groups]
+dev = [
+    "codespell>=2.4.3",
+    "commitizen>=4.18.0",
+    "lefthook>=2.1.12",
+    "mypy>=2.3.1",
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.16.6",
+]
+doc = [
+    "myst-parser>=5.1.0",
+    "sphinx>=9.0.4",
+    "sphinx-rtd-theme>=3.1.0",
+]
