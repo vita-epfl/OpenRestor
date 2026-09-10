@@ -5,10 +5,9 @@ from __future__ import annotations
 import hashlib
 import json
 import subprocess
-from collections.abc import Iterable
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
 
 AUDIO_EXTENSIONS = {".flac", ".wav", ".mp3", ".m4a", ".ogg", ".aiff", ".aif"}
 
@@ -30,7 +29,7 @@ class SourceItem:
 
 
 def stable_fraction(value: str, seed: int) -> float:
-    digest = hashlib.sha256(f"{seed}:{value}".encode()).digest()
+    digest = hashlib.sha256(f"{seed}:{value}".encode("utf-8")).digest()
     return int.from_bytes(digest[:8], "big") / 2**64
 
 
