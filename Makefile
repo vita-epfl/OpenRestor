@@ -15,7 +15,7 @@ format:
 	uv run ruff check --fix openrestore
 
 test:
-	uv run pytest tests
+	uv run pytest tests -q
 
 docs:
 	uv run sphinx-build -b html code-docs code-docs/_build/html
