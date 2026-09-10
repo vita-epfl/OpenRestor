@@ -105,6 +105,7 @@ def butter_filter(
     order: int = 2,
 ) -> np.ndarray:
     nyquist = sample_rate / 2
+    normalized: float | list[float]
     if isinstance(cutoff, tuple):
         normalized = [max(1e-5, min(freq / nyquist, 0.999)) for freq in cutoff]
     else:

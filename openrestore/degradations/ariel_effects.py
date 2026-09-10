@@ -114,7 +114,8 @@ def _peak_eq(
     audio: np.ndarray, frequencies: np.ndarray, quality: float, gains: np.ndarray, sample_rate: int
 ) -> np.ndarray:
     output = audio.astype(np.float32)
-    for gain_db, frequency in zip(gains, frequencies):
+    # gains and frequencies share `count` length by construction (see xband effect)
+    for gain_db, frequency in zip(gains, frequencies, strict=True):
         amplitude = 10 ** (gain_db / 20.0)
         omega = 2 * np.pi * frequency / sample_rate
         alpha = np.sin(omega) / (2 * quality)
@@ -185,7 +186,8 @@ def _real_rir(audio: np.ndarray, directory: str, index: int) -> tuple[np.ndarray
     )
     if not files:
         raise FileNotFoundError(
-            "The `real` effect requires parameters.real_rir_dir containing ARIEL-compatible WAV RIRs"
+            "The `real` effect requires parameters.real_rir_dir containing "
+            "ARIEL-compatible WAV RIRs"
         )
     path = files[index % len(files)]
     impulse, _ = librosa.load(path, sr=44_100, mono=False)
@@ -358,7 +360,10 @@ def apply_ariel_effect(
                     }
                 )
             )
-        absorption = dict(zip(["east", "west", "north", "south", "ceiling", "floor"], materials))
+        # materials has exactly one entry per wall label (loop `for wall in range(6)`)
+        absorption = dict(
+            zip(["east", "west", "north", "south", "ceiling", "floor"], materials, strict=True)
+        )
         output = _room(audio, sample_rate, room_size, source, microphone, absorption, "mix")
         return output, {
             "effect": effect,

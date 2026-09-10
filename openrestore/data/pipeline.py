@@ -9,8 +9,9 @@ import sys
 import tarfile
 import wave
 from collections import Counter, defaultdict
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 from .core import (
     SourceItem,

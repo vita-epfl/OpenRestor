@@ -343,10 +343,10 @@ def _write_markdown(report: dict[str, Any], path: Path) -> None:
 
 def no_restoration(
     degraded_manifest: Path, degraded_root: Path, output_root: Path, output_manifest: Path
-) -> list[dict[str, str]]:
+) -> list[dict[str, Any]]:
     rows = read_jsonl(degraded_manifest)
     output_manifest.parent.mkdir(parents=True, exist_ok=True)
-    result: list[dict[str, str]] = []
+    result: list[dict[str, Any]] = []
     for row in rows:
         source = _resolve(degraded_root, row["degraded_path"])
         target = output_root / f"{row['id']}.wav"
