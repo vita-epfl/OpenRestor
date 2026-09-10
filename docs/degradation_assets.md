@@ -6,8 +6,8 @@ Two active ARIEL/SonicMaster-parity effects require binary assets that are inten
 
 | Effect | Asset | What it models | Required layout |
 | --- | --- | --- | --- |
-| `single_mic` | 20 Poliphone smartphone microphone impulse responses | The measured transfer function of a phone microphone: frequency coloration and phase response. The renderer convolves the same mono `.npy` IR with each stereo channel. It is not room reverb and it does not add environmental noise. | `assets/degradations/v0_1/microphone_irs/*.npy` |
-| `single_real` | 12 real room impulse-response WAV files | Measured acoustic spaces. The renderer accepts stereo or four-channel B-format RIRs and convolves them with the clean signal. | `assets/degradations/v0_1/real_rirs/{stereo,b-formats}/*.wav` |
+| `mic` | 20 Poliphone smartphone microphone impulse responses | The measured transfer function of a phone microphone: frequency coloration and phase response. The renderer convolves the same mono `.npy` IR with each stereo channel. It is not room reverb and it does not add environmental noise. | `assets/degradations/v0_1/microphone_irs/*.npy` |
+| `reverb_real` | 12 real room impulse-response WAV files | Measured acoustic spaces. The renderer accepts stereo or four-channel B-format RIRs and convolves them with the clean signal. | `assets/degradations/v0_1/real_rirs/{stereo,b-formats}/*.wav` |
 
 The v0.1 asset source bundle is the already reviewed local ARIEL asset set: `configs/smallpoli/irs` for the 20 Poliphone IRs and `configs/realrirs` for the 12 selected real RIRs. OpenRestore does not read from ARIEL at runtime.
 
@@ -24,10 +24,10 @@ The v0.1 asset source bundle is the already reviewed local ARIEL asset set: `con
    ```
 
    The expected counts are 20 microphone IRs and 12 RIR WAV files.
-4. IT runs `openrestore-degrade validate-config --config configs/degradations/single/v0_1.yaml`, then runs a small render containing `single_mic` and `single_real` before starting a release-scale job.
+4. IT runs `openrestore-degrade validate-config --config configs/degradations/single/v0_1.yaml`, then runs a small render containing `mic` and `reverb_real` before starting a release-scale job.
 
 The binary bundle remains outside Git because it is an externally sourced release artifact. It must be versioned and retained with the degradation config, Git revision, manifests, checksums, and release logs.
 
 ## Renderer Contract
 
-`configs/degradations/single/v0_1.yaml` points `single_mic` and `single_real` to the standard asset paths. Both selected files are deterministic for a given item seed. If the asset bundle is missing, rendering fails with an explicit `mic_ir_dir` or `real_rir_dir` error; the job must be marked failed rather than silently skipping the effect.
+`configs/degradations/single/v0_1.yaml` points `mic` and `reverb_real` to the standard asset paths. Both selected files are deterministic for a given item seed. If the asset bundle is missing, rendering fails with an explicit `mic_ir_dir` or `real_rir_dir` error; the job must be marked failed rather than silently skipping the effect.

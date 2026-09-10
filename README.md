@@ -35,12 +35,12 @@ openrestore-data stats --manifest build/index.jsonl --output build/statistics.js
 
 ## Degradation Pipeline
 
-The active single-effect registry has 25 degradations. Validate and inspect it with:
+The active benchmark registry has exactly 24 canonical degradation classes. Validate and inspect it with:
 
 ```bash
 openrestore-degrade validate-config --config configs/degradations/single/v0_1.yaml
 openrestore-degrade list-recipes --config configs/degradations/single/v0_1.yaml
-openrestore-degrade shard --output-root build/degraded --manifest build/degraded/manifest.jsonl --shards-dir build/release/shards --output-index build/release/index.jsonl --shard-size 1000
+openrestore-degrade shard --output-root build/degraded --manifest build/degraded/manifest.jsonl --shards-dir build/release/shards --output-index build/release/index.jsonl --shard-size 960
 
 # Private production release: validate clean clips, then create the frozen job plan.
 openrestore-degrade plan-release --clean-manifest build/clean/manifest.jsonl --clean-root build/clean/audio --release-config configs/releases/private_v0_1.yaml --output build/private-releases/openrestore-paired-v0.1/plan.json

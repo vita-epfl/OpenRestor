@@ -80,6 +80,15 @@ class MetricTests(TestCase):
         self.assertGreater(exact["log_mel_ssim"], clipped["log_mel_ssim"])
         self.assertGreater(exact["log_mel_ssim"], reverb["log_mel_ssim"])
         self.assertGreater(exact["log_mel_ssim"], mono["log_mel_ssim"])
+        # Room metrics operate on the paired clean-to-evaluated transfer: an
+        # identity transfer has no residual tail, whereas a delayed reflection
+        # lowers DRR and increases residual tail energy.
+        self.assertEqual(exact["rt60_s"], 0.0)
+        self.assertEqual(exact["drr_db"], 80.0)
+        self.assertEqual(exact["late_tail_db"], -80.0)
+        self.assertLess(reverb["drr_db"], exact["drr_db"])
+        self.assertGreater(reverb["late_tail_db"], exact["late_tail_db"])
+        self.assertGreaterEqual(reverb["rt60_s"], 0.0)
         self.assertEqual(exact, pairwise_metrics(clean, clean.copy(), config))
 
     def test_scoring_manifest_validation_and_no_restoration(self) -> None:

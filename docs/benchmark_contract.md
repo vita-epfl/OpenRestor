@@ -10,7 +10,7 @@ Main-track training uses clean SonicMaster originals only. Main-track validation
 
 ## Degradations
 
-The v0.1 single-effect registry contains 25 deterministic, metadata-tracked effects. The canonical recipe file is configs/degradations/single/v0_1.yaml. Every output stores the recipe, seed, sampled parameters, and checksum.
+The v0.1 registry contains exactly 24 deterministic, metadata-tracked degradation classes. The canonical recipe file is configs/degradations/single/v0_1.yaml. Every output stores the recipe, seed, sampled parameters, and checksum.
 
 ## Reproducibility
 

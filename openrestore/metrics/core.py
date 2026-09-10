@@ -22,35 +22,60 @@ METRIC_DIRECTIONS = {
     "ltas": "lower",
     "log_mel_ssim": "higher",
     "spectral_kl": "lower",
+    # Reverb-aware residual transfer diagnostics.
+    "rt60_s": "lower",
+    "drr_db": "higher",
+    "late_tail_db": "lower",
 }
 
 EFFECT_CATEGORIES = {
-    "comp": "dynamics",
-    "punch": "dynamics",
-    "xband": "eq_coloration",
-    "mic": "eq_coloration",
-    "bright": "eq_coloration",
-    "dark": "eq_coloration",
-    "airy": "eq_coloration",
-    "boom": "eq_coloration",
-    "clarity": "eq_coloration",
-    "mud": "eq_coloration",
-    "warm": "eq_coloration",
-    "vocal": "eq_coloration",
-    "small": "reverb_room",
-    "big": "reverb_room",
-    "mix": "reverb_room",
-    "real": "reverb_room",
-    "distant_mic_capture": "reverb_room",
-    "clip": "clipping_saturation",
-    "volume": "amplitude",
-    "stereo": "stereo_spatial",
-    "noise": "noise_interference",
-    "hum": "noise_interference",
-    "clicks_crackle": "noise_interference",
-    "bandwidth": "bandwidth_loss",
-    "codec": "codec_transmission",
+    # Canonical v0.1 benchmark IDs.
+    "spectral_eq": "spectral_eq",
+    "mic": "mic",
+    "lowpass": "lowpass",
+    "highpass": "highpass",
+    "telephone_band": "telephone_band",
+    "low_sample_rate": "low_sample_rate",
+    "compression": "compression",
+    "clipping": "clipping",
+    "saturation_overdrive": "saturation_overdrive",
+    "reverb_small": "reverb",
+    "reverb_big": "reverb",
+    "reverb_mix": "reverb",
+    "reverb_real": "reverb",
+    "distant_mic_capture": "distant_mic_capture",
+    "noise": "noise",
+    "hum": "hum",
+    "clicks_crackle": "clicks_crackle",
+    "dropouts_glitches": "dropouts_glitches",
+    "codec": "codec",
+    "neural_codec": "neural_codec",
+    "transcode_chain": "transcode_chain",
+    "stereo_collapse": "stereo_collapse",
+    "channel_damage": "channel_damage",
+    "pitch_speed_instability": "pitch_speed_instability",
+    # Backward-compatible names for historical manifests.
+    "comp": "compression",
+    "punch": "compression",
+    "xband": "spectral_eq",
+    "bright": "spectral_eq",
+    "dark": "spectral_eq",
+    "airy": "spectral_eq",
+    "boom": "spectral_eq",
+    "clarity": "lowpass",
+    "mud": "spectral_eq",
+    "warm": "spectral_eq",
+    "vocal": "spectral_eq",
+    "small": "reverb",
+    "big": "reverb",
+    "mix": "reverb",
+    "real": "reverb",
+    "stereo": "stereo_collapse",
+    "clip": "clipping",
+    "volume": "legacy_volume",
+    "bandwidth": "lowpass",
 }
+
 
 
 def effect_name(row: dict[str, Any]) -> str:
@@ -70,7 +95,31 @@ def effect_name(row: dict[str, Any]) -> str:
 
 
 def category_for_row(row: dict[str, Any]) -> str:
-    return EFFECT_CATEGORIES.get(effect_name(row), "other")
+    recipe = str(row.get("degradation_recipe_id", ""))
+    name = effect_name(row)
+    # Preserve historical category names for manifests whose recipe IDs use
+    # the old ``single_*`` namespace; canonical bare IDs use the new taxonomy.
+    if recipe.startswith("single_"):
+        legacy_categories = {
+            "noise": "noise_interference",
+            "hum": "noise_interference",
+            "clicks_crackle": "noise_interference",
+            "codec": "codec_transmission",
+            "bandwidth": "bandwidth_loss",
+            "comp": "dynamics",
+            "punch": "dynamics",
+            "clip": "clipping_saturation",
+            "stereo": "stereo_spatial",
+            "volume": "amplitude",
+            "xband": "eq_coloration", "bright": "eq_coloration", "dark": "eq_coloration",
+            "airy": "eq_coloration", "boom": "eq_coloration", "clarity": "eq_coloration",
+            "mud": "eq_coloration", "warm": "eq_coloration", "vocal": "eq_coloration",
+            "mic": "eq_coloration", "small": "reverb_room", "big": "reverb_room",
+            "mix": "reverb_room", "real": "reverb_room", "distant_mic_capture": "reverb_room",
+        }
+        if name in legacy_categories:
+            return legacy_categories[name]
+    return EFFECT_CATEGORIES.get(name, "other")
 
 
 def _mono(audio: np.ndarray) -> np.ndarray:
@@ -151,6 +200,7 @@ def pairwise_metrics(
         mrstft.append(
             float(np.mean(np.abs(ref_multi - est_multi)) / (np.mean(np.abs(ref_multi)) + EPSILON))
         )
+    reverb = _reverb_diagnostics(reference, estimate, sample_rate, analysis)
     return {
         "l1": float(np.mean(np.abs(error))),
         "rmse": float(np.sqrt(np.mean(error * error))),
@@ -163,7 +213,76 @@ def pairwise_metrics(
         "ltas": float(np.mean(np.abs(ltas_ref - ltas_est) / (ltas_ref + EPSILON))),
         "log_mel_ssim": ssim,
         "spectral_kl": float(np.sum(profile_ref * np.log(profile_ref / profile_est))),
+        **reverb,
     }
+
+
+def _transfer_impulse(
+    reference: np.ndarray, estimate: np.ndarray, sample_rate: int, max_ir_seconds: float, regularization: float
+) -> np.ndarray:
+    """Estimate the causal clean-to-evaluated transfer impulse by Wiener deconvolution."""
+    reference_mono = _mono(reference)
+    estimate_mono = _mono(estimate)
+    n_fft = 1 << max(1, len(reference_mono) - 1).bit_length()
+    reference_spectrum = np.fft.rfft(reference_mono, n=n_fft)
+    estimate_spectrum = np.fft.rfft(estimate_mono, n=n_fft)
+    reference_power = np.abs(reference_spectrum) ** 2
+    floor = max(float(np.max(reference_power)) * regularization, EPSILON)
+    transfer = estimate_spectrum * np.conj(reference_spectrum) / (reference_power + floor)
+    impulse = np.fft.irfft(transfer, n=n_fft).real
+    return impulse[: min(len(impulse), max(1, round(max_ir_seconds * sample_rate)))]
+
+
+def _reverb_diagnostics(
+    reference: np.ndarray, estimate: np.ndarray, sample_rate: int, analysis: dict[str, Any]
+) -> dict[str, float]:
+    """Return residual RT60, DRR, and late-tail energy from a clean-to-output transfer.
+
+    This is deliberately a transfer estimate, rather than an RT60 estimate of a
+    music recording in isolation: it is therefore meaningful for paired
+    clean/degraded/restored clips even when the clean music itself contains room
+    sound.  Values are most informative for reverb and distant-capture items.
+    """
+    settings = analysis.get("reverb_diagnostics", {})
+    reference_energy = float(np.mean(np.square(reference, dtype=np.float64)))
+    relative_error = float(np.mean(np.square(estimate - reference, dtype=np.float64)) / (reference_energy + EPSILON))
+    # Preserve the physically meaningful identity limit: no added room response.
+    if relative_error <= float(settings.get("identity_relative_error", 1e-12)):
+        return {"rt60_s": 0.0, "drr_db": 80.0, "late_tail_db": -80.0}
+    impulse = _transfer_impulse(
+        reference,
+        estimate,
+        sample_rate,
+        float(settings.get("max_ir_seconds", 3.0)),
+        float(settings.get("regularization", 1e-4)),
+    )
+    energy = np.square(impulse, dtype=np.float64)
+    direct_samples = max(1, round(float(settings.get("direct_window_ms", 2.5)) * sample_rate / 1000))
+    early_samples = max(direct_samples, round(float(settings.get("early_window_ms", 50.0)) * sample_rate / 1000))
+    late_samples = max(early_samples, round(float(settings.get("late_start_ms", 80.0)) * sample_rate / 1000))
+    direct_energy = float(np.sum(energy[:direct_samples]))
+    reverberant_energy = float(np.sum(energy[direct_samples:]))
+    early_energy = float(np.sum(energy[:early_samples]))
+    late_energy = float(np.sum(energy[late_samples:]))
+    drr_db = float(np.clip(10.0 * np.log10((direct_energy + EPSILON) / (reverberant_energy + EPSILON)), -80.0, 80.0))
+    late_tail_db = float(np.clip(10.0 * np.log10((late_energy + EPSILON) / (early_energy + EPSILON)), -80.0, 20.0))
+    # A near-delta transfer has no meaningful decay slope; define its residual
+    # RT60 as zero rather than fitting numerical deconvolution noise.
+    # Wiener deconvolution has a small numerical tail even for an identity
+    # transfer. Treat that floor as no residual reverberation.
+    if reverberant_energy <= direct_energy * 1e-3:
+        rt60_s = 0.0
+    else:
+        decay = np.cumsum(energy[::-1])[::-1]
+        decay_db = 10.0 * np.log10((decay + EPSILON) / (decay[0] + EPSILON))
+        times = np.arange(len(decay_db), dtype=np.float64) / sample_rate
+        mask = (decay_db <= -5.0) & (decay_db >= -35.0)
+        if np.count_nonzero(mask) < 8:
+            rt60_s = 0.0
+        else:
+            slope, _ = np.polyfit(times[mask], decay_db[mask], 1)
+            rt60_s = float(np.clip(-60.0 / slope if slope < -EPSILON else 0.0, 0.0, float(settings.get("max_rt60_seconds", 12.0))))
+    return {"rt60_s": rt60_s, "drr_db": drr_db, "late_tail_db": late_tail_db}
 
 
 def _ssim(reference: np.ndarray, estimate: np.ndarray, window: int) -> float:
@@ -204,34 +323,34 @@ def _band_ratio(audio: np.ndarray, sample_rate: int, low: float, high: float) ->
 
 def _descriptor(audio: np.ndarray, category: str, sample_rate: int) -> np.ndarray:
     mono = _mono(audio)
-    if category == "eq_coloration":
+    if category in {"spectral_eq", "mic", "eq_coloration"}:
         bands = [(20, 120), (120, 400), (400, 2000), (2000, 6000), (6000, 12000), (12000, 20000)]
         return np.array([_band_ratio(audio, sample_rate, low, high) for low, high in bands])
-    if category == "bandwidth_loss":
+    if category in {"lowpass", "highpass", "telephone_band", "low_sample_rate", "bandwidth_loss"}:
         return np.array(
             [
                 _band_ratio(audio, sample_rate, 7000, sample_rate / 2),
                 librosa.feature.spectral_rolloff(y=mono, sr=sample_rate)[0].mean(),
             ]
         )
-    if category == "noise_interference":
+    if category in {"noise", "hum", "clicks_crackle", "dropouts_glitches", "noise_interference"}:
         flatness = librosa.feature.spectral_flatness(y=mono)[0].mean()
         return np.array([flatness, _band_ratio(audio, sample_rate, 8000, sample_rate / 2)])
-    if category == "clipping_saturation":
+    if category in {"clipping", "saturation_overdrive", "clipping_saturation"}:
         peak = np.max(np.abs(mono)) + EPSILON
         return np.array(
             [np.mean(np.abs(mono) >= 0.98 * peak), peak / (np.sqrt(np.mean(mono * mono)) + EPSILON)]
         )
-    if category == "dynamics":
+    if category in {"compression", "dynamics"}:
         frames = _frame_rms(audio, 2048, 1024)
         return np.array(
             [np.std(frames), np.max(np.abs(mono)) / (np.sqrt(np.mean(mono * mono)) + EPSILON)]
         )
-    if category == "reverb_room":
+    if category in {"reverb", "distant_mic_capture", "reverb_room"}:
         energy = mono * mono
         split = max(1, int(len(energy) * 0.1))
         return np.array([np.sum(energy[split:]) / (np.sum(energy[:split]) + EPSILON)])
-    if category == "stereo_spatial":
+    if category in {"stereo_collapse", "channel_damage", "stereo_spatial"}:
         left, right = audio[:, 0], audio[:, 1]
         mid, side = (left + right) * 0.5, (left - right) * 0.5
         return np.array(
@@ -241,14 +360,14 @@ def _descriptor(audio: np.ndarray, category: str, sample_rate: int) -> np.ndarra
                 np.sqrt(np.mean(left * left)) / (np.sqrt(np.mean(right * right)) + EPSILON),
             ]
         )
-    if category == "codec_transmission":
+    if category in {"codec", "neural_codec", "transcode_chain", "codec_transmission"}:
         return np.array(
             [
                 librosa.feature.spectral_flatness(y=mono)[0].mean(),
                 _band_ratio(audio, sample_rate, 10000, sample_rate / 2),
             ]
         )
-    if category == "amplitude":
+    if category in {"pitch_speed_instability", "amplitude"}:
         return np.array([np.sqrt(np.mean(mono * mono)), np.max(np.abs(mono))])
     return np.zeros(1)
 

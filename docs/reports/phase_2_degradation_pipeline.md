@@ -9,25 +9,22 @@ Phase 2 creates paired training and evaluation data by applying one explicitly s
 | Path | Responsibility |
 | --- | --- |
 | openrestore/degradations/core.py | Audio I/O, canonicalization, seeded sampling, peak safety, checksums, and FFmpeg codec round trips. |
-| openrestore/degradations/ariel_effects.py | OpenRestore-local adaptation of the 19 selected SonicMaster/ARIEL effect implementations. |
+| openrestore/degradations/ariel_effects.py | OpenRestore-local adaptation of the legacy SonicMaster/ARIEL effect implementations. |
 | openrestore/degradations/effects.py | Effect registry, legacy primitive handlers, ARIEL-effect dispatch, and distant-microphone capture. |
 | openrestore/degradations/pipeline.py | Recipe loading, per-item deterministic seeds, operation execution, WAV rendering, manifest rows, checksums, HDF5 shards, and release index writing. |
 | openrestore/degradations/cli.py | `openrestore-degrade` rendering plus private-release planning, partition, merge, and validation commands. |
 | openrestore/degradations/release.py | Frozen-input verification, clean-release validation, deterministic 40-source plans, retry-safe partition receipts, merge, and release validation. |
 | configs/degradations/single/v0_1.yaml | Active, effect-first v0.1 single-effect recipes. |
-| configs/releases/private_v0_1.yaml | Immutable private v0.1 contract for 25,849 clean clips and 646,225 degraded examples. |
+| configs/releases/private_v0_1.yaml | Immutable private v0.1 contract for 25,849 clean clips and 620,376 degraded examples. |
 | configs/degradations/review_boundaries/v0_2.yaml | Fixed mild/strong listening endpoints for the OpenRestore additions. |
 | tests/test_degradations.py | Determinism, canonical-audio, parameter-sampling, runner, and CLI tests. |
 | OpenRestore.md | Effect-level registry, including origin, group, rationale, and status. |
 
 ## Implemented Single-Effect Set
 
-The active configuration contains 25 effects.
+The active configuration contains exactly 24 canonical classes: spectral_eq, mic, lowpass, highpass, telephone_band, low_sample_rate, compression, clipping, saturation_overdrive, reverb_small, reverb_big, reverb_mix, reverb_real, distant_mic_capture, noise, hum, clicks_crackle, dropouts_glitches, codec, neural_codec, transcode_chain, stereo_collapse, channel_damage, and pitch_speed_instability. Historical SonicMaster names remain callable as compatibility aliases but are not active benchmark IDs.
 
-- SonicMaster/ARIEL baseline: comp, punch, xband, mic, bright, dark, airy, boom, clarity, mud, warm, vocal, small, big, mix, real, stereo, clip, and volume.
-- OpenRestore additions: noise, hum, clicks_crackle, codec, bandwidth, and distant_mic_capture.
-
-distant_mic_capture is the far-from-source recording simulation: a deterministic local room model, direct-to-reverberant balance, bandwidth reduction, and microphone self-noise. It runs without external RIR assets. The real and mic ARIEL-compatible effects can use optional external assets when configured, but the baseline renderer and tests do not require them.
+distant_mic_capture is the far-from-source recording simulation: a deterministic local room model, direct-to-reverberant balance, bandwidth reduction, and microphone self-noise. It runs without external RIR assets. The `reverb_real` and `mic` ARIEL-compatible effects can use optional external assets when configured, but the baseline renderer and tests do not require them.
 
 ## Structure And Flow
 
@@ -48,7 +45,7 @@ degradation_tracking is the compact audit trail. degradation_params stores the c
     openrestore-degrade validate-config --config configs/degradations/single/v0_1.yaml
     openrestore-degrade list-recipes --config configs/degradations/single/v0_1.yaml
     openrestore-degrade render --manifest build/clean/clean_manifest.jsonl --clean-root build/clean/audio --output-root build/degraded --config configs/degradations/single/v0_1.yaml --output-manifest build/degraded/manifest.jsonl --checksums build/degraded/checksums.jsonl --seed 20260714
-    openrestore-degrade shard --output-root build/degraded --manifest build/degraded/manifest.jsonl --shards-dir build/release/shards --output-index build/release/index.jsonl --shard-size 1000
+    openrestore-degrade shard --output-root build/degraded --manifest build/degraded/manifest.jsonl --shards-dir build/release/shards --output-index build/release/index.jsonl --shard-size 960
 
     # Freeze only after the canonical clean manifest and WAV checksums pass.
     openrestore-degrade plan-release --clean-manifest build/clean/manifest.jsonl --clean-root build/clean/audio --release-config configs/releases/private_v0_1.yaml --output build/private-releases/openrestore-paired-v0.1/plan.json
@@ -68,7 +65,7 @@ A local medium listening preview exists under build/degradation_preview/degraded
 
 - Publish the reviewed asset bundle to the approved artifact store and record its archive URL, license/provenance, and archive SHA-256 in the release record. IT installation and file verification are specified in `docs/degradation_assets.md`.
 - Freeze the shard-backed miniature candidate with the accepted parameter configuration and asset artifact.
-- Run the scheduler-owned pilot partition, record throughput/compression and staging capacity, then schedule the frozen 648-partition plan. Publication stays blocked pending source-license and degradation-asset provenance approval.
+- The earlier 25-class pilot is superseded by this 24-class registry. Run a new scheduler-owned pilot, record throughput/compression and staging capacity, then schedule the frozen 648-partition plan with 960 outputs per normal partition. Publication stays blocked pending source-license and degradation-asset provenance approval.
 
 ## Next Steps For IT
 

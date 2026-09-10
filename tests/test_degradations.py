@@ -15,9 +15,9 @@ import numpy as np
 import soundfile as sf
 from scipy import signal
 
-from openrestore.degradations.core import read_jsonl, run_ffmpeg_codec, sha256_file, write_jsonl
+from openrestore.degradations.core import load_yaml, read_jsonl, run_ffmpeg_codec, sha256_file, write_jsonl
 from openrestore.degradations.effects import apply_operation
-from openrestore.degradations.pipeline import apply_recipe, render_degradations, validate_config, write_hdf5_shards
+from openrestore.degradations.pipeline import CANONICAL_DEGRADATION_IDS, apply_recipe, render_degradations, validate_config, write_hdf5_shards
 
 SAMPLE_RATE = 44_100
 
@@ -41,6 +41,33 @@ def _band_energy(audio: np.ndarray, low: float, high: float) -> float:
 
 
 class DegradationPrimitiveTests(TestCase):
+    def test_canonical_registry_has_exactly_24_ids(self) -> None:
+        config = load_yaml(Path("configs/degradations/single/v0_1.yaml"))
+        validate_config(config)
+        self.assertEqual(tuple(recipe["id"] for recipe in config["recipes"]), CANONICAL_DEGRADATION_IDS)
+        self.assertNotIn("volume", CANONICAL_DEGRADATION_IDS)
+        self.assertEqual(len(CANONICAL_DEGRADATION_IDS), 24)
+
+    def test_new_canonical_effects_are_audible_and_deterministic(self) -> None:
+        audio = _fixture_audio(0.25)
+        cases = [
+            ("spectral_eq", None, {"mode": "low_mid_emphasis", "gain_db": 12}),
+            ("compression", None, {"mode": "strong_compression"}),
+            ("saturation_overdrive", "soft", {"drive": 4.0}),
+            ("dropouts_glitches", "dropout", {"rate_hz": 8.0, "min_duration_ms": 25, "max_duration_ms": 45}),
+            ("neural_codec", None, {"intermediate_sample_rate": 8_000, "quantization_bits": 5}),
+            ("channel_damage", "attenuation", {"target_channel": 1, "gain_db": -18}),
+            ("pitch_speed_instability", None, {"wow_rate_hz": 0.5, "wow_depth_percent": 2.0, "flutter_rate_hz": 6.0, "flutter_depth_percent": 0.6}),
+        ]
+        for primitive, variant, params in cases:
+            first, first_params = apply_operation(audio, SAMPLE_RATE, primitive, variant, params.copy(), np.random.default_rng(42))
+            second, second_params = apply_operation(audio, SAMPLE_RATE, primitive, variant, params.copy(), np.random.default_rng(42))
+            self.assertEqual(first.shape, audio.shape, primitive)
+            self.assertTrue(np.isfinite(first).all(), primitive)
+            self.assertTrue(np.allclose(first, second), primitive)
+            self.assertEqual(first_params, second_params, primitive)
+            self.assertGreater(float(np.mean(np.abs(first - audio))), 1e-4, primitive)
+
     def test_all_primitives_are_deterministic_and_seeded(self) -> None:
         audio = _fixture_audio()
         recipes = [

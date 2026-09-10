@@ -7,9 +7,18 @@ analysis:
   hop_length: 512
   n_mels: 128
   mrstft_resolutions: [512, 1024, 2048]
+  # Paired clean-to-evaluated transfer diagnostics for reverb and distant capture.
+  reverb_diagnostics:
+    max_ir_seconds: 3.0
+    regularization: 0.0001
+    direct_window_ms: 2.5
+    early_window_ms: 50.0
+    late_start_ms: 80.0
+    max_rt60_seconds: 12.0
+    identity_relative_error: 1.0e-12
 validation:
   duration_tolerance_samples: 0
 diagnostics:
   aggregation: category_primary_with_effect_detail
-  enabled_categories: [eq_coloration, dynamics, reverb_room, amplitude, stereo_spatial, noise_interference, bandwidth_loss, clipping_saturation, codec_transmission]
+  enabled_categories: [spectral_eq, mic, lowpass, highpass, telephone_band, low_sample_rate, compression, clipping, saturation_overdrive, reverb, distant_mic_capture, noise, hum, clicks_crackle, dropouts_glitches, codec, neural_codec, transcode_chain, stereo_collapse, channel_damage, pitch_speed_instability]
 deferred_gpu_metric_pack: [CLAP, PANNS, FAD, FAD_LAION, Audiobox]
