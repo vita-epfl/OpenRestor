@@ -2154,7 +2154,7 @@ requires-dist = [
     { name = "matplotlib", specifier = ">=3.7" },
     { name = "numpy", specifier = ">=1.24" },
     { name = "pyloudnorm", specifier = ">=0.1" },
-    { name = "pyroomacoustics", specifier = ">=0.7" },
+    { name = "pyroomacoustics", specifier = ">=0.7,<0.10" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "scipy", specifier = ">=1.10" },
     { name = "soundfile", specifier = ">=0.12" },
@@ -2483,6 +2483,15 @@ wheels = [
 ]
 
 [[package]]
+name = "pybind11"
+version = "3.1.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/76/f3/95b0f40b31df41dbfe6bb0857419c9442c15839cbac4796f1c26ae0b6081/pybind11-3.1.0.tar.gz", hash = "sha256:a1cc06b524ab3edca51f8ad3895f9c4fa20b8b19283173dff4ae781449dc9639", size = 603746, upload-time = "2026-08-06T23:33:00.675Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/33/fd/8762f7ee3e4e4be6d1d846cffb4916dd9bb02b2f800d3603718a0efe494c/pybind11-3.1.0-py3-none-any.whl", hash = "sha256:b8488090f8acffbcb6b5d6a85571a6827a0a2981ffb75e5a0b27b87c4a6b7dd0", size = 319402, upload-time = "2026-08-06T23:32:59.047Z" },
+]
+
+[[package]]
 name = "pycparser"
 version = "3.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2641,31 +2650,24 @@ wheels = [
 
 [[package]]
 name = "pyroomacoustics"
-version = "0.10.1"
+version = "0.9.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cython" },
     { name = "numpy" },
+    { name = "pybind11" },
     { name = "scipy" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/5e/f9/063c249181cdbbbd80eb621f871a4173e95df439e5d8fd22de4df44fed60/pyroomacoustics-0.10.1.tar.gz", hash = "sha256:26aa7d680e68d0b947220026b95b1c5a05eee08f38c53ff49a7804672c0a2886", size = 553656, upload-time = "2026-05-01T13:35:45.873Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/26/25/6c4212ec74229755a809e6fe26792f3bdc57562c017f0749346ac9629c98/pyroomacoustics-0.9.0.tar.gz", hash = "sha256:c4b027b7a89427942ed3327a2d7525d1532eb2547f89cf48a020af60d8c4fd29", size = 35095144, upload-time = "2025-12-07T14:11:15.485Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/96/c8/f6c17e65d561904ced5147dd44b6fa8f2dc70bdc69c8608e84f91eb2872c/pyroomacoustics-0.10.1-cp311-cp311-macosx_10_9_universal2.whl", hash = "sha256:bf2aff3cbfe5533d63c747788aced4f0786846b46dee427d16d27f1982bbffff", size = 1085595, upload-time = "2026-05-01T13:35:18.06Z" },
-    { url = "https://files.pythonhosted.org/packages/32/97/0b923cbce476573eec7d428ab108526c3728c3e7628f865bf181a6b81f1e/pyroomacoustics-0.10.1-cp311-cp311-manylinux_2_26_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:ea84429fbfb55d0dab65f5acdbbd34bfc42f94436cf16d672ec8dff7df889837", size = 1269208, upload-time = "2026-05-01T13:35:19.898Z" },
-    { url = "https://files.pythonhosted.org/packages/f6/fe/f1ba24fa63490800e1700d90e62a61756e45844f896e8bb0801347645fcf/pyroomacoustics-0.10.1-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:f729cf7e62a8663522a381629200e82ba9775bf5b75daed09c3155d85f164ee2", size = 1297491, upload-time = "2026-05-01T13:35:21.091Z" },
-    { url = "https://files.pythonhosted.org/packages/53/8c/aae7fa470d6dc87b3ee7d1c912102b0a7bc8d1a8fbee00c929d5596e7e77/pyroomacoustics-0.10.1-cp311-cp311-win_amd64.whl", hash = "sha256:15cf8809d99449854d20f6ff343d0bb13bf9639db6efd0362a25866cc8cfae20", size = 704540, upload-time = "2026-05-01T13:35:22.517Z" },
-    { url = "https://files.pythonhosted.org/packages/ab/72/750082f5c94505160ffa82c6e582afcba965837bf3a6d1b58911b9c99fc3/pyroomacoustics-0.10.1-cp312-cp312-macosx_10_13_universal2.whl", hash = "sha256:523ba1baeaa594b0ea9c02df9ea279780dc054dd6a0f79f6823874f026da3dbf", size = 1091627, upload-time = "2026-05-01T13:35:24.115Z" },
-    { url = "https://files.pythonhosted.org/packages/c4/af/67a3d41d5fdd4a811b186426d2deb70bed38c068ed006500dc2f696edf86/pyroomacoustics-0.10.1-cp312-cp312-manylinux_2_26_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:ce0d8bf51b1994ef88db94ed984f493a2db2238b9f93a0aae967375d4b0e9d3d", size = 1249529, upload-time = "2026-05-01T13:35:25.542Z" },
-    { url = "https://files.pythonhosted.org/packages/f0/55/8af80433f3318549573c60c3527a8adf7080bf45bc2f57280ad7325d16a3/pyroomacoustics-0.10.1-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:c1b1077cfcafed9775d1b826dbbaf25fb4090aa95d21e9bc6dac795f88e8875c", size = 1286561, upload-time = "2026-05-01T13:35:27.086Z" },
-    { url = "https://files.pythonhosted.org/packages/d9/34/19706fee63d5171d8edfc0b6f85cd17b651cd89822abc80cda8b47dc50ba/pyroomacoustics-0.10.1-cp312-cp312-win_amd64.whl", hash = "sha256:421fa320b6ad31465dc59e137a7b0e1033687cb821febcc8cb4d76f67a4c7b57", size = 706414, upload-time = "2026-05-01T13:35:28.389Z" },
-    { url = "https://files.pythonhosted.org/packages/7c/b1/b6c02e0f3374ddc6776e6a58fe19e2bdeb5cae0192893b9030810f3b47a7/pyroomacoustics-0.10.1-cp313-cp313-macosx_10_13_universal2.whl", hash = "sha256:d58f9d819554d552cb1d228ef6cffaff5a308aabbf9db2a72faea3c96e7b9445", size = 1090496, upload-time = "2026-05-01T13:35:29.976Z" },
-    { url = "https://files.pythonhosted.org/packages/a6/ac/fdbf223e09843c90a825665e1e156f3f095d2b742bd1f186028aeee68bab/pyroomacoustics-0.10.1-cp313-cp313-manylinux_2_26_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:af4d4f672982d616a46df4de0f7ec734703fb904d9c984d9f07ddb1e8c222818", size = 1244884, upload-time = "2026-05-01T13:35:31.325Z" },
-    { url = "https://files.pythonhosted.org/packages/84/20/90361ee35389cff48165fb08072af7b75551eac3387f839804b3016d20e6/pyroomacoustics-0.10.1-cp313-cp313-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:c73af58bca4109bcf4bb567f0a3db9d5d94684a16705be4b674223f4f048f2ad", size = 1282528, upload-time = "2026-05-01T13:35:32.662Z" },
-    { url = "https://files.pythonhosted.org/packages/ea/df/fd267974029c8a1426b35ed00f30e68afbb7810acde50cd31d7c40ba7022/pyroomacoustics-0.10.1-cp313-cp313-win_amd64.whl", hash = "sha256:abcc05fe21315b6f0244ba77e96b4d0be63efdf99288614b50c33871a2d4ed2d", size = 706197, upload-time = "2026-05-01T13:35:33.955Z" },
-    { url = "https://files.pythonhosted.org/packages/b3/f1/0771da3406c62addc43916251952bc2448c3550bdc219cfacf997b808dce/pyroomacoustics-0.10.1-cp314-cp314-macosx_10_15_universal2.whl", hash = "sha256:bbefe48fcb2117fb0731a5be3f82d1d029e603d5a56bdc7fbfa2c8ccc4f6ace5", size = 1092272, upload-time = "2026-05-01T13:35:35.148Z" },
-    { url = "https://files.pythonhosted.org/packages/ee/24/1881600551e7d01aced3b1b048b2790667210e07f9a962a242f88bdea2ef/pyroomacoustics-0.10.1-cp314-cp314-manylinux_2_26_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:b8f13eeb593e4394b724e71b7302dcce77f3727bbb204b966a54c999cee32078", size = 1244143, upload-time = "2026-05-01T13:35:36.942Z" },
-    { url = "https://files.pythonhosted.org/packages/a9/1b/fceb2596b9d511eef464bab56c950f7280af2e83e8254a922e1ba33d2387/pyroomacoustics-0.10.1-cp314-cp314-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:ef6d038374cc205c567d47203eda1fd745d7e34c06f3fb89a13289f065807ead", size = 1277224, upload-time = "2026-05-01T13:35:38.609Z" },
-    { url = "https://files.pythonhosted.org/packages/70/e5/14c6055896cd94e98cdd2fb74559a77cc2567fe2b2f89c42d3be407cb194/pyroomacoustics-0.10.1-cp314-cp314-win_amd64.whl", hash = "sha256:ce6743905c967c9362f546883f57f5e4e0a508c44222c0efb947074b9d0d39fe", size = 718676, upload-time = "2026-05-01T13:35:40.146Z" },
+    { url = "https://files.pythonhosted.org/packages/e6/ca/947e3667d91c3729278fd8aa8f9b80499b3a0abd36851ec71305cb48c983/pyroomacoustics-0.9.0-cp311-cp311-macosx_10_9_universal2.whl", hash = "sha256:f2a0a712ca81d0864ea8a72bf580dbf0deae661ddf57b8fc6f217c3af692f650", size = 34946106, upload-time = "2025-12-07T14:34:16.311Z" },
+    { url = "https://files.pythonhosted.org/packages/8f/56/a1f56fab46d50c3d2a0f07673d58262fd5adc80f4bf1a4579c586c0f3b43/pyroomacoustics-0.9.0-cp311-cp311-win_amd64.whl", hash = "sha256:707e8a96e94aca20bd03e25f43be0d987d63055c498a9a24fba9ec3a0b541f01", size = 34372155, upload-time = "2025-12-07T14:25:52.381Z" },
+    { url = "https://files.pythonhosted.org/packages/fe/50/cd0a5b91473c3655823901eff0875aa5d276fd7df4c8fdb12d415cc5d602/pyroomacoustics-0.9.0-cp312-cp312-macosx_10_13_universal2.whl", hash = "sha256:51e60f2a17f4c918dda5bfec5679ba0b8ef049ae8d2e22ab92b0bb8342c8a4ed", size = 34953587, upload-time = "2025-12-07T14:31:26.277Z" },
+    { url = "https://files.pythonhosted.org/packages/24/41/25d66f3819d006896f5799aef21f5baf9f1d28197d0c7ab38ffa97de18aa/pyroomacoustics-0.9.0-cp312-cp312-win_amd64.whl", hash = "sha256:d0aadb8ab28fc6c3dc19d2e9876910b20ae82ab0c6c5e236a64a454530fb3801", size = 34373883, upload-time = "2025-12-07T14:29:19.053Z" },
+    { url = "https://files.pythonhosted.org/packages/04/db/7c1e1875463b0b366b044e7db67c2a48b2fdc00afc4f3ed149fd9c60631d/pyroomacoustics-0.9.0-cp313-cp313-macosx_10_13_universal2.whl", hash = "sha256:06c4941e8960f672cee01aaf13d85ef15a6e9a085eb44e3ff5c2c58ea705c4ac", size = 34952385, upload-time = "2025-12-07T14:36:09.46Z" },
+    { url = "https://files.pythonhosted.org/packages/fd/7d/17559248af9763a4d595836064cd23baf7bb31d1bdbd7c8bc933064ba717/pyroomacoustics-0.9.0-cp313-cp313-win_amd64.whl", hash = "sha256:f31b1c22a43b77e7424f652f8fc045e57c992da6b6f59bcae48f9c352fa74f79", size = 34373732, upload-time = "2025-12-07T14:32:18.307Z" },
+    { url = "https://files.pythonhosted.org/packages/9e/85/62bf21351d3e10b3c2d81c8a5a15b0c02443d7289e11612e67ed3152ff4c/pyroomacoustics-0.9.0-cp314-cp314-macosx_10_15_universal2.whl", hash = "sha256:59da5376e1fb6dbf6e64f079562b4ec1e1f9a92f8665deaea1ba2b3440cc3790", size = 34952399, upload-time = "2025-12-07T14:30:19.608Z" },
+    { url = "https://files.pythonhosted.org/packages/ab/26/a5efabdcd4a0b39e9d9fb5cfc1acba6becea81669d04e24300673088bf84/pyroomacoustics-0.9.0-cp314-cp314-win_amd64.whl", hash = "sha256:d88c81c37d132d34641d6378c9aff7388a3664054f94eb80c617d6d51fde0c1b", size = 34384521, upload-time = "2025-12-07T14:33:09.315Z" },
 ]
 
 [[package]]
