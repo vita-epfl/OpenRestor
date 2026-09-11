@@ -1,53 +1,383 @@
 version: v0.3
 sample_rate: 44100
-# Fixed low/high endpoints for listening review of the canonical 24-class registry.
-# This is not a production recipe configuration.
 recipes:
-  - {id: review_low_spectral_eq, severity: low_preview, operations: [{primitive: spectral_eq, variant: broad_tilt, parameters: {pivot_hz: 1200, tilt_db: 7, review_boundary: low}}]}
-  - {id: review_high_spectral_eq, severity: high_preview, operations: [{primitive: spectral_eq, variant: broad_tilt, parameters: {pivot_hz: 1200, tilt_db: 14, review_boundary: high}}]}
-  - {id: review_low_mic, severity: low_preview, operations: [{primitive: microphone_response, parameters: {mic_ir_dir: assets/degradations/v0_1/microphone_irs, mic_number: 10, wet: 0.35, review_boundary: low}}]}
-  - {id: review_high_mic, severity: high_preview, operations: [{primitive: microphone_response, parameters: {mic_ir_dir: assets/degradations/v0_1/microphone_irs, mic_number: 10, wet: 1.0, review_boundary: high}}]}
-  - {id: review_low_lowpass, severity: low_preview, operations: [{primitive: bandwidth_filtering, variant: lowpass, parameters: {cutoff_hz: 6000, preset: butterworth, review_boundary: low}}]}
-  - {id: review_high_lowpass, severity: high_preview, operations: [{primitive: bandwidth_filtering, variant: lowpass, parameters: {cutoff_hz: 2500, preset: butterworth, review_boundary: high}}]}
-  - {id: review_low_highpass, severity: low_preview, operations: [{primitive: bandwidth_filtering, variant: highpass, parameters: {cutoff_hz: 300, review_boundary: low}}]}
-  - {id: review_high_highpass, severity: high_preview, operations: [{primitive: bandwidth_filtering, variant: highpass, parameters: {cutoff_hz: 1200, review_boundary: high}}]}
-  - {id: review_low_telephone_band, severity: low_preview, operations: [{primitive: bandwidth_filtering, variant: telephone, parameters: {low_hz: 220, high_hz: 4500, review_boundary: low}}]}
-  - {id: review_high_telephone_band, severity: high_preview, operations: [{primitive: bandwidth_filtering, variant: telephone, parameters: {low_hz: 450, high_hz: 2800, review_boundary: high}}]}
-  - {id: review_low_low_sample_rate, severity: low_preview, operations: [{primitive: bandwidth_filtering, variant: low_sample_rate, parameters: {intermediate_sample_rate: 12000, review_boundary: low}}]}
-  - {id: review_high_low_sample_rate, severity: high_preview, operations: [{primitive: bandwidth_filtering, variant: low_sample_rate, parameters: {intermediate_sample_rate: 6000, review_boundary: high}}]}
-  - {id: review_low_compression, severity: low_preview, operations: [{primitive: compression, variant: strong_compression, parameters: {preview_strength: low, review_boundary: low}}]}
-  - {id: review_high_compression, severity: high_preview, operations: [{primitive: compression, variant: strong_compression, parameters: {preview_strength: high, review_boundary: high}}]}
-  - {id: review_low_clipping, severity: low_preview, operations: [{primitive: clipping, parameters: {preview_strength: low, review_boundary: low}}]}
-  - {id: review_high_clipping, severity: high_preview, operations: [{primitive: clipping, parameters: {preview_strength: high, review_boundary: high}}]}
-  - {id: review_low_saturation_overdrive, severity: low_preview, operations: [{primitive: saturation_overdrive, variant: soft, parameters: {drive: 3.0, review_boundary: low}}]}
-  - {id: review_high_saturation_overdrive, severity: high_preview, operations: [{primitive: saturation_overdrive, variant: hard, parameters: {drive: 6.0, threshold: 0.45, review_boundary: high}}]}
-  - {id: review_low_reverb_small, severity: low_preview, operations: [{primitive: ariel, variant: small, parameters: {preview_strength: low, wet: 0.25, review_boundary: low}}]}
-  - {id: review_high_reverb_small, severity: high_preview, operations: [{primitive: ariel, variant: small, parameters: {preview_strength: high, wet: 0.80, review_boundary: high}}]}
-  - {id: review_low_reverb_big, severity: low_preview, operations: [{primitive: ariel, variant: big, parameters: {preview_strength: low, wet: 0.25, review_boundary: low}}]}
-  - {id: review_high_reverb_big, severity: high_preview, operations: [{primitive: ariel, variant: big, parameters: {preview_strength: high, wet: 0.80, review_boundary: high}}]}
-  - {id: review_low_reverb_mix, severity: low_preview, operations: [{primitive: ariel, variant: mix, parameters: {preview_strength: low, wet: 0.25, review_boundary: low}}]}
-  - {id: review_high_reverb_mix, severity: high_preview, operations: [{primitive: ariel, variant: mix, parameters: {preview_strength: high, wet: 0.80, review_boundary: high}}]}
-  - {id: review_low_reverb_real, severity: low_preview, operations: [{primitive: ariel, variant: real, parameters: {real_rir_dir: assets/degradations/v0_1/real_rirs, rir_index: 3, wet: 0.25, review_boundary: low}}]}
-  - {id: review_high_reverb_real, severity: high_preview, operations: [{primitive: ariel, variant: real, parameters: {real_rir_dir: assets/degradations/v0_1/real_rirs, rir_index: 3, wet: 0.85, review_boundary: high}}]}
-  - {id: review_low_distant_mic_capture, severity: low_preview, operations: [{primitive: distant_mic_capture, variant: room_capture, parameters: {distance_m: 2.5, absorption: 0.45, air_absorption_cutoff_hz: 8000, room_noise_snr_db: 35, review_boundary: low}}]}
-  - {id: review_high_distant_mic_capture, severity: high_preview, operations: [{primitive: distant_mic_capture, variant: room_capture, parameters: {distance_m: 8.0, absorption: 0.12, air_absorption_cutoff_hz: 3500, room_noise_snr_db: 20, review_boundary: high}}]}
-  - {id: review_low_noise, severity: low_preview, operations: [{primitive: noise_interference, variant: broadband, parameters: {snr_db: 20, review_boundary: low}}]}
-  - {id: review_high_noise, severity: high_preview, operations: [{primitive: noise_interference, variant: broadband, parameters: {snr_db: 8, review_boundary: high}}]}
-  - {id: review_low_hum, severity: low_preview, operations: [{primitive: noise_interference, variant: hum, parameters: {snr_db: 10, frequency_hz: 50, harmonics: 3, review_boundary: low}}]}
-  - {id: review_high_hum, severity: high_preview, operations: [{primitive: noise_interference, variant: hum, parameters: {snr_db: 3, frequency_hz: 60, harmonics: 6, review_boundary: high}}]}
-  - {id: review_low_clicks_crackle, severity: low_preview, operations: [{primitive: noise_interference, variant: clicks_crackle, parameters: {click_rate_hz: 3.0, crackle_rate_hz: 25.0, click_level_db: 0, crackle_level_db: -16, click_duration_ms: 2.0, crackle_duration_ms: 0.25, review_boundary: low}}]}
-  - {id: review_high_clicks_crackle, severity: high_preview, operations: [{primitive: noise_interference, variant: clicks_crackle, parameters: {click_rate_hz: 8.0, crackle_rate_hz: 70.0, click_level_db: 9, crackle_level_db: -8, click_duration_ms: 6.0, crackle_duration_ms: 1.0, review_boundary: high}}]}
-  - {id: review_low_dropouts_glitches, severity: low_preview, operations: [{primitive: dropouts_glitches, variant: attenuate, parameters: {rate_hz: 2.0, min_duration_ms: 12, max_duration_ms: 40, attenuation_db: -18, review_boundary: low}}]}
-  - {id: review_high_dropouts_glitches, severity: high_preview, operations: [{primitive: dropouts_glitches, variant: dropout, parameters: {rate_hz: 6.0, min_duration_ms: 25, max_duration_ms: 90, review_boundary: high}}]}
-  - {id: review_low_codec, severity: low_preview, operations: [{primitive: codec_resampling, variant: mp3, parameters: {bitrate: 48k, review_boundary: low}}]}
-  - {id: review_high_codec, severity: high_preview, operations: [{primitive: codec_resampling, variant: mp3, parameters: {bitrate: 24k, review_boundary: high}}]}
-  - {id: review_low_neural_codec, severity: low_preview, operations: [{primitive: neural_codec, parameters: {intermediate_sample_rate: 16000, quantization_bits: 7, review_boundary: low}}]}
-  - {id: review_high_neural_codec, severity: high_preview, operations: [{primitive: neural_codec, parameters: {intermediate_sample_rate: 8000, quantization_bits: 5, review_boundary: high}}]}
-  - {id: review_low_transcode_chain, severity: low_preview, operations: [{primitive: transcode_chain, variant: mp3_then_opus, parameters: {mp3_bitrate: 64k, opus_bitrate: 48k, review_boundary: low}}]}
-  - {id: review_high_transcode_chain, severity: high_preview, operations: [{primitive: transcode_chain, variant: mp3_then_opus, parameters: {mp3_bitrate: 24k, opus_bitrate: 16k, review_boundary: high}}]}
-  - {id: review_low_stereo_collapse, severity: low_preview, operations: [{primitive: stereo_collapse, parameters: {wet: 0.35, review_boundary: low}}]}
-  - {id: review_high_stereo_collapse, severity: high_preview, operations: [{primitive: stereo_collapse, parameters: {wet: 1.0, review_boundary: high}}]}
-  - {id: review_low_channel_damage, severity: low_preview, operations: [{primitive: channel_damage, variant: attenuation, parameters: {target_channel: 1, gain_db: -9, review_boundary: low}}]}
-  - {id: review_high_channel_damage, severity: high_preview, operations: [{primitive: channel_damage, variant: attenuation, parameters: {target_channel: 1, gain_db: -24, review_boundary: high}}]}
-  - {id: review_low_pitch_speed_instability, severity: low_preview, operations: [{primitive: pitch_speed_instability, parameters: {wow_rate_hz: 0.25, wow_depth_percent: 0.8, flutter_rate_hz: 4.0, flutter_depth_percent: 0.25, review_boundary: low}}]}
-  - {id: review_high_pitch_speed_instability, severity: high_preview, operations: [{primitive: pitch_speed_instability, parameters: {wow_rate_hz: 1.0, wow_depth_percent: 2.2, flutter_rate_hz: 10.0, flutter_depth_percent: 0.8, review_boundary: high}}]}
+- id: review_low_spectral_eq
+  severity: low_preview
+  operations:
+  - primitive: spectral_eq
+    variant: broad_tilt
+    parameters:
+      pivot_hz: 1200
+      tilt_db: 7
+      review_boundary: low
+- id: review_high_spectral_eq
+  severity: high_preview
+  operations:
+  - primitive: spectral_eq
+    variant: broad_tilt
+    parameters:
+      pivot_hz: 1200
+      tilt_db: 14
+      review_boundary: high
+- id: review_low_mic
+  severity: low_preview
+  operations:
+  - primitive: microphone_response
+    parameters:
+      mic_ir_dir: assets/degradations/v0_1/microphone_irs
+      mic_number: 10
+      wet: 0.35
+      review_boundary: low
+- id: review_high_mic
+  severity: high_preview
+  operations:
+  - primitive: microphone_response
+    parameters:
+      mic_ir_dir: assets/degradations/v0_1/microphone_irs
+      mic_number: 10
+      wet: 1.0
+      review_boundary: high
+- id: review_low_lowpass
+  severity: low_preview
+  operations:
+  - primitive: bandwidth_filtering
+    variant: lowpass
+    parameters:
+      cutoff_hz: 6000
+      preset: butterworth
+      review_boundary: low
+- id: review_high_lowpass
+  severity: high_preview
+  operations:
+  - primitive: bandwidth_filtering
+    variant: lowpass
+    parameters:
+      cutoff_hz: 2500
+      preset: butterworth
+      review_boundary: high
+- id: review_low_highpass
+  severity: low_preview
+  operations:
+  - primitive: bandwidth_filtering
+    variant: highpass
+    parameters:
+      cutoff_hz: 300
+      review_boundary: low
+- id: review_high_highpass
+  severity: high_preview
+  operations:
+  - primitive: bandwidth_filtering
+    variant: highpass
+    parameters:
+      cutoff_hz: 1200
+      review_boundary: high
+- id: review_low_compression
+  severity: low_preview
+  operations:
+  - primitive: compression
+    variant: strong_compression
+    parameters:
+      preview_strength: low
+      review_boundary: low
+- id: review_high_compression
+  severity: high_preview
+  operations:
+  - primitive: compression
+    variant: strong_compression
+    parameters:
+      preview_strength: high
+      review_boundary: high
+- id: review_low_clipping
+  severity: low_preview
+  operations:
+  - primitive: clipping
+    parameters:
+      preview_strength: low
+      review_boundary: low
+- id: review_high_clipping
+  severity: high_preview
+  operations:
+  - primitive: clipping
+    parameters:
+      preview_strength: high
+      review_boundary: high
+- id: review_low_saturation_overdrive
+  severity: low_preview
+  operations:
+  - primitive: saturation_overdrive
+    variant: soft
+    parameters:
+      drive: 3.0
+      review_boundary: low
+- id: review_high_saturation_overdrive
+  severity: high_preview
+  operations:
+  - primitive: saturation_overdrive
+    variant: hard
+    parameters:
+      drive: 6.0
+      threshold: 0.45
+      review_boundary: high
+- id: review_low_reverb_small
+  severity: low_preview
+  operations:
+  - primitive: ariel
+    variant: small
+    parameters:
+      preview_strength: low
+      wet: 0.25
+      review_boundary: low
+- id: review_high_reverb_small
+  severity: high_preview
+  operations:
+  - primitive: ariel
+    variant: small
+    parameters:
+      preview_strength: high
+      wet: 0.8
+      review_boundary: high
+- id: review_low_reverb_big
+  severity: low_preview
+  operations:
+  - primitive: ariel
+    variant: big
+    parameters:
+      preview_strength: low
+      wet: 0.25
+      review_boundary: low
+- id: review_high_reverb_big
+  severity: high_preview
+  operations:
+  - primitive: ariel
+    variant: big
+    parameters:
+      preview_strength: high
+      wet: 0.8
+      review_boundary: high
+- id: review_low_reverb_mix
+  severity: low_preview
+  operations:
+  - primitive: ariel
+    variant: mix
+    parameters:
+      preview_strength: low
+      wet: 0.25
+      review_boundary: low
+- id: review_high_reverb_mix
+  severity: high_preview
+  operations:
+  - primitive: ariel
+    variant: mix
+    parameters:
+      preview_strength: high
+      wet: 0.8
+      review_boundary: high
+- id: review_low_reverb_real
+  severity: low_preview
+  operations:
+  - primitive: ariel
+    variant: real
+    parameters:
+      real_rir_dir: assets/degradations/v0_1/real_rirs
+      rir_index: 3
+      wet: 0.25
+      review_boundary: low
+- id: review_high_reverb_real
+  severity: high_preview
+  operations:
+  - primitive: ariel
+    variant: real
+    parameters:
+      real_rir_dir: assets/degradations/v0_1/real_rirs
+      rir_index: 3
+      wet: 0.85
+      review_boundary: high
+- id: review_low_distant_mic_capture
+  severity: low_preview
+  operations:
+  - primitive: distant_mic_capture
+    variant: room_capture
+    parameters:
+      distance_m: 2.5
+      absorption: 0.45
+      air_absorption_cutoff_hz: 8000
+      room_noise_snr_db: 42
+      review_boundary: low
+- id: review_high_distant_mic_capture
+  severity: high_preview
+  operations:
+  - primitive: distant_mic_capture
+    variant: room_capture
+    parameters:
+      distance_m: 8.0
+      absorption: 0.12
+      air_absorption_cutoff_hz: 3500
+      room_noise_snr_db: 34
+      review_boundary: high
+- id: review_low_noise
+  severity: low_preview
+  operations:
+  - primitive: noise_interference
+    variant: broadband
+    parameters:
+      snr_db: 30
+      review_boundary: low
+- id: review_high_noise
+  severity: high_preview
+  operations:
+  - primitive: noise_interference
+    variant: broadband
+    parameters:
+      snr_db: 15
+      review_boundary: high
+- id: review_low_hum
+  severity: low_preview
+  operations:
+  - primitive: noise_interference
+    variant: hum
+    parameters:
+      snr_db: 10
+      frequency_hz: 50
+      harmonics: 3
+      review_boundary: low
+- id: review_high_hum
+  severity: high_preview
+  operations:
+  - primitive: noise_interference
+    variant: hum
+    parameters:
+      snr_db: 3
+      frequency_hz: 60
+      harmonics: 6
+      review_boundary: high
+- id: review_low_clicks_crackle
+  severity: low_preview
+  operations:
+  - primitive: noise_interference
+    variant: clicks_crackle
+    parameters:
+      click_rate_hz: 3.0
+      crackle_rate_hz: 25.0
+      click_level_db: 0
+      crackle_level_db: -16
+      click_duration_ms: 2.0
+      crackle_duration_ms: 0.25
+      review_boundary: low
+- id: review_high_clicks_crackle
+  severity: high_preview
+  operations:
+  - primitive: noise_interference
+    variant: clicks_crackle
+    parameters:
+      click_rate_hz: 8.0
+      crackle_rate_hz: 70.0
+      click_level_db: 9
+      crackle_level_db: -8
+      click_duration_ms: 6.0
+      crackle_duration_ms: 1.0
+      review_boundary: high
+- id: review_low_dropouts_glitches
+  severity: low_preview
+  operations:
+  - primitive: dropouts_glitches
+    variant: attenuate
+    parameters:
+      rate_hz: 2.0
+      min_duration_ms: 12
+      max_duration_ms: 40
+      attenuation_db: -18
+      review_boundary: low
+- id: review_high_dropouts_glitches
+  severity: high_preview
+  operations:
+  - primitive: dropouts_glitches
+    variant: dropout
+    parameters:
+      rate_hz: 6.0
+      min_duration_ms: 25
+      max_duration_ms: 90
+      review_boundary: high
+- id: review_low_codec
+  severity: low_preview
+  operations:
+  - primitive: codec_resampling
+    variant: mp3
+    parameters:
+      bitrate: 48k
+      review_boundary: low
+- id: review_high_codec
+  severity: high_preview
+  operations:
+  - primitive: codec_resampling
+    variant: mp3
+    parameters:
+      bitrate: 24k
+      review_boundary: high
+- id: review_low_neural_codec
+  severity: low_preview
+  operations:
+  - primitive: neural_codec
+    parameters:
+      intermediate_sample_rate: 16000
+      quantization_bits: 7
+      review_boundary: low
+- id: review_high_neural_codec
+  severity: high_preview
+  operations:
+  - primitive: neural_codec
+    parameters:
+      intermediate_sample_rate: 8000
+      quantization_bits: 5
+      review_boundary: high
+- id: review_low_stereo_collapse
+  severity: low_preview
+  operations:
+  - primitive: stereo_collapse
+    parameters:
+      wet: 0.35
+      review_boundary: low
+- id: review_high_stereo_collapse
+  severity: high_preview
+  operations:
+  - primitive: stereo_collapse
+    parameters:
+      wet: 1.0
+      review_boundary: high
+- id: review_low_channel_damage
+  severity: low_preview
+  operations:
+  - primitive: channel_damage
+    variant: attenuation
+    parameters:
+      target_channel: 1
+      gain_db: -4
+      review_boundary: low
+- id: review_high_channel_damage
+  severity: high_preview
+  operations:
+  - primitive: channel_damage
+    variant: attenuation
+    parameters:
+      target_channel: 1
+      gain_db: -18
+      review_boundary: high
+- id: review_low_pitch_speed_instability
+  severity: low_preview
+  operations:
+  - primitive: pitch_speed_instability
+    parameters:
+      wow_rate_hz: 0.25
+      wow_depth_percent: 0.8
+      flutter_rate_hz: 4.0
+      flutter_depth_percent: 0.25
+      review_boundary: low
+- id: review_high_pitch_speed_instability
+  severity: high_preview
+  operations:
+  - primitive: pitch_speed_instability
+    parameters:
+      wow_rate_hz: 1.0
+      wow_depth_percent: 2.2
+      flutter_rate_hz: 10.0
+      flutter_depth_percent: 0.8
+      review_boundary: high

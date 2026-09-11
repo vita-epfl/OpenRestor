@@ -226,7 +226,7 @@ OpenRestore v0.1 is effect-first: every single-degradation recipe names the audi
 
 #### Canonical v0.1 Degradation Set
 
-The benchmark exposes exactly these 24 classes. Legacy SonicMaster/ARIEL names remain callable only for reproducing historical manifests; they are not active recipe IDs.
+The benchmark exposes exactly these 21 classes. Legacy SonicMaster/ARIEL names remain callable only for reproducing historical manifests; they are not active recipe IDs.
 
 | ID | Description |
 | --- | --- |
@@ -234,8 +234,6 @@ The benchmark exposes exactly these 24 classes. Legacy SonicMaster/ARIEL names r
 | `mic` | Measured microphone transfer-function coloration using the approved Poliphone IR bundle. |
 | `lowpass` | Strong low-pass bandwidth loss, including the SonicMaster-style clarity cutoff. |
 | `highpass` | Strong low-frequency loss with a randomized high-pass cutoff. |
-| `telephone_band` | Telephone-style 300–3400 Hz band-pass filtering. |
-| `low_sample_rate` | Downsample/reconstruct degradation at 6–12 kHz. |
 | `compression` | Strong compression or transient-softening (the former `punch` mode). |
 | `clipping` | Hard overload clipping with lost peak detail. |
 | `saturation_overdrive` | Nonlinear soft, hard, or asymmetric overdrive. |
@@ -247,14 +245,13 @@ The benchmark exposes exactly these 24 classes. Legacy SonicMaster/ARIEL names r
 | `dropouts_glitches` | Deterministic silence, attenuation, repeat, or noise bursts. |
 | `codec` | Lossy MP3 transcoding at 24–48 kbps. |
 | `neural_codec` | Deterministic low-rate latent-quantization codec proxy; implementation is explicitly model-free until an approved neural codec asset is supplied. |
-| `transcode_chain` | Two-stage lossy AAC/MP3 or MP3/Opus transcoding. |
 | `stereo_collapse` | Left/right collapse to a mono-compatible stereo signal. |
 | `channel_damage` | Asymmetric one-channel bandwidth loss, attenuation, delay, polarity inversion, dropout, noise, or distortion. |
 | `pitch_speed_instability` | Deterministic wow/flutter time-warp instability. |
 
 #### Asset Requirements
 
-The `mic` effect needs ARIEL-compatible microphone transfer functions in `parameters.mic_ir_dir`. The `reverb_real` effect needs compatible RIR WAV files in `parameters.real_rir_dir`. The remaining 24 effects run without external assets. Simulated room effects use the local `pyroomacoustics` dependency.
+The `mic` effect needs ARIEL-compatible microphone transfer functions in `parameters.mic_ir_dir`. The `reverb_real` effect needs compatible RIR WAV files in `parameters.real_rir_dir`. The remaining 19 effects run without external assets. Simulated room effects use the local `pyroomacoustics` dependency.
 
 #### Recipe Inventory
 
@@ -628,7 +625,7 @@ Keep optional infrastructure optional. RenkuLab, DaSCH, or other preservation pl
 ### 3. Implement Degradations And Tracking
 
 - Implement the v0.1 canonical degradation classes in `configs/degradations/single/v0_1.yaml`; keep legacy primitive names only as compatibility aliases.
-- Keep the final first-release inventory at exactly 24 classes: spectral EQ, microphone, four bandwidth modes, compression, clipping, saturation, four reverb modes, distant capture, noise/hum/clicks, dropouts/glitches, codec families, stereo damage, and pitch/speed instability.
+- Keep the final first-release inventory at exactly 21 classes: spectral EQ, microphone, low/high-pass filtering, compression, clipping, saturation, four reverb modes, distant capture, noise/hum/clicks, dropouts/glitches, codec families, stereo damage, and pitch/speed instability.
 - Store compact per-item metadata in `degradation_tracking` and keep full recipe/config files versioned with the release.
 - Use one explicitly selected degradation per output in v0.1. Do not sample effect choices or combine effects; sample only the selected effects parameters.
 - Validate each degradation on a small fixed fixture set so outputs are reproducible across releases.

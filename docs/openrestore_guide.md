@@ -72,7 +72,7 @@ The optional GPU command adds CLAP similarity, FADTK against the local clean dis
 
 ## Degradations
 
-The v0.1 registry contains 24 canonical degradation classes. Every render is deterministic from the item, recipe, and seed; the manifest stores the selected effect, sampled parameters, provenance, and output checksum.
+The v0.1 registry contains 21 canonical degradation classes. Every render is deterministic from the item, recipe, and seed; the manifest stores the selected effect, sampled parameters, provenance, and output checksum.
 
 ```bash
 openrestore-degrade validate-config --config configs/degradations/single/v0_1.yaml

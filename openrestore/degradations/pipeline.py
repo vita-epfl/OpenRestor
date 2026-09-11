@@ -24,11 +24,10 @@ from .core import (
 from .effects import apply_operation
 
 CANONICAL_DEGRADATION_IDS = (
-    "spectral_eq", "mic", "lowpass", "highpass", "telephone_band", "low_sample_rate",
-    "compression", "clipping", "saturation_overdrive", "reverb_small", "reverb_big",
-    "reverb_mix", "reverb_real", "distant_mic_capture", "noise", "hum", "clicks_crackle",
-    "dropouts_glitches", "codec", "neural_codec", "transcode_chain", "stereo_collapse",
-    "channel_damage", "pitch_speed_instability",
+    "spectral_eq", "mic", "lowpass", "highpass", "compression", "clipping",
+    "saturation_overdrive", "reverb_small", "reverb_big", "reverb_mix", "reverb_real",
+    "distant_mic_capture", "noise", "hum", "clicks_crackle", "dropouts_glitches", "codec",
+    "neural_codec", "stereo_collapse", "channel_damage", "pitch_speed_instability",
 )
 
 LEGACY_DEGRADATION_ALIASES = {
@@ -38,7 +37,8 @@ LEGACY_DEGRADATION_ALIASES = {
     "warm": "spectral_eq", "vocal": "spectral_eq", "small": "reverb_small",
     "big": "reverb_big", "mix": "reverb_mix", "real": "reverb_real",
     "stereo": "stereo_collapse", "clip": "clipping", "volume": "legacy_volume",
-    "bandwidth": "lowpass",
+    "bandwidth": "lowpass", "telephone_band": "lowpass",
+    "low_sample_rate": "lowpass", "transcode_chain": "codec",
 }
 
 REQUIRED_PRIMITIVES = {
@@ -95,7 +95,7 @@ def validate_config(config: dict[str, Any]) -> None:
     if config.get("canonical_registry"):
         configured = tuple(recipe["id"] for recipe in recipes)
         if configured != CANONICAL_DEGRADATION_IDS:
-            raise ValueError("Canonical degradation config must contain exactly the ordered 24 benchmark IDs")
+            raise ValueError("Canonical degradation config must contain exactly the ordered 21 benchmark IDs")
 
 
 def list_recipes(config: dict[str, Any]) -> list[dict[str, Any]]:

@@ -20,5 +20,5 @@ validation:
   duration_tolerance_samples: 0
 diagnostics:
   aggregation: category_primary_with_effect_detail
-  enabled_categories: [spectral_eq, mic, lowpass, highpass, telephone_band, low_sample_rate, compression, clipping, saturation_overdrive, reverb, distant_mic_capture, noise, hum, clicks_crackle, dropouts_glitches, codec, neural_codec, transcode_chain, stereo_collapse, channel_damage, pitch_speed_instability]
+  enabled_categories: [spectral_eq, mic, lowpass, highpass, compression, clipping, saturation_overdrive, reverb, distant_mic_capture, noise, hum, clicks_crackle, dropouts_glitches, codec, neural_codec, stereo_collapse, channel_damage, pitch_speed_instability]
 deferred_gpu_metric_pack: [CLAP, PANNS, FAD, FAD_LAION, Audiobox]

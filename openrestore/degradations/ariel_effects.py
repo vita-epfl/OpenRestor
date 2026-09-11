@@ -174,10 +174,19 @@ def apply_ariel_effect(audio: np.ndarray, sample_rate: int, effect: str, params:
         return float(rng.choice(values))
     if effect == "comp":
         threshold, ratio, gain, attack, release = integer(-45, -38), stepped(60, 450, 10), stepped(160, 250, 10), integer(3, 150), integer(80, 250)
-        return _compress(audio, sample_rate, threshold, ratio, attack, release, gain), {"effect": effect, "threshold_db": threshold, "ratio": ratio, "attack_ms": attack, "release_ms": release, "manual_gain_db": gain}
+        output = _compress(audio, sample_rate, threshold, ratio, attack, release, gain)
+        if preview_position is not None:
+            # The original ARIEL range is intentionally strong; blend it for
+            # listening endpoints so low/high form a useful scale.
+            wet = {0.25: 0.25, 0.5: 0.55, 0.75: 0.85}.get(preview_position, preview_position)
+            output = audio * (1.0 - wet) + output * wet
+        return output, {"effect": effect, "threshold_db": threshold, "ratio": ratio, "attack_ms": attack, "release_ms": release, "manual_gain_db": gain, "wet": wet if preview_position is not None else 1.0}
     if effect == "punch":
         output, threshold, reduction = _punch(audio, sample_rate, 3, 150, 10)
-        return output, {"effect": effect, "threshold_db": threshold, "reduction_db": reduction, "attack_ms": 3, "release_ms": 150, "lookahead_ms": 10}
+        wet = {0.25: 0.35, 0.5: 0.6, 0.75: 0.9}.get(preview_position, 1.0)
+        if preview_position is not None:
+            output = audio * (1.0 - wet) + output * wet
+        return output, {"effect": effect, "threshold_db": threshold, "reduction_db": reduction, "attack_ms": 3, "release_ms": 150, "lookahead_ms": 10, "wet": wet}
     if effect == "xband":
         count = integer(8, 12); gains = np.array([-3, -2, -1, 2, 3] * ((count + 4) // 5))[:count] if medium else rng.integers(-6, 7, count); frequencies = np.geomspace(40, 16000, count)
         return _peak_eq(audio, frequencies, frequencies[-1] / (frequencies[-1] - frequencies[-2]) / 2, gains, sample_rate), {"effect": effect, "n_bands": count, "gains_db": gains.tolist()}
@@ -229,7 +238,7 @@ def apply_ariel_effect(audio: np.ndarray, sample_rate: int, effect: str, params:
     if effect == "stereo":
         mono = np.sum(audio, axis=1); return np.column_stack([mono, mono]), {"effect": effect, "mode": "combined_channels"}
     if effect == "clip":
-        amount = choice([2.0, 3.0, 5.0]); return np.clip(amount * _normalize(audio), -1.0, 1.0), {"effect": effect, "clip_intensity": amount}
+        amount = float(params.get("amount", choice([2.0, 3.0, 5.0]))); return np.clip(amount * _normalize(audio), -1.0, 1.0), {"effect": effect, "clip_intensity": amount}
     if effect == "volume":
         amount = choice([0.001, 0.003, 0.01, 0.05]); return amount * _normalize(audio), {"effect": effect, "volume_multiplier": amount}
     raise ValueError(f"Unknown ARIEL effect: {effect}")

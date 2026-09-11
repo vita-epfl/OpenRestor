@@ -41,12 +41,12 @@ def _band_energy(audio: np.ndarray, low: float, high: float) -> float:
 
 
 class DegradationPrimitiveTests(TestCase):
-    def test_canonical_registry_has_exactly_24_ids(self) -> None:
+    def test_canonical_registry_has_exactly_21_ids(self) -> None:
         config = load_yaml(Path("configs/degradations/single/v0_1.yaml"))
         validate_config(config)
         self.assertEqual(tuple(recipe["id"] for recipe in config["recipes"]), CANONICAL_DEGRADATION_IDS)
         self.assertNotIn("volume", CANONICAL_DEGRADATION_IDS)
-        self.assertEqual(len(CANONICAL_DEGRADATION_IDS), 24)
+        self.assertEqual(len(CANONICAL_DEGRADATION_IDS), 21)
 
     def test_new_canonical_effects_are_audible_and_deterministic(self) -> None:
         audio = _fixture_audio(0.25)
