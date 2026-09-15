@@ -26,7 +26,7 @@ Any other training data belongs to the external-data track unless the benchmark 
 
 | Path | Responsibility |
 | --- | --- |
-| openrestore/data/core.py | Shared data structures, JSONL/YAML I/O, stable hash splitting, SHA-256, FFprobe metadata inspection, and source discovery. |
+| openrestore/data/core.py | Shared data structures, JSONL/YAML I/O, ARIEL-manifest and optional hash-fallback splitting, SHA-256, FFprobe metadata inspection, and source discovery. |
 | openrestore/data/pipeline.py | Dataset ingestion, split assignment, 30-second clip rendering, quality checks, manifests, checksums, shard creation, verification, and statistics. |
 | openrestore/data/cli.py | openrestore-data command-line interface. |
 | configs/datasets/*.yaml | Source declarations, roles, local roots, licensing reminders, and minimum source duration. |
@@ -79,7 +79,7 @@ openrestore-data stats --manifest build/index.jsonl --output build/statistics.js
 
 - `audit` discovers supported audio files below a configured source root and records a bounded media-quality sample. It is the first check that the expected local dataset is present and plausible.
 - `ingest` writes one JSONL source row per eligible file, including source path, source ID, duration, sample rate, channel count, split role, and SHA-256. It does not render or modify audio.
-- `split` applies the fixed seeded split to SonicMaster source IDs, then combines it with SDD and MUSDB18-HQ, which remain fixed `transfer` sources by policy. It rejects split leakage.
+- `split` applies the authoritative frozen original SonicMaster manifest to SonicMaster, with ARIEL and seeded-hash modes retained only for legacy reproduction, then combines it with SDD and MUSDB18-HQ, which remain fixed `transfer` sources by policy. It rejects split leakage.
 - `segment` selects deterministic 30-second windows, invokes FFmpeg to produce 44.1 kHz stereo PCM WAV, applies the configured loudness normalization, rejects invalid or silent clips, and writes the clean manifest plus checksums.
 - `shard` packages the rendered WAVs and manifest records into fixed-size TAR archives for transfer or hosted storage. The canonical WAV/JSONL contract remains unchanged.
 - `verify` recomputes each rendered WAV checksum and fails on missing or altered files.

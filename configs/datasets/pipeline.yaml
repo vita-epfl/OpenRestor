@@ -1,8 +1,10 @@
-seed: 20260714
 sonicmaster_split:
-  train_fraction: 0.90
-  validation_fraction: 0.05
-  test_fraction: 0.05
+  strategy: frozen_original_sonicmaster_manifest
+  manifest: configs/datasets/sonicmaster_original_split.jsonl
+  manifest_sha256: 9c9c7b19b9ba5035523f4a460341b9ee0f0a0e4c6509621d3f513b91805a4f87
+  expected_train_sources: 23500
+  expected_validation_sources: 500
+  expected_test_sources: 1000
 segmentation:
   clip_seconds: 30
   clips_per_source: 1

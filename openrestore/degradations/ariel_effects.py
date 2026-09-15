@@ -224,16 +224,24 @@ def apply_ariel_effect(
 ) -> tuple[np.ndarray, dict[str, Any]]:
     """Apply one original ARIEL single effect and return its sampled tracking fields."""
 
-    medium = params.get("preview_strength") == "medium"
+    preview_strength = str(params.get("preview_strength", ""))
+    preview_position = {"low": 0.25, "medium": 0.5, "high": 0.75}.get(preview_strength)
+    medium = preview_strength == "medium"
 
     def integer(low: int, high: int) -> int:
-        return (low + high) // 2 if medium else int(rng.integers(low, high + 1))
+        if preview_position is not None:
+            return int(round(low + (high - low) * preview_position))
+        return int(rng.integers(low, high + 1))
 
     def stepped(low: int, high: int, scale: float = 1.0) -> float:
-        return ((low + high) / 2) / scale if medium else float(rng.integers(low, high + 1) / scale)
+        if preview_position is not None:
+            return (low + (high - low) * preview_position) / scale
+        return float(rng.integers(low, high + 1) / scale)
 
     def choice(values: list[float]) -> float:
-        return values[len(values) // 2] if medium else float(rng.choice(values))
+        if preview_position is not None:
+            return values[int(round((len(values) - 1) * preview_position))]
+        return float(rng.choice(values))
 
     if effect == "comp":
         threshold, ratio, gain, attack, release = (
@@ -277,7 +285,7 @@ def apply_ariel_effect(
             sample_rate,
         ), {"effect": effect, "n_bands": count, "gains_db": gains.tolist()}
     if effect == "mic":
-        number = integer(0, 19)
+        number = int(params.get("mic_number", integer(0, 19)))
         output, name = _load_mic(audio, str(params.get("mic_ir_dir", "")), number)
         return output, {"effect": effect, "mic_number": number, "microphone": name}
     if effect in {"bright", "dark", "airy", "boom", "warm"}:
@@ -318,7 +326,9 @@ def apply_ariel_effect(
             "mix": ((4, 4, 2.5), (4, 3, 1)),
         }
         start, span = ranges[effect]
-        room_size = np.array(start) + np.array(span) * (0.5 if medium else rng.random(3))
+        room_size = np.array(start) + np.array(span) * (
+            preview_position if preview_position is not None else rng.random(3)
+        )
         source = rng.random(3) * (0.8 * room_size) + 0.1 * room_size
         microphone = rng.random(3) * (0.8 * room_size) + 0.1 * room_size
         source[2] = rng.random() * room_size[2] * 0.7 + 0.3
@@ -326,12 +336,16 @@ def apply_ariel_effect(
         if effect != "mix":
             absorption = 0.175 if medium else float(rng.random() * 0.25 + 0.05)
             output = _room(audio, sample_rate, room_size, source, microphone, absorption, "simple")
+            wet = params.get("wet")
+            if wet is not None:
+                output = audio * (1.0 - float(wet)) + output * float(wet)
             return output, {
                 "effect": effect,
                 "room_size": room_size.tolist(),
                 "source_position": source.tolist(),
                 "mic_position": microphone.tolist(),
                 "absorption": absorption,
+                "wet": wet,
             }
         import pyroomacoustics as pra
 
@@ -360,22 +374,26 @@ def apply_ariel_effect(
                     }
                 )
             )
-        # materials has exactly one entry per wall label (loop `for wall in range(6)`)
-        absorption = dict(
-            zip(["east", "west", "north", "south", "ceiling", "floor"], materials, strict=True)
-        )
+        absorption = dict(zip(["east", "west", "north", "south", "ceiling", "floor"], materials))
         output = _room(audio, sample_rate, room_size, source, microphone, absorption, "mix")
+        wet = params.get("wet")
+        if wet is not None:
+            output = audio * (1.0 - float(wet)) + output * float(wet)
         return output, {
             "effect": effect,
             "room_size": room_size.tolist(),
             "source_position": source.tolist(),
             "mic_position": microphone.tolist(),
             "absorptive_walls": sorted(selected),
+            "wet": wet,
         }
     if effect == "real":
-        index = integer(0, 11)
+        index = int(params.get("rir_index", integer(0, 11)))
         output, name = _real_rir(audio, str(params.get("real_rir_dir", "")), index)
-        return output, {"effect": effect, "rir_index": index, "rir_name": name}
+        wet = params.get("wet")
+        if wet is not None:
+            output = audio * (1.0 - float(wet)) + output * float(wet)
+        return output, {"effect": effect, "rir_index": index, "rir_name": name, "wet": wet}
     if effect == "stereo":
         mono = np.sum(audio, axis=1)
         return np.column_stack([mono, mono]), {"effect": effect, "mode": "combined_channels"}

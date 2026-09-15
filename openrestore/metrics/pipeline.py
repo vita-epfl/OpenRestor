@@ -326,6 +326,29 @@ def _write_markdown(report: dict[str, Any], path: Path) -> None:
             f"{metrics['snr_db']['restored']:.3f} | {metrics['lsd_db']['restored']:.3f} | "
             f"{metrics['aae']['reduction']:.3f} |"
         )
+    reverb_categories = {"reverb", "distant_mic_capture", "reverb_room"}
+    reverb_rows = [
+        (category, data)
+        for category, data in report["by_category"].items()
+        if category in reverb_categories
+    ]
+    if reverb_rows:
+        lines.extend(
+            [
+                "",
+                "## Reverb And Distant-Capture Diagnostics",
+                "",
+                "`rt60_s`, `drr_db`, and `late_tail_db` are residual clean-to-evaluated transfer diagnostics; they are most meaningful for room-response degradations.",
+                "",
+                "| Category | Items | RT60 restored (s) | DRR restored (dB) | Late tail restored (dB) |",
+                "| --- | ---: | ---: | ---: | ---: |",
+            ]
+        )
+        for category, data in reverb_rows:
+            metrics = data["metrics"]
+            lines.append(
+                f"| {category} | {data['items']} | {metrics['rt60_s']['restored']:.3f} | {metrics['drr_db']['restored']:.3f} | {metrics['late_tail_db']['restored']:.3f} |"
+            )
     lines.extend(
         ["", "## Effect Summary", "", "| Effect | Items | AAE reduction |", "| --- | ---: | ---: |"]
     )

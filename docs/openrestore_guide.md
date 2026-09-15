@@ -50,7 +50,7 @@ The CPU scorer is part of the base package and runs locally wherever the clean r
 
 ## Local Validation And Evaluation
 
-The CPU scorer compares degraded-to-clean and restored-to-clean audio using waveform and spectral metrics plus degradation-aware diagnostics:
+The CPU scorer compares degraded-to-clean and restored-to-clean audio using waveform and spectral metrics plus degradation-aware diagnostics. For `reverb_*` and `distant_mic_capture`, it also reports paired residual-room diagnostics: `rt60_s`, `drr_db`, and `late_tail_db`, estimated from the clean-to-evaluated transfer rather than from music in isolation:
 
 ```bash
 openrestore-score validate-restored \
@@ -72,7 +72,7 @@ The optional GPU command adds CLAP similarity, FADTK against the local clean dis
 
 ## Degradations
 
-The v0.1 registry contains 25 single effects. Every render is deterministic from the item, recipe, and seed; the manifest stores the selected effect, sampled parameters, provenance, and output checksum.
+The v0.1 registry contains 24 canonical degradation classes. Every render is deterministic from the item, recipe, and seed; the manifest stores the selected effect, sampled parameters, provenance, and output checksum.
 
 ```bash
 openrestore-degrade validate-config --config configs/degradations/single/v0_1.yaml

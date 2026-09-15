@@ -4,6 +4,7 @@ __pycache__/
 *.egg-info/
 build/
 assets/degradations/
+tmp
 
 # uv / tooling artifacts
 .venv/

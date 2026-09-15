@@ -5,8 +5,11 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import TestCase
 
-from openrestore.data.core import read_jsonl, sha256_file
+from openrestore.data.core import read_jsonl, sha256_file, write_jsonl
 from openrestore.data.pipeline import (
+    ariel_split_membership,
+    sonicmaster_split_membership,
+    split_sonicmaster_from_manifest,
     combine_and_split,
     ingest,
     iter_shard,
@@ -42,6 +45,54 @@ def _config(dataset: str, root: Path, fixed_split: str) -> dict[str, str | int]:
 
 
 class PhaseOnePipelineTests(TestCase):
+    def test_ariel_manifest_split_keeps_exact_source_sets(self) -> None:
+        with TemporaryDirectory() as directory:
+            tmp_path = Path(directory)
+            train_manifest = tmp_path / "ariel_train.jsonl"
+            test_manifest = tmp_path / "ariel_test.jsonl"
+            write_jsonl(train_manifest, [{"source_id": "one"}, {"source_id": "two"}])
+            write_jsonl(test_manifest, [{"source_id": "three"}])
+
+            membership = ariel_split_membership(train_manifest, test_manifest)
+            self.assertEqual(membership, {"one": "train", "two": "train", "three": "test"})
+
+            sonic_index = tmp_path / "sonic.jsonl"
+            write_jsonl(
+                sonic_index,
+                [{"dataset": "sonicmaster_clean", "source_id": source_id, "split": "unassigned"}
+                 for source_id in ("one", "two", "three", "excluded")],
+            )
+            output = tmp_path / "sources.jsonl"
+            rows = combine_and_split(
+                [sonic_index], output, 42, 0.7, 0.15, train_manifest, test_manifest
+            )
+            self.assertEqual(
+                {(row["source_id"], row["split"]) for row in rows},
+                {("one", "train"), ("two", "train"), ("three", "test"), ("excluded", "train")},
+            )
+
+    def test_frozen_sonicmaster_manifest_preserves_validation_and_test(self) -> None:
+        with TemporaryDirectory() as directory:
+            tmp_path = Path(directory)
+            manifest = tmp_path / "sonicmaster_split.jsonl"
+            write_jsonl(
+                manifest,
+                [
+                    {"source_id": "one", "split": "train"},
+                    {"source_id": "two", "split": "validation"},
+                    {"source_id": "three", "split": "test"},
+                ],
+            )
+            rows = [
+                {"dataset": "sonicmaster_clean", "source_id": source_id, "split": "unassigned"}
+                for source_id in ("one", "two", "three")
+            ]
+            self.assertEqual(sonicmaster_split_membership(manifest)["two"], "validation")
+            self.assertEqual(
+                {(row["source_id"], row["split"]) for row in split_sonicmaster_from_manifest(rows, manifest)},
+                {("one", "train"), ("two", "validation"), ("three", "test")},
+            )
+
     def test_pipeline_is_deterministic_and_transfer_separated(self) -> None:
         with TemporaryDirectory() as directory:
             tmp_path = Path(directory)

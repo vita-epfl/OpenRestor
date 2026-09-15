@@ -33,6 +33,19 @@ def apply_operation(
         "noise_interference": noise_interference,
         "device_mic_response": device_mic_response,
         "codec_resampling": codec_resampling,
+        # Canonical benchmark operations. The original primitives above remain
+        # callable so historic configs can still be reproduced.
+        "spectral_eq": spectral_eq,
+        "microphone_response": microphone_response,
+        "compression": compression,
+        "clipping": clipping,
+        "saturation_overdrive": saturation_overdrive,
+        "dropouts_glitches": dropouts_glitches,
+        "neural_codec": neural_codec,
+        "transcode_chain": transcode_chain,
+        "stereo_collapse": stereo_collapse,
+        "channel_damage": channel_damage,
+        "pitch_speed_instability": pitch_speed_instability,
     }
     if primitive not in handlers:
         raise ValueError(f"Unknown primitive: {primitive}")
@@ -49,6 +62,322 @@ def ariel(
     if not variant:
         raise ValueError("An ARIEL operation requires an effect variant")
     return apply_ariel_effect(audio, sample_rate, variant, params, rng)
+
+
+def spectral_eq(
+    audio: np.ndarray,
+    sample_rate: int,
+    variant: str | None,
+    params: dict[str, Any],
+    rng: np.random.Generator,
+) -> tuple[np.ndarray, dict[str, Any]]:
+    """Strong, one-mode spectral coloration replacing the old individual EQ recipes."""
+    mode = variant or str(params.get("mode", "multi_band"))
+    ariel_modes = {
+        "multi_band": "xband",
+        "high_shelf_cut": "bright",
+        "high_shelf_boost": "dark",
+        "air_cut": "airy",
+        "low_shelf_cut": "boom",
+        "low_shelf_thin": "warm",
+    }
+    if mode in ariel_modes:
+        result, source = apply_ariel_effect(audio, sample_rate, ariel_modes[mode], params, rng)
+        return limit_audio(result), {"variant": mode, "source_effect": source}
+    if mode == "low_mid_emphasis":
+        centre_hz = float(params.get("centre_hz", rng.uniform(250, 500)))
+        width_hz = float(params.get("width_hz", rng.uniform(160, 300)))
+        low, high = max(80.0, centre_hz - width_hz / 2), min(2_000.0, centre_hz + width_hz / 2)
+        band = butter_filter(audio, sample_rate, "bandpass", (low, high), order=2)
+        gain_db = float(params.get("gain_db", rng.uniform(8, 15)))
+        result = audio + band * (10 ** (gain_db / 20) - 1)
+        return limit_audio(result), {
+            "variant": mode,
+            "centre_hz": centre_hz,
+            "width_hz": width_hz,
+            "gain_db": gain_db,
+        }
+    if mode == "midrange_notch":
+        attenuation_db = float(params.get("attenuation_db", rng.uniform(10, 20)))
+        sos = signal.cheby2(
+            2, attenuation_db, [350, 3_500], "bandstop", fs=sample_rate, output="sos"
+        )
+        return signal.sosfilt(sos, audio, axis=0), {
+            "variant": mode,
+            "attenuation_db": attenuation_db,
+        }
+    if mode == "broad_tilt":
+        pivot_hz = float(params.get("pivot_hz", rng.uniform(800, 2_000)))
+        tilt_db = float(params.get("tilt_db", rng.choice([-1, 1]) * rng.uniform(7, 14)))
+        low = butter_filter(audio, sample_rate, "lowpass", pivot_hz, order=2)
+        high = audio - low
+        result = low * (10 ** (-tilt_db / 40)) + high * (10 ** (tilt_db / 40))
+        return limit_audio(result), {"variant": mode, "pivot_hz": pivot_hz, "tilt_db": tilt_db}
+    raise ValueError(f"Unknown spectral_eq mode: {mode}")
+
+
+def microphone_response(
+    audio: np.ndarray,
+    sample_rate: int,
+    variant: str | None,
+    params: dict[str, Any],
+    rng: np.random.Generator,
+) -> tuple[np.ndarray, dict[str, Any]]:
+    result, source = apply_ariel_effect(audio, sample_rate, "mic", params, rng)
+    wet = float(params.get("wet", 1.0))
+    if not 0.0 <= wet <= 1.0:
+        raise ValueError("microphone_response wet must be between 0 and 1")
+    result = audio * (1.0 - wet) + result * wet
+    return limit_audio(result), {
+        "variant": variant or "measured_microphone_ir",
+        "wet": wet,
+        "source_effect": source,
+    }
+
+
+def compression(
+    audio: np.ndarray,
+    sample_rate: int,
+    variant: str | None,
+    params: dict[str, Any],
+    rng: np.random.Generator,
+) -> tuple[np.ndarray, dict[str, Any]]:
+    mode = variant or str(params.get("mode", "strong_compression"))
+    source_effect = "punch" if mode == "transient_softening" else "comp"
+    if mode not in {"strong_compression", "transient_softening"}:
+        raise ValueError(f"Unknown compression mode: {mode}")
+    result, source = apply_ariel_effect(audio, sample_rate, source_effect, params, rng)
+    return limit_audio(result), {"variant": mode, "source_effect": source}
+
+
+def clipping(
+    audio: np.ndarray,
+    sample_rate: int,
+    variant: str | None,
+    params: dict[str, Any],
+    rng: np.random.Generator,
+) -> tuple[np.ndarray, dict[str, Any]]:
+    result, source = apply_ariel_effect(audio, sample_rate, "clip", params, rng)
+    return limit_audio(result), {"variant": variant or "hard_clip", "source_effect": source}
+
+
+def saturation_overdrive(
+    audio: np.ndarray,
+    sample_rate: int,
+    variant: str | None,
+    params: dict[str, Any],
+    rng: np.random.Generator,
+) -> tuple[np.ndarray, dict[str, Any]]:
+    curve = variant or str(params.get("curve", "soft"))
+    drive = float(params.get("drive", rng.uniform(3.0, 6.0)))
+    return clipping_distortion(audio, sample_rate, curve, {**params, "drive": drive}, rng)
+
+
+def _dropout_ranges(
+    samples: int,
+    sample_rate: int,
+    rng: np.random.Generator,
+    rate_hz: float,
+    min_ms: float,
+    max_ms: float,
+) -> list[tuple[int, int]]:
+    count = max(1, int(rng.poisson(rate_hz * samples / sample_rate)))
+    ranges: list[tuple[int, int]] = []
+    for _ in range(count):
+        start = int(rng.integers(0, samples))
+        width = int(sample_rate * rng.uniform(min_ms, max_ms) / 1000)
+        ranges.append((start, min(samples, start + max(1, width))))
+    return ranges
+
+
+def dropouts_glitches(
+    audio: np.ndarray,
+    sample_rate: int,
+    variant: str | None,
+    params: dict[str, Any],
+    rng: np.random.Generator,
+) -> tuple[np.ndarray, dict[str, Any]]:
+    mode = variant or str(params.get("mode", "mixed"))
+    ranges = _dropout_ranges(
+        len(audio),
+        sample_rate,
+        rng,
+        float(params.get("rate_hz", rng.uniform(2.0, 6.0))),
+        float(params.get("min_duration_ms", 12)),
+        float(params.get("max_duration_ms", 65)),
+    )
+    result = audio.copy()
+    for start, end in ranges:
+        if mode == "repeat" and start > 0:
+            source_start = max(0, start - (end - start))
+            result[start:end] = result[source_start : source_start + end - start]
+        elif mode == "noise":
+            noise = rng.normal(0, rms(audio) * 0.45, (end - start, audio.shape[1]))
+            result[start:end] = noise.astype(np.float32)
+        elif mode == "attenuate":
+            result[start:end] *= 10 ** (float(params.get("attenuation_db", -28)) / 20)
+        else:
+            result[start:end] = 0
+    return limit_audio(result), {
+        "variant": mode,
+        "dropout_count": len(ranges),
+        "ranges_samples": ranges,
+    }
+
+
+def neural_codec(
+    audio: np.ndarray,
+    sample_rate: int,
+    variant: str | None,
+    params: dict[str, Any],
+    rng: np.random.Generator,
+) -> tuple[np.ndarray, dict[str, Any]]:
+    """Deterministic low-rate latent-quantization proxy; no model weights are shipped."""
+    intermediate = int(params.get("intermediate_sample_rate", rng.choice([8_000, 12_000, 16_000])))
+    bits = int(params.get("quantization_bits", rng.choice([5, 6, 7])))
+    down = signal.resample_poly(audio, intermediate, sample_rate, axis=0)
+    mu = 255.0
+    encoded = np.sign(down) * np.log1p(mu * np.abs(down)) / np.log1p(mu)
+    levels = 2**bits - 1
+    encoded = np.round((encoded + 1) * levels / 2) * 2 / levels - 1
+    decoded = np.sign(encoded) * np.expm1(np.abs(encoded) * np.log1p(mu)) / mu
+    result = signal.resample_poly(decoded, sample_rate, intermediate, axis=0)
+    return limit_audio(match_length(result.astype(np.float32), len(audio))), {
+        "variant": variant or "latent_quantization_proxy",
+        "intermediate_sample_rate": intermediate,
+        "quantization_bits": bits,
+        "implementation": "deterministic_neural_codec_proxy",
+    }
+
+
+def transcode_chain(
+    audio: np.ndarray,
+    sample_rate: int,
+    variant: str | None,
+    params: dict[str, Any],
+    rng: np.random.Generator,
+) -> tuple[np.ndarray, dict[str, Any]]:
+    chain = variant or str(params.get("chain", "mp3_then_opus"))
+    stages = {
+        "mp3_then_opus": (
+            ("mp3", str(params.get("mp3_bitrate", "40k"))),
+            ("opus", str(params.get("opus_bitrate", "32k"))),
+        ),
+        "aac_then_mp3": (
+            ("aac", str(params.get("aac_bitrate", "48k"))),
+            ("mp3", str(params.get("mp3_bitrate", "32k"))),
+        ),
+    }
+    if chain not in stages:
+        raise ValueError(f"Unknown transcode chain: {chain}")
+    result = audio
+    for codec, bitrate in stages[chain]:
+        result = run_ffmpeg_codec(result, sample_rate, codec, bitrate)
+    return limit_audio(result), {
+        "variant": chain,
+        "stages": [{"codec": codec, "bitrate": bitrate} for codec, bitrate in stages[chain]],
+    }
+
+
+def stereo_collapse(
+    audio: np.ndarray,
+    sample_rate: int,
+    variant: str | None,
+    params: dict[str, Any],
+    rng: np.random.Generator,
+) -> tuple[np.ndarray, dict[str, Any]]:
+    result, source = apply_ariel_effect(audio, sample_rate, "stereo", params, rng)
+    wet = float(params.get("wet", 1.0))
+    if not 0.0 <= wet <= 1.0:
+        raise ValueError("stereo_collapse wet must be between 0 and 1")
+    result = audio * (1.0 - wet) + result * wet
+    return limit_audio(result), {
+        "variant": variant or "combined_channels",
+        "wet": wet,
+        "source_effect": source,
+    }
+
+
+def channel_damage(
+    audio: np.ndarray,
+    sample_rate: int,
+    variant: str | None,
+    params: dict[str, Any],
+    rng: np.random.Generator,
+) -> tuple[np.ndarray, dict[str, Any]]:
+    mode = variant or str(params.get("mode", "bandwidth_loss"))
+    target = int(params.get("target_channel", 1))
+    if target not in (0, 1):
+        raise ValueError("channel_damage target_channel must be 0 or 1")
+    result = audio.copy()
+    damaged = result[:, target]
+    if mode == "bandwidth_loss":
+        damaged = butter_filter(
+            damaged[:, None],
+            sample_rate,
+            "lowpass",
+            float(params.get("cutoff_hz", rng.uniform(1_200, 4_000))),
+            3,
+        )[:, 0]
+    elif mode == "attenuation":
+        damaged *= 10 ** (float(params.get("gain_db", rng.uniform(-24, -9))) / 20)
+    elif mode == "delay":
+        delay = int(sample_rate * float(params.get("delay_ms", rng.uniform(8, 45))) / 1000)
+        damaged = np.concatenate([np.zeros(delay, dtype=np.float32), damaged[:-delay]])
+    elif mode == "polarity_inversion":
+        damaged = -damaged
+    elif mode == "dropout":
+        for start, end in _dropout_ranges(len(audio), sample_rate, rng, 3.0, 12, 65):
+            damaged[start:end] = 0
+    elif mode == "noise":
+        noise = rng.normal(0, 1, len(damaged)).astype(np.float32)
+        damaged = damaged + noise * (
+            rms(damaged)
+            / max(rms(noise) * 10 ** (float(params.get("snr_db", rng.uniform(3, 12))) / 20), 1e-8)
+        )
+    elif mode == "distortion":
+        damaged = np.tanh(damaged * float(params.get("drive", rng.uniform(3, 7))))
+    else:
+        raise ValueError(f"Unknown channel_damage mode: {mode}")
+    result[:, target] = damaged
+    return limit_audio(result), {"variant": mode, "target_channel": target}
+
+
+def pitch_speed_instability(
+    audio: np.ndarray,
+    sample_rate: int,
+    variant: str | None,
+    params: dict[str, Any],
+    rng: np.random.Generator,
+) -> tuple[np.ndarray, dict[str, Any]]:
+    """Wow/flutter-like time warp, retaining clip length and stereo coherence."""
+    samples = len(audio)
+    time = np.arange(samples, dtype=np.float64) / sample_rate
+    wow_rate = float(params.get("wow_rate_hz", rng.uniform(0.25, 1.0)))
+    wow_depth = float(params.get("wow_depth_percent", rng.uniform(0.8, 2.2))) / 100
+    flutter_rate = float(params.get("flutter_rate_hz", rng.uniform(4.0, 10.0)))
+    flutter_depth = float(params.get("flutter_depth_percent", rng.uniform(0.25, 0.8))) / 100
+    phase = rng.uniform(0, 2 * np.pi, 2)
+    speed = (
+        1
+        + wow_depth * np.sin(2 * np.pi * wow_rate * time + phase[0])
+        + flutter_depth * np.sin(2 * np.pi * flutter_rate * time + phase[1])
+    )
+    positions = np.cumsum(speed)
+    positions = (positions - positions[0]) * (samples - 1) / max(positions[-1] - positions[0], 1)
+    result = np.column_stack(
+        [
+            np.interp(positions, np.arange(samples), audio[:, channel])
+            for channel in range(audio.shape[1])
+        ]
+    ).astype(np.float32)
+    return limit_audio(result), {
+        "variant": variant or "wow_flutter",
+        "wow_rate_hz": wow_rate,
+        "wow_depth_percent": wow_depth * 100,
+        "flutter_rate_hz": flutter_rate,
+        "flutter_depth_percent": flutter_depth * 100,
+    }
 
 
 def distant_mic_capture(
@@ -310,7 +639,15 @@ def bandwidth_filtering(
 ) -> tuple[np.ndarray, dict[str, Any]]:
     variant = variant or params.get("mode", "lowpass")
     if variant == "telephone":
-        result = butter_filter(audio, sample_rate, "bandpass", (300, 3_400), order=4)
+        low_hz = float(params.get("low_hz", 300))
+        high_hz = float(params.get("high_hz", 3_400))
+        result = butter_filter(audio, sample_rate, "bandpass", (low_hz, high_hz), order=4)
+        return limit_audio(result), {
+            **params,
+            "variant": variant,
+            "low_hz": low_hz,
+            "high_hz": high_hz,
+        }
     elif variant == "highpass":
         result = butter_filter(
             audio, sample_rate, "highpass", float(params.get("cutoff_hz", 120)), order=3
@@ -321,6 +658,16 @@ def bandwidth_filtering(
         result = signal.resample_poly(down, sample_rate, intermediate, axis=0)
         result = match_length(result.astype(np.float32), len(audio))
     else:
+        # Keep the SonicMaster/ARIEL clarity filter available as a canonical
+        # low-pass preset while retaining the configurable Butterworth form.
+        if str(params.get("preset", "butterworth")) in {"sonicmaster", "clarity"}:
+            result, tracking = apply_ariel_effect(audio, sample_rate, "clarity", params, rng)
+            return limit_audio(result), {
+                **params,
+                **tracking,
+                "variant": variant,
+                "preset": "sonicmaster",
+            }
         result = butter_filter(
             audio, sample_rate, "lowpass", float(params.get("cutoff_hz", 8_000)), order=4
         )

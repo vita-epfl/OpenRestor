@@ -1,0 +1,24 @@
+# Private, immutable release contract. Do not publish its artifacts until source and asset approval.
+release_id: openrestore-paired-v0.1-private
+private_output_root: build/private-releases/openrestore-paired-v0.1
+expected_degraded_examples: 620376
+seed: 20260714
+recipe_config: configs/degradations/single/v0_1.yaml
+asset_checksums: docs/degradation_assets_v0_1.sha256
+frozen_split_manifest: configs/datasets/sonicmaster_original_split.jsonl
+frozen_split_sha256: 9c9c7b19b9ba5035523f4a460341b9ee0f0a0e4c6509621d3f513b91805a4f87
+clips_per_source: 1
+clip_seconds: 30
+sources_per_partition: 40
+shard_size: 960
+partitions:
+  - {dataset: sonicmaster_clean, split: train, expected_sources: 23500}
+  - {dataset: sonicmaster_clean, split: validation, expected_sources: 500}
+  - {dataset: sonicmaster_clean, split: test, expected_sources: 1000}
+  - {dataset: sdd, split: transfer, expected_sources: 705}
+  - {dataset: musdb18_hq, split: transfer, expected_sources: 144}
+publication:
+  visibility: private
+  blocked_pending:
+    - source_redistribution_license_approval
+    - degradation_asset_provenance_approval

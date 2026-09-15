@@ -23,6 +23,55 @@ from .core import (
 )
 from .effects import apply_operation
 
+CANONICAL_DEGRADATION_IDS = (
+    "spectral_eq",
+    "mic",
+    "lowpass",
+    "highpass",
+    "telephone_band",
+    "low_sample_rate",
+    "compression",
+    "clipping",
+    "saturation_overdrive",
+    "reverb_small",
+    "reverb_big",
+    "reverb_mix",
+    "reverb_real",
+    "distant_mic_capture",
+    "noise",
+    "hum",
+    "clicks_crackle",
+    "dropouts_glitches",
+    "codec",
+    "neural_codec",
+    "transcode_chain",
+    "stereo_collapse",
+    "channel_damage",
+    "pitch_speed_instability",
+)
+
+LEGACY_DEGRADATION_ALIASES = {
+    "comp": "compression",
+    "punch": "compression",
+    "xband": "spectral_eq",
+    "bright": "spectral_eq",
+    "dark": "spectral_eq",
+    "airy": "spectral_eq",
+    "boom": "spectral_eq",
+    "clarity": "lowpass",
+    "mud": "spectral_eq",
+    "warm": "spectral_eq",
+    "vocal": "spectral_eq",
+    "small": "reverb_small",
+    "big": "reverb_big",
+    "mix": "reverb_mix",
+    "real": "reverb_real",
+    "stereo": "stereo_collapse",
+    "clip": "clipping",
+    "volume": "legacy_volume",
+    "bandwidth": "lowpass",
+}
+
 REQUIRED_PRIMITIVES = {
     "ariel",
     "distant_mic_capture",
@@ -36,6 +85,17 @@ REQUIRED_PRIMITIVES = {
     "noise_interference",
     "device_mic_response",
     "codec_resampling",
+    "spectral_eq",
+    "microphone_response",
+    "compression",
+    "clipping",
+    "saturation_overdrive",
+    "dropouts_glitches",
+    "neural_codec",
+    "transcode_chain",
+    "stereo_collapse",
+    "channel_damage",
+    "pitch_speed_instability",
 }
 
 
@@ -63,6 +123,12 @@ def validate_config(config: dict[str, Any]) -> None:
             primitive = operation.get("primitive")
             if primitive not in REQUIRED_PRIMITIVES:
                 raise ValueError(f"Recipe {recipe_id} uses unknown primitive: {primitive}")
+    if config.get("canonical_registry"):
+        configured = tuple(recipe["id"] for recipe in recipes)
+        if configured != CANONICAL_DEGRADATION_IDS:
+            raise ValueError(
+                "Canonical degradation config must contain exactly the ordered 24 benchmark IDs"
+            )
 
 
 def list_recipes(config: dict[str, Any]) -> list[dict[str, Any]]:

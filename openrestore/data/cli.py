@@ -37,6 +37,17 @@ def build_parser() -> argparse.ArgumentParser:
     split.add_argument("--seed", type=int, default=20260714)
     split.add_argument("--train-fraction", type=float, default=0.90)
     split.add_argument("--validation-fraction", type=float, default=0.05)
+    split.add_argument(
+        "--ariel-train-manifest", type=_path, help="Use ARIEL's exact SonicMaster train source set"
+    )
+    split.add_argument(
+        "--ariel-test-manifest", type=_path, help="Use ARIEL's exact SonicMaster test source set"
+    )
+    split.add_argument(
+        "--sonicmaster-split-manifest",
+        type=_path,
+        help="Apply the frozen original SonicMaster train/validation/test assignment",
+    )
     split.add_argument("--quiet", action="store_true")
     segment_command = commands.add_parser("segment")
     segment_command.add_argument("--sources", type=_path, required=True)
@@ -83,6 +94,9 @@ def main() -> None:
             args.seed,
             args.train_fraction,
             args.validation_fraction,
+            args.ariel_train_manifest,
+            args.ariel_test_manifest,
+            args.sonicmaster_split_manifest,
             progress=progress,
         )
     elif args.command == "segment":

@@ -1,31 +1,30 @@
 version: v0.1
 sample_rate: 44100
-# ARIEL/SonicMaster single degradations. Each effect samples original ARIEL
-# parameter choices from the item seed; there are deliberately no preset levels.
+canonical_registry: true
+# Canonical OpenRestore benchmark inventory. Each recipe renders one clearly
+# audible degradation; sampled parameters and variants are stored per item.
 recipes:
-  - {id: single_comp, severity: ariel_random, operations: [{primitive: ariel, variant: comp, parameters: {}}]}
-  - {id: single_punch, severity: ariel_random, operations: [{primitive: ariel, variant: punch, parameters: {}}]}
-  - {id: single_xband, severity: ariel_random, operations: [{primitive: ariel, variant: xband, parameters: {}}]}
-  - {id: single_mic, severity: ariel_random, operations: [{primitive: ariel, variant: mic, parameters: {mic_ir_dir: assets/degradations/v0_1/microphone_irs}}]}
-  - {id: single_bright, severity: ariel_random, operations: [{primitive: ariel, variant: bright, parameters: {}}]}
-  - {id: single_dark, severity: ariel_random, operations: [{primitive: ariel, variant: dark, parameters: {}}]}
-  - {id: single_airy, severity: ariel_random, operations: [{primitive: ariel, variant: airy, parameters: {}}]}
-  - {id: single_boom, severity: ariel_random, operations: [{primitive: ariel, variant: boom, parameters: {}}]}
-  - {id: single_clarity, severity: ariel_random, operations: [{primitive: ariel, variant: clarity, parameters: {}}]}
-  - {id: single_mud, severity: ariel_random, operations: [{primitive: ariel, variant: mud, parameters: {}}]}
-  - {id: single_warm, severity: ariel_random, operations: [{primitive: ariel, variant: warm, parameters: {}}]}
-  - {id: single_vocal, severity: ariel_random, operations: [{primitive: ariel, variant: vocal, parameters: {}}]}
-  - {id: single_small, severity: ariel_random, operations: [{primitive: ariel, variant: small, parameters: {}}]}
-  - {id: single_big, severity: ariel_random, operations: [{primitive: ariel, variant: big, parameters: {}}]}
-  - {id: single_mix, severity: ariel_random, operations: [{primitive: ariel, variant: mix, parameters: {}}]}
-  - {id: single_real, severity: ariel_random, operations: [{primitive: ariel, variant: real, parameters: {real_rir_dir: assets/degradations/v0_1/real_rirs}}]}
-  - {id: single_stereo, severity: ariel_random, operations: [{primitive: ariel, variant: stereo, parameters: {}}]}
-  - {id: single_clip, severity: ariel_random, operations: [{primitive: ariel, variant: clip, parameters: {}}]}
-  - {id: single_volume, severity: ariel_random, operations: [{primitive: ariel, variant: volume, parameters: {}}]}
-  # OpenRestore-specific single effects; random ranges are stored in metadata.
-  - {id: single_noise, severity: openrestore_random, operations: [{primitive: noise_interference, variant: broadband, parameters: {snr_db: {min: 18, max: 35}}}]}
-  - {id: single_hum, severity: openrestore_random, operations: [{primitive: noise_interference, variant: hum, parameters: {snr_db: {min: 7, max: 14}, frequency_hz: {choices: [50, 60]}, harmonics: {min: 3, max: 5}}}]}
-  - {id: single_clicks_crackle, severity: openrestore_random, operations: [{primitive: noise_interference, variant: clicks_crackle, parameters: {click_rate_hz: {min: 1.5, max: 5.0}, crackle_rate_hz: {min: 10.0, max: 40.0}, click_level_db: {min: -3, max: 6}, crackle_level_db: {min: -20, max: -12}, click_duration_ms: {min: 2.0, max: 5.0}, crackle_duration_ms: {min: 0.25, max: 0.8}}}]}
-  - {id: single_codec, severity: openrestore_random, operations: [{primitive: codec_resampling, variant: mp3, parameters: {bitrate: {choices: [32k, 48k, 64k]}}}]}
-  - {id: single_bandwidth, severity: openrestore_random, operations: [{primitive: bandwidth_filtering, variant: lowpass, parameters: {cutoff_hz: {min: 7000, max: 10000}}}]}
-  - {id: single_distant_mic_capture, severity: openrestore_random, operations: [{primitive: distant_mic_capture, variant: room_capture, parameters: {distance_m: {min: 1.5, max: 8.0}, absorption: {min: 0.12, max: 0.45}, air_absorption_cutoff_hz: {min: 4500, max: 12000}}}]}
+  - {id: spectral_eq, severity: strong_random, operations: [{primitive: spectral_eq, parameters: {mode: {choices: [multi_band, high_shelf_cut, high_shelf_boost, air_cut, low_shelf_cut, low_shelf_thin, low_mid_emphasis, midrange_notch, broad_tilt]}}}]}
+  - {id: mic, severity: strong_random, operations: [{primitive: microphone_response, parameters: {mic_ir_dir: assets/degradations/v0_1/microphone_irs}}]}
+  - {id: lowpass, severity: strong_random, operations: [{primitive: bandwidth_filtering, variant: lowpass, parameters: {cutoff_hz: {min: 2500, max: 6000}, preset: {choices: [butterworth, sonicmaster]}}}]}
+  - {id: highpass, severity: strong_random, operations: [{primitive: bandwidth_filtering, variant: highpass, parameters: {cutoff_hz: {min: 300, max: 1200}}}]}
+  - {id: telephone_band, severity: strong_random, operations: [{primitive: bandwidth_filtering, variant: telephone, parameters: {}}]}
+  - {id: low_sample_rate, severity: strong_random, operations: [{primitive: bandwidth_filtering, variant: low_sample_rate, parameters: {intermediate_sample_rate: {choices: [6000, 8000, 12000]}}}]}
+  - {id: compression, severity: strong_random, operations: [{primitive: compression, parameters: {mode: {choices: [strong_compression, transient_softening]}}}]}
+  - {id: clipping, severity: strong_random, operations: [{primitive: clipping, parameters: {}}]}
+  - {id: saturation_overdrive, severity: strong_random, operations: [{primitive: saturation_overdrive, parameters: {curve: {choices: [soft, hard, asymmetric]}, drive: {min: 3.0, max: 6.0}, threshold: {min: 0.45, max: 0.75}}}]}
+  - {id: reverb_small, severity: strong_random, operations: [{primitive: ariel, variant: small, parameters: {}}]}
+  - {id: reverb_big, severity: strong_random, operations: [{primitive: ariel, variant: big, parameters: {}}]}
+  - {id: reverb_mix, severity: strong_random, operations: [{primitive: ariel, variant: mix, parameters: {}}]}
+  - {id: reverb_real, severity: strong_random, operations: [{primitive: ariel, variant: real, parameters: {real_rir_dir: assets/degradations/v0_1/real_rirs}}]}
+  - {id: distant_mic_capture, severity: strong_random, operations: [{primitive: distant_mic_capture, variant: room_capture, parameters: {distance_m: {min: 2.5, max: 8.0}, absorption: {min: 0.12, max: 0.45}, air_absorption_cutoff_hz: {min: 3500, max: 8000}, room_noise_snr_db: {min: 20, max: 35}}}]}
+  - {id: noise, severity: strong_random, operations: [{primitive: noise_interference, variant: broadband, parameters: {snr_db: {min: 8, max: 20}}}]}
+  - {id: hum, severity: strong_random, operations: [{primitive: noise_interference, variant: hum, parameters: {snr_db: {min: 3, max: 10}, frequency_hz: {choices: [50, 60]}, harmonics: {min: 3, max: 6}}}]}
+  - {id: clicks_crackle, severity: strong_random, operations: [{primitive: noise_interference, variant: clicks_crackle, parameters: {click_rate_hz: {min: 3.0, max: 8.0}, crackle_rate_hz: {min: 25.0, max: 70.0}, click_level_db: {min: 0, max: 9}, crackle_level_db: {min: -16, max: -8}, click_duration_ms: {min: 2.0, max: 6.0}, crackle_duration_ms: {min: 0.25, max: 1.0}}}]}
+  - {id: dropouts_glitches, severity: strong_random, operations: [{primitive: dropouts_glitches, parameters: {mode: {choices: [dropout, repeat, noise, attenuate]}, rate_hz: {min: 2.0, max: 6.0}, min_duration_ms: {min: 12, max: 25}, max_duration_ms: {min: 40, max: 90}}}]}
+  - {id: codec, severity: strong_random, operations: [{primitive: codec_resampling, variant: mp3, parameters: {bitrate: {choices: [24k, 32k, 48k]}}}]}
+  - {id: neural_codec, severity: strong_random, operations: [{primitive: neural_codec, parameters: {intermediate_sample_rate: {choices: [8000, 12000, 16000]}, quantization_bits: {choices: [5, 6, 7]}}}]}
+  - {id: transcode_chain, severity: strong_random, operations: [{primitive: transcode_chain, parameters: {chain: {choices: [mp3_then_opus, aac_then_mp3]}}}]}
+  - {id: stereo_collapse, severity: strong_random, operations: [{primitive: stereo_collapse, parameters: {}}]}
+  - {id: channel_damage, severity: strong_random, operations: [{primitive: channel_damage, parameters: {mode: {choices: [bandwidth_loss, attenuation, delay, polarity_inversion, dropout, noise, distortion]}, target_channel: {choices: [0, 1]}}}]}
+  - {id: pitch_speed_instability, severity: strong_random, operations: [{primitive: pitch_speed_instability, parameters: {wow_rate_hz: {min: 0.25, max: 1.0}, wow_depth_percent: {min: 0.8, max: 2.2}, flutter_rate_hz: {min: 4.0, max: 10.0}, flutter_depth_percent: {min: 0.25, max: 0.8}}}]}
