@@ -109,9 +109,13 @@ def spectral_eq(
     if mode == "broad_tilt":
         pivot_hz = float(params.get("pivot_hz", rng.uniform(800, 2_000)))
         tilt_db = float(params.get("tilt_db", rng.choice([-1, 1]) * rng.uniform(7, 14)))
-        low = butter_filter(audio, sample_rate, "lowpass", pivot_hz, order=2)
-        high = audio - low
-        result = low * (10 ** (-tilt_db / 40)) + high * (10 ** (tilt_db / 40))
+        low = butter_filter(  # type: ignore[assignment]  # low reused (float in low_mid_emphasis)
+            audio, sample_rate, "lowpass", pivot_hz, order=2
+        )
+        high = audio - low  # type: ignore[assignment]  # high reused (float in low_mid_emphasis)
+        result = (
+            low * (10 ** (-tilt_db / 40)) + high * (10 ** (tilt_db / 40))  # type: ignore[assignment]  # result reused (ndarray in broad_tilt)
+        )
         return limit_audio(result), {"variant": mode, "pivot_hz": pivot_hz, "tilt_db": tilt_db}
     raise ValueError(f"Unknown spectral_eq mode: {mode}")
 

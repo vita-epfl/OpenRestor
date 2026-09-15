@@ -374,7 +374,9 @@ def apply_ariel_effect(
                     }
                 )
             )
-        absorption = dict(zip(["east", "west", "north", "south", "ceiling", "floor"], materials))
+        absorption = dict(
+            zip(["east", "west", "north", "south", "ceiling", "floor"], materials, strict=True)
+        )
         output = _room(audio, sample_rate, room_size, source, microphone, absorption, "mix")
         wet = params.get("wet")
         if wet is not None:

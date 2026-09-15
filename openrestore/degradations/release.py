@@ -183,7 +183,8 @@ def create_partition_plan(
         items = sorted(grouped[(dataset, split)], key=lambda row: str(row["id"]))
         if len(items) != expected[(dataset, split)]:
             raise ValueError(
-                f"Expected {expected[(dataset, split)]} clean items for {dataset}/{split}, got {len(items)}"
+                f"Expected {expected[(dataset, split)]} clean items for "
+                f"{dataset}/{split}, got {len(items)}"
             )
         for index, start in enumerate(range(0, len(items), source_count)):
             chunk = items[start : start + source_count]

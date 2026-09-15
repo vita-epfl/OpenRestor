@@ -123,7 +123,8 @@ def ariel_split_membership(train_manifest: Path, test_manifest: Path) -> dict[st
             previous = membership.get(source_id)
             if previous is not None:
                 raise ValueError(
-                    f"ARIEL manifests assign source {source_id!r} to both {previous!r} and {split!r}"
+                    f"ARIEL manifests assign source {source_id!r} to both "
+                    f"{previous!r} and {split!r}"
                 )
             membership[source_id] = split
     return membership
@@ -158,14 +159,16 @@ def split_sonicmaster_from_manifest(
         preview = ", ".join(missing[:10])
         suffix = "..." if len(missing) > 10 else ""
         raise ValueError(
-            f"Frozen SonicMaster split sources are absent from the OpenRestore input ({len(missing)}): {preview}{suffix}"
+            f"Frozen SonicMaster split sources are absent from the "
+            f"OpenRestore input ({len(missing)}): {preview}{suffix}"
         )
     unexpected = sorted(found - set(membership))
     if unexpected:
         preview = ", ".join(unexpected[:10])
         suffix = "..." if len(unexpected) > 10 else ""
         raise ValueError(
-            f"OpenRestore input contains sources outside the frozen SonicMaster split ({len(unexpected)}): {preview}{suffix}"
+            f"OpenRestore input contains sources outside the frozen "
+            f"SonicMaster split ({len(unexpected)}): {preview}{suffix}"
         )
     return [{**row, "split": membership[row["source_id"]]} for row in row_list]
 
@@ -182,7 +185,8 @@ def split_sonicmaster_from_ariel(
         preview = ", ".join(missing[:10])
         suffix = "..." if len(missing) > 10 else ""
         raise ValueError(
-            f"ARIEL split sources are absent from the OpenRestore input ({len(missing)}): {preview}{suffix}"
+            f"ARIEL split sources are absent from the OpenRestore "
+            f"input ({len(missing)}): {preview}{suffix}"
         )
     return assigned
 
@@ -241,7 +245,7 @@ def combine_and_split(
             )
             _log(
                 progress,
-                f"[split] assigned {len(assigned)}/{len(group)} SonicMaster rows; {len(group) - len(ariel_split_membership(ariel_train_manifest, ariel_test_manifest))} local-only rows added to train",
+                f"[split] assigned {len(assigned)}/{len(group)} SonicMaster rows; {len(group) - len(ariel_split_membership(ariel_train_manifest, ariel_test_manifest))} local-only rows added to train",  # noqa: E501  # un-splittable f-string interpolation
             )
             output_rows.extend(assigned)
         elif dataset == "sonicmaster_clean":
