@@ -1,0 +1,9 @@
+dataset: my_audio
+version: local
+source_root: /path/to/your/audio
+role: local-user-experiment
+fixed_split: transfer
+license: your own audio; record its terms before sharing any rendered output
+redistribution: not redistributed
+quality_notes: Local degradation experiment. Not a benchmark release and not comparable to official OpenRestore scores.
+min_source_seconds: 30

@@ -81,6 +81,37 @@ openrestore-degrade list-recipes --config configs/degradations/single/v0_1.yaml
 
 Use the renderer when reproducing or preparing an approved degradation release. Do not replace release assets or alter recipe configurations while comparing methods: that changes the benchmark input distribution.
 
+### Degrade Your Own Audio
+
+The same renderer works on any music you own, so you can build paired degraded/clean material for local training or inspection without an official release. Copy [user_audio.template.yaml](../configs/datasets/user_audio.template.yaml), then run the four pipeline steps. Sources may be any sample rate, channel count, or duration of at least 30 seconds: `segment` converts them to the canonical 44.1 kHz stereo 30-second form that the renderer requires.
+
+```bash
+cp configs/datasets/user_audio.template.yaml my_audio.yaml   # then edit it
+
+# 1. Index your files. --source-root overrides source_root in the config.
+openrestore-data ingest --config my_audio.yaml --source-root /path/to/your/audio --output work/my_index.jsonl
+
+# 2. Assign splits. Your dataset is passed through unchanged; only SonicMaster is split by OpenRestore.
+openrestore-data split --indexes work/my_index.jsonl --output work/my_sources.jsonl
+
+# 3. Render canonical 30-second 44.1 kHz stereo clips with loudness normalization.
+openrestore-data segment --sources work/my_sources.jsonl --output-root work/clean \
+  --manifest work/clean_manifest.jsonl --checksums work/clean_checksums.jsonl
+
+# 4. Apply every degradation class to every clip.
+openrestore-degrade render --manifest work/clean_manifest.jsonl --clean-root work/clean \
+  --output-root work/degraded --config configs/degradations/single/v0_1.yaml \
+  --output-manifest work/degraded_manifest.jsonl --checksums work/degraded_checksums.jsonl \
+  --seed 20260714
+```
+
+Step 4 writes one WAV per clip per recipe under `work/degraded/<split>/<dataset>/<recipe_id>/`, plus a manifest row carrying the sampled parameters, the derived seed, and the output checksum. Rendering all 21 classes produces 21 outputs per input clip.
+
+Two caveats:
+
+- `mic` and `reverb_real` need the binary asset bundle described in [degradation_assets.md](degradation_assets.md). Without it the run **fails** rather than skipping those classes. To render the other 19 classes without the bundle, copy the recipe config, delete those two recipes, and set `canonical_registry: false` in the copy. That flag is what relaxes the check requiring all 21 canonical IDs in order, so a subset config is rejected without it. A subset render is a local experiment only: an official release must use the full canonical config.
+- Scores computed on your own audio are for local inspection only. They are not comparable to official OpenRestore results, which are defined over released or hidden benchmark items.
+
 ## Local Output Contract
 
 For each supplied degraded item, provide a valid restored WAV and one row in `restoration_outputs.jsonl`:

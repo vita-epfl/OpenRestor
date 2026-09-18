@@ -49,7 +49,7 @@ The current on-disk contract is WAV plus JSONL. A clean manifest row is the join
 
 ## Primary Commands
 
-Run the following sequence for an auditable local build. The commands use the current `openrestore-data` interface; replace `build/` paths with the release workspace used by IT.
+Run the following sequence for an auditable local build. The commands use the current `openrestore-data` interface; replace `build/` paths with the release workspace used by IT. Add `--source-root` to `audit` and `ingest` when the dataset is mounted somewhere other than the path recorded in the config.
 
 ```bash
 # 1. Inspect candidate source trees and write auditable source summaries.
@@ -62,8 +62,9 @@ openrestore-data ingest --config configs/datasets/sonicmaster_clean.yaml --outpu
 openrestore-data ingest --config configs/datasets/sdd_transfer.yaml --output build/indexes/sdd.jsonl
 openrestore-data ingest --config configs/datasets/musdb18_hq_transfer.yaml --output build/indexes/musdb18_hq.jsonl
 
-# 3. Deterministically split SonicMaster and combine the fixed public transfer-evaluation sources.
-openrestore-data split --indexes build/indexes/sonicmaster.jsonl build/indexes/sdd.jsonl build/indexes/musdb18_hq.jsonl --output build/sources.jsonl
+# 3. Apply the authoritative SonicMaster split and combine the fixed public transfer-evaluation sources.
+#    Omitting --sonicmaster-split-manifest falls back to the legacy seeded-hash split.
+openrestore-data split --indexes build/indexes/sonicmaster.jsonl build/indexes/sdd.jsonl build/indexes/musdb18_hq.jsonl --output build/sources.jsonl --sonicmaster-split-manifest configs/datasets/sonicmaster_original_split.jsonl
 
 # 4. Render canonical clean clips and write their manifest and checksums.
 openrestore-data segment --sources build/sources.jsonl --output-root build/clean --manifest build/index.jsonl --checksums build/checksums.jsonl

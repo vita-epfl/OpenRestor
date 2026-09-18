@@ -11,6 +11,19 @@ Two active ARIEL/SonicMaster-parity effects require binary assets that are inten
 
 The v0.1 asset source bundle is the already reviewed local ARIEL asset set: `configs/smallpoli/irs` for the 20 Poliphone IRs and `configs/realrirs` for the 12 selected real RIRs. OpenRestore does not read from ARIEL at runtime.
 
+## Upstream Provenance
+
+Both asset sets originate from published third-party datasets, as documented in the SonicMaster paper (arXiv:2508.03448), which states that its Microphone function "applies one of 20 Poliphone transfer functions" and that its fourth Reverb function uses "12 selected room impulse responses from the openAIR library dataset".
+
+| Asset set | Upstream source | Citation |
+| --- | --- | --- |
+| 20 microphone IRs | Poliphone smartphone recording dataset | Salvi, D., Leonzio, D. U., Giganti, A., Eutizi, C., Mandelli, S., Bestagini, P., and Tubaro, S. *Poliphone: A dataset for smartphone model identification from audio recordings.* IEEE Access, 2025. |
+| 12 real RIRs | OpenAIR: Open Acoustic Impulse Response Library, University of York | Howard, D. M. and Angus, J. A. S. *Open acoustic impulse response (OpenAIR) library.* https://www.openair.hosted.york.ac.uk/ |
+
+The installed RIR filenames match OpenAIR rooms: 1st Baptist Nashville, Elveden Hall, Falkland Tennis Court, Heslington Church, Patrick's Soundfield, Ron Cooke Hub, St Albans, and St Georges.
+
+**The redistribution terms of these two upstream sets are not yet recorded.** The SonicMaster paper cites both sources but states no license for either. OpenAIR entries carry per-room Creative Commons terms, and the Poliphone dataset has its own release terms; both must be read and recorded here before the bundle is published or shipped to users. Until that is done, `degradation_asset_provenance_approval` in `configs/releases/private_v0_1.yaml` stays unresolved and the bundle must not be redistributed.
+
 ## Asset Release And IT Install
 
 1. The research owner uploads the directory `assets/degradations/v0_1/` to the approved private artifact store as `openrestore-degradation-assets-v0_1.tar.gz` and records its artifact URL, license/provenance record, and archive SHA-256 in the release record.
