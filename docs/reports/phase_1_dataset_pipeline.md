@@ -79,6 +79,7 @@ openrestore-data stats --manifest build/index.jsonl --output build/statistics.js
 
 - `audit` discovers supported audio files below a configured source root and records a bounded media-quality sample. It is the first check that the expected local dataset is present and plausible.
 - `ingest` writes one JSONL source row per eligible file, including source path, source ID, duration, sample rate, channel count, split role, and SHA-256. It does not render or modify audio.
+- `audit` and `ingest` accept `--source-root` to override the config's `source_root` when the same dataset is mounted at a different path on a given machine. The committed configs stay unchanged.
 - `split` applies the authoritative frozen original SonicMaster manifest to SonicMaster, with ARIEL and seeded-hash modes retained only for legacy reproduction, then combines it with SDD and MUSDB18-HQ, which remain fixed `transfer` sources by policy. It rejects split leakage.
 - `segment` selects deterministic 30-second windows, invokes FFmpeg to produce 44.1 kHz stereo PCM WAV, applies the configured loudness normalization, rejects invalid or silent clips, and writes the clean manifest plus checksums.
 - `shard` packages the rendered WAVs and manifest records into fixed-size TAR archives for transfer or hosted storage. The canonical WAV/JSONL contract remains unchanged.

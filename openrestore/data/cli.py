@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+from typing import Any
 
 from .core import load_yaml, read_jsonl
 from .pipeline import (
@@ -22,6 +23,13 @@ def _path(value: str) -> Path:
     return Path(value)
 
 
+def _dataset_config(args: argparse.Namespace) -> dict[str, Any]:
+    config = load_yaml(args.config)
+    if args.source_root is not None:
+        config["source_root"] = str(args.source_root)
+    return config
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="openrestore-data")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -29,6 +37,7 @@ def build_parser() -> argparse.ArgumentParser:
         command = commands.add_parser(name)
         command.add_argument("--config", type=_path, required=True)
         command.add_argument("--output", type=_path, required=True)
+        command.add_argument("--source-root", type=_path, help="Override the config's source_root when the dataset is mounted elsewhere")
         command.add_argument("--quiet", action="store_true")
     commands.choices["audit"].add_argument("--probe-limit", type=int, default=25)
     split = commands.add_parser("split")
@@ -76,9 +85,9 @@ def main() -> None:
     args = build_parser().parse_args()
     progress = not args.quiet
     if args.command == "audit":
-        audit(load_yaml(args.config), args.output, args.probe_limit, progress=progress)
+        audit(_dataset_config(args), args.output, args.probe_limit, progress=progress)
     elif args.command == "ingest":
-        ingest(load_yaml(args.config), args.output, progress=progress)
+        ingest(_dataset_config(args), args.output, progress=progress)
     elif args.command == "split":
         combine_and_split(
             args.indexes,
