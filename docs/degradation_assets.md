@@ -22,7 +22,18 @@ Both asset sets originate from published third-party datasets, as documented in 
 
 The installed RIR filenames match OpenAIR rooms: 1st Baptist Nashville, Elveden Hall, Falkland Tennis Court, Heslington Church, Patrick's Soundfield, Ron Cooke Hub, St Albans, and St Georges.
 
-**The redistribution terms of these two upstream sets are not yet recorded.** The SonicMaster paper cites both sources but states no license for either. OpenAIR entries carry per-room Creative Commons terms, and the Poliphone dataset has its own release terms; both must be read and recorded here before the bundle is published or shipped to users. Until that is done, `degradation_asset_provenance_approval` in `configs/releases/private_v0_1.yaml` stays unresolved and the bundle must not be redistributed.
+### Recorded Terms
+
+The SonicMaster paper cites both sources but states no license for either, so the terms below were established separately.
+
+| Asset set | Terms | Commercial use | Consequence |
+| --- | --- | --- | --- |
+| 12 OpenAIR RIRs | Creative Commons. The AHRC grant record for AH/J013838/1 states the library "has been licensed to three audio software companies under a Creative Commons License and included in their commercial releases" (Ableton Live 9, Presonus Studio One, Reason Studios), and third-party dataset indexes list OpenAIR as CC BY 4.0. | Permitted, with attribution | Distributable. Per-room terms should still be confirmed for the 12 selected files. |
+| 20 Poliphone microphone IRs | "provided for non-commercial research purposes only. For commercial use, please contact the authors." | **Not permitted** | Not distributable with a benchmark that permits commercial use. |
+
+Both openair.hosted.york.ac.uk and openairlib.net were unreachable when this was written, so per-room confirmation needs the Internet Archive or direct contact with the University of York.
+
+Poliphone is the only non-commercial component anywhere in the benchmark: the SonicMaster clean corpus is CC BY 2.0 and the OpenAIR RIRs carry a commercial-use precedent. `degradation_asset_provenance_approval` in `configs/releases/private_v0_1.yaml` therefore turns entirely on how the `mic` effect's impulse responses are sourced.
 
 ## Asset Release And IT Install
 
