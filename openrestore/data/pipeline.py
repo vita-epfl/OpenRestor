@@ -213,11 +213,13 @@ def _group_by_dataset(rows: Iterable[dict[str, Any]]) -> dict[str, list[dict[str
     return groups
 
 
-def _clip_start(source_id: str, source_duration: float, clip_index: int, seed: int) -> float:
+def _clip_start(source_id: str, source_duration: float, clip_index: int, seed: int, attempt: int = 0) -> float:
+    """Pick a deterministic clip window. attempt 0 is the original assignment."""
     available = math.floor(source_duration) - CLIP_SECONDS
     if available < 0:
         raise ValueError(f"Source shorter than {CLIP_SECONDS}s: {source_id}")
-    return float(math.floor(stable_fraction(f"{source_id}:{clip_index}", seed) * (available + 1)))
+    key = f"{source_id}:{clip_index}" if attempt == 0 else f"{source_id}:{clip_index}:attempt{attempt}"
+    return float(math.floor(stable_fraction(key, seed) * (available + 1)))
 
 
 def _render_clip(source: Path, output: Path, start_seconds: float, normalize: bool) -> None:
@@ -227,6 +229,26 @@ def _render_clip(source: Path, output: Path, start_seconds: float, normalize: bo
         command.extend(["-af", "loudnorm=I=-18:LRA=11:TP=-1.0"])
     command.extend(["-ar", str(CANONICAL_SAMPLE_RATE), "-ac", "2", "-c:a", "pcm_s16le", str(output)])
     subprocess.run(command, check=True)
+
+
+def _pad_clip_to_exact(path: Path, max_pad_seconds: float) -> float:
+    """Top a marginally short render up to exactly CLIP_SECONDS and report the padding.
+
+    The loudnorm filter consumes a few milliseconds of output, and a handful of
+    sources decode slightly shorter than their probed duration. Both leave a clip a
+    few milliseconds under the canonical length, which the duration check rejects.
+    """
+    with wave.open(str(path), "rb") as handle:
+        params = handle.getparams()
+        frames = handle.readframes(handle.getnframes())
+    target = CLIP_SECONDS * params.framerate
+    missing = target - params.nframes
+    if missing <= 0 or missing > max_pad_seconds * params.framerate:
+        return 0.0
+    with wave.open(str(path), "wb") as handle:
+        handle.setparams(params)
+        handle.writeframes(frames + b"\x00" * (missing * params.nchannels * params.sampwidth))
+    return missing / params.framerate
 
 
 def _wave_quality(path: Path) -> dict[str, float | int]:
@@ -252,6 +274,8 @@ def segment(
     clips_per_source: int,
     normalize: bool,
     min_rms: float,
+    clip_attempts: int = 3,
+    max_pad_seconds: float = 0.25,
     progress: bool = False,
     progress_interval: int = 50,
 ) -> list[dict[str, Any]]:
@@ -265,14 +289,20 @@ def segment(
     for source in sources:
         for clip_index in range(clips_per_source):
             processed += 1
-            start = _clip_start(source["source_id"], source["duration_seconds"], clip_index, seed)
             item_id = f"{source['dataset']}--{source['source_id']}--{clip_index:02d}"
             relative_path = Path(source["split"]) / source["dataset"] / f"{item_id}.wav"
             output_path = output_root / relative_path
-            _render_clip(Path(source["audio_path"]), output_path, start, normalize)
-            quality = _wave_quality(output_path)
-            if abs(float(quality["duration_seconds"]) - CLIP_SECONDS) > 0.01 or float(quality["rms"]) < min_rms:
+            start, quality, padded = 0.0, None, 0.0
+            for attempt in range(max(1, clip_attempts)):
+                start = _clip_start(source["source_id"], source["duration_seconds"], clip_index, seed, attempt)
+                _render_clip(Path(source["audio_path"]), output_path, start, normalize)
+                padded = _pad_clip_to_exact(output_path, max_pad_seconds)
+                quality = _wave_quality(output_path)
+                if abs(float(quality["duration_seconds"]) - CLIP_SECONDS) <= 0.01 and float(quality["rms"]) >= min_rms:
+                    break
                 output_path.unlink(missing_ok=True)
+                quality = None
+            if quality is None:
                 rejected += 1
                 if progress and (processed % progress_interval == 0 or processed == total):
                     _log(
@@ -293,7 +323,7 @@ def segment(
                 "sample_rate": CANONICAL_SAMPLE_RATE,
                 "channels": 2,
                 "normalization": "loudnorm I=-18 LRA=11 TP=-1.0" if normalize else "none",
-                "quality": quality,
+                "quality": {**quality, "padded_seconds": round(padded, 6)},
                 "audio_sha256": checksum,
             })
             checksum_rows.append({"path": relative_path.as_posix(), "sha256": checksum})

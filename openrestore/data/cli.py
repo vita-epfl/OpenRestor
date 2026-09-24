@@ -59,6 +59,8 @@ def build_parser() -> argparse.ArgumentParser:
     segment_command.add_argument("--clips-per-source", type=int, default=1)
     segment_command.add_argument("--no-normalize", action="store_true")
     segment_command.add_argument("--min-rms", type=float, default=0.003)
+    segment_command.add_argument("--clip-attempts", type=int, default=3, help="Deterministic retries with a different window when a clip is rejected")
+    segment_command.add_argument("--max-pad-seconds", type=float, default=0.25, help="Top up a marginally short render with silence instead of rejecting it")
     segment_command.add_argument("--quiet", action="store_true")
     shard = commands.add_parser("shard")
     shard.add_argument("--output-root", type=_path, required=True)
@@ -110,6 +112,8 @@ def main() -> None:
             args.clips_per_source,
             not args.no_normalize,
             args.min_rms,
+            args.clip_attempts,
+            args.max_pad_seconds,
             progress=progress,
         )
     elif args.command == "shard":
