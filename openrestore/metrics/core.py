@@ -31,6 +31,7 @@ METRIC_DIRECTIONS = {
 EFFECT_CATEGORIES = {
     # Canonical v0.1 benchmark IDs.
     "spectral_eq": "spectral_eq",
+    "smartphone_capture": "smartphone_capture",
     "mic": "mic",
     "lowpass": "lowpass",
     "highpass": "highpass",
@@ -323,7 +324,7 @@ def _band_ratio(audio: np.ndarray, sample_rate: int, low: float, high: float) ->
 
 def _descriptor(audio: np.ndarray, category: str, sample_rate: int) -> np.ndarray:
     mono = _mono(audio)
-    if category in {"spectral_eq", "mic", "eq_coloration"}:
+    if category in {"spectral_eq", "smartphone_capture", "mic", "eq_coloration"}:
         bands = [(20, 120), (120, 400), (400, 2000), (2000, 6000), (6000, 12000), (12000, 20000)]
         return np.array([_band_ratio(audio, sample_rate, low, high) for low, high in bands])
     if category in {"lowpass", "highpass", "telephone_band", "low_sample_rate", "bandwidth_loss"}:

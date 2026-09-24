@@ -18,12 +18,33 @@ recipes:
         - low_mid_emphasis
         - midrange_notch
         - broad_tilt
-- id: mic
+- id: smartphone_capture
   severity: strong_random
   operations:
-  - primitive: microphone_response
+  - primitive: device_mic_response
+    variant: smartphone_capture
     parameters:
-      mic_ir_dir: assets/degradations/v0_1/microphone_irs
+      highpass_hz:
+        min: 90
+        max: 250
+      resonance_hz:
+        min: 2500
+        max: 5000
+      resonance_db:
+        min: 4
+        max: 9
+      lowpass_hz:
+        min: 7000
+        max: 14000
+      agc_strength:
+        min: 0.4
+        max: 0.8
+      drive:
+        min: 1.5
+        max: 3.0
+      self_noise_snr_db:
+        min: 38
+        max: 52
 - id: lowpass
   severity: strong_random
   operations:

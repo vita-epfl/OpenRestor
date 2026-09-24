@@ -24,7 +24,7 @@ from .core import (
 from .effects import apply_operation
 
 CANONICAL_DEGRADATION_IDS = (
-    "spectral_eq", "mic", "lowpass", "highpass", "compression", "clipping",
+    "spectral_eq", "smartphone_capture", "lowpass", "highpass", "compression", "clipping",
     "saturation_overdrive", "reverb_small", "reverb_big", "reverb_mix", "reverb_real",
     "distant_mic_capture", "noise", "hum", "clicks_crackle", "dropouts_glitches", "codec",
     "neural_codec", "stereo_collapse", "channel_damage", "pitch_speed_instability",

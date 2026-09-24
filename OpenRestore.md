@@ -231,7 +231,7 @@ The benchmark exposes exactly these 21 classes. Legacy SonicMaster/ARIEL names r
 | ID | Description |
 | --- | --- |
 | `spectral_eq` | Randomized strong spectral coloration: multi-band EQ, shelves, broad tilt, low-mid emphasis, or midrange notch. |
-| `mic` | Measured microphone transfer-function coloration using the approved Poliphone IR bundle. |
+| `smartphone_capture` | Close-range handset capture: lost low end, a resonant upper midrange, automatic gain control, preamp overdrive, and a capsule/codec bandwidth ceiling. Asset-free and reproducible from code alone. Distinct from `distant_mic_capture`, which models the room while leaving the microphone ideal. |
 | `lowpass` | Strong low-pass bandwidth loss, including the SonicMaster-style clarity cutoff. |
 | `highpass` | Strong low-frequency loss with a randomized high-pass cutoff. |
 | `compression` | Strong compression or transient-softening (the former `punch` mode). |
@@ -251,7 +251,7 @@ The benchmark exposes exactly these 21 classes. Legacy SonicMaster/ARIEL names r
 
 #### Asset Requirements
 
-The `mic` effect needs ARIEL-compatible microphone transfer functions in `parameters.mic_ir_dir`. The `reverb_real` effect needs compatible RIR WAV files in `parameters.real_rir_dir`. The remaining 19 effects run without external assets. Simulated room effects use the local `pyroomacoustics` dependency.
+The `reverb_real` effect needs compatible RIR WAV files in `parameters.real_rir_dir`. The remaining 20 effects run without external assets. Simulated room effects use the local `pyroomacoustics` dependency.
 
 #### Recipe Inventory
 

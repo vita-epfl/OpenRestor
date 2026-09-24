@@ -539,10 +539,82 @@ def noise_interference(
     return limit_audio(result), {**params, "variant": variant, "actual_snr_db": snr_db}
 
 
+def _peaking_eq(audio: np.ndarray, sample_rate: int, frequency_hz: float, gain_db: float, q: float) -> np.ndarray:
+    """Second-order peaking filter, the resonance a small capsule imposes on its passband."""
+    amplitude = 10 ** (gain_db / 40.0)
+    w0 = 2 * np.pi * frequency_hz / sample_rate
+    alpha = np.sin(w0) / (2 * q)
+    b = np.array([1 + alpha * amplitude, -2 * np.cos(w0), 1 - alpha * amplitude])
+    a = np.array([1 + alpha / amplitude, -2 * np.cos(w0), 1 - alpha / amplitude])
+    return signal.lfilter(b / a[0], a / a[0], audio, axis=0)
+
+
+def _moving_rms(audio: np.ndarray, window: int) -> np.ndarray:
+    """Centred moving RMS in linear time, so long clips stay cheap."""
+    power = np.mean(audio ** 2, axis=1)
+    cumulative = np.cumsum(np.concatenate(([0.0], power)))
+    index = np.arange(len(power))
+    low = np.clip(index - window // 2, 0, len(power))
+    high = np.clip(index - window // 2 + window, 0, len(power))
+    return np.sqrt((cumulative[high] - cumulative[low]) / np.maximum(high - low, 1)) + 1e-8
+
+
+def _smartphone_capture(
+    audio: np.ndarray, sample_rate: int, params: dict[str, Any], rng: np.random.Generator
+) -> tuple[np.ndarray, dict[str, Any]]:
+    """Close-range capture by a handset: no room, but a badly band-limited resonant capsule.
+
+    This is the counterpart to distant_mic_capture, which models the room and distance
+    while leaving the microphone ideal. Here the microphone is the degradation: the low
+    end is lost to a small capsule and the handset rumble filter, a resonance colours the
+    upper midrange, automatic gain control flattens the level, and the preamp clips before
+    the capsule and codec impose a bandwidth ceiling.
+    """
+    highpass_hz = float(params.get("highpass_hz", rng.uniform(90, 250)))
+    resonance_hz = float(params.get("resonance_hz", rng.uniform(2_500, 5_000)))
+    resonance_db = float(params.get("resonance_db", rng.uniform(4, 9)))
+    resonance_q = float(params.get("resonance_q", rng.uniform(1.0, 2.0)))
+    dip_hz = float(params.get("dip_hz", rng.uniform(700, 1_500)))
+    dip_db = float(params.get("dip_db", rng.uniform(2, 5)))
+    lowpass_hz = float(params.get("lowpass_hz", rng.uniform(7_000, 14_000)))
+    agc_strength = float(params.get("agc_strength", rng.uniform(0.4, 0.8)))
+    drive = float(params.get("drive", rng.uniform(1.5, 3.0)))
+    self_noise_snr_db = float(params.get("self_noise_snr_db", rng.uniform(38, 52)))
+    if not 0.0 <= agc_strength <= 1.0:
+        raise ValueError("smartphone_capture agc_strength must be between 0 and 1")
+    if highpass_hz >= lowpass_hz:
+        raise ValueError("smartphone_capture highpass_hz must sit below lowpass_hz")
+
+    result = butter_filter(audio, sample_rate, "highpass", highpass_hz, order=2)
+    result = _peaking_eq(result, sample_rate, resonance_hz, resonance_db, resonance_q)
+    result = _peaking_eq(result, sample_rate, dip_hz, -dip_db, 1.2)
+    window = max(1, int(sample_rate * float(params.get("agc_window_seconds", 0.25))))
+    envelope = _moving_rms(result, window)
+    target = float(params.get("agc_target_rms", 0.08))
+    result = result * np.clip((target / envelope) ** agc_strength, 0.25, 4.0)[:, None]
+    # The preamp gives up before the capsule and codec set the ceiling, so the
+    # bandwidth limit has to come last or its harmonics survive above the cutoff.
+    result = np.tanh(result * drive) / np.tanh(drive)
+    result = butter_filter(result, sample_rate, "lowpass", lowpass_hz, order=4)
+    noise = rng.normal(0, 1, result.shape).astype(np.float32)
+    result = result + noise * (rms(result) / max(rms(noise) * (10 ** (self_noise_snr_db / 20)), 1e-8))
+    input_rms, output_rms = rms(audio), rms(result)
+    if output_rms > 1e-8:
+        result = result * (input_rms / output_rms)
+    return result.astype(np.float32), {
+        "highpass_hz": highpass_hz, "resonance_hz": resonance_hz, "resonance_db": resonance_db,
+        "resonance_q": resonance_q, "dip_hz": dip_hz, "dip_db": dip_db, "lowpass_hz": lowpass_hz,
+        "agc_strength": agc_strength, "drive": drive, "self_noise_snr_db": self_noise_snr_db,
+    }
+
+
 def device_mic_response(
     audio: np.ndarray, sample_rate: int, variant: str | None, params: dict[str, Any], rng: np.random.Generator
 ) -> tuple[np.ndarray, dict[str, Any]]:
     variant = variant or params.get("mode", "consumer_mic")
+    if variant == "smartphone_capture":
+        result, sampled = _smartphone_capture(audio, sample_rate, params, rng)
+        return limit_audio(result), {**sampled, "variant": variant}
     child_params: list[dict[str, Any]] = []
     result = butter_filter(audio, sample_rate, "bandpass", (float(params.get("low_hz", 120)), float(params.get("high_hz", 8_000))), order=3)
     child_params.append({"primitive": "bandwidth_filtering", "variant": "device_bandpass"})

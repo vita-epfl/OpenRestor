@@ -81,6 +81,7 @@ class DegradationPrimitiveTests(TestCase):
             ("noise_interference", "broadband", {"snr_db": {"min": 18, "max": 24}}),
             ("noise_interference", "clicks_crackle", {"click_rate_hz": {"min": 1, "max": 3}, "crackle_rate_hz": {"min": 8, "max": 20}, "click_level_db": -8, "crackle_level_db": -26}),
             ("device_mic_response", "consumer_mic", {"high_hz": 6_000, "self_noise_snr_db": 28}),
+            ("device_mic_response", "smartphone_capture", {"highpass_hz": {"min": 90, "max": 250}, "resonance_hz": {"min": 2_500, "max": 5_000}, "lowpass_hz": {"min": 7_000, "max": 14_000}}),
             ("codec_resampling", "resampling", {"intermediate_sample_rate": {"min": 12_000, "max": 18_000}}),
         ]
         for primitive, variant, params in recipes:
@@ -140,6 +141,31 @@ class DegradationPrimitiveTests(TestCase):
         distant, distant_params = apply_operation(audio, SAMPLE_RATE, "distant_mic_capture", "room_capture", {"distance_m": 1.5, "absorption": 0.45, "air_absorption_cutoff_hz": 12_000}, np.random.default_rng(2))
         self.assertEqual(distant.shape, audio.shape)
         self.assertGreaterEqual(distant_params["room_noise_snr_db"], 100)
+
+        # A handset loses its low end, which is precisely what a distant capture keeps.
+        phone, phone_params = apply_operation(audio, SAMPLE_RATE, "device_mic_response", "smartphone_capture", {"highpass_hz": 200, "lowpass_hz": 9_000}, np.random.default_rng(3))
+        self.assertEqual(phone.shape, audio.shape)
+        self.assertEqual(phone_params["variant"], "smartphone_capture")
+
+        # The shared fixture carries almost nothing below 150 Hz, so this needs its own
+        # signal: a 60 Hz tone under a 3 kHz one.
+        samples = np.arange(int(SAMPLE_RATE * 0.5), dtype=np.float32) / SAMPLE_RATE
+        tone = 0.3 * np.sin(2 * math.pi * 60 * samples) + 0.1 * np.sin(2 * math.pi * 3_000 * samples)
+        bass_fixture = np.column_stack([tone, tone]).astype(np.float32)
+
+        def _low_band_energy(signal_array: np.ndarray) -> float:
+            spectrum = np.abs(np.fft.rfft(signal_array.mean(axis=1)))
+            frequencies = np.fft.rfftfreq(len(signal_array), 1 / SAMPLE_RATE)
+            low = spectrum[(frequencies >= 40) & (frequencies < 150)].sum()
+            return float(low / (spectrum.sum() + 1e-12))
+
+        phone_bass, _ = apply_operation(bass_fixture, SAMPLE_RATE, "device_mic_response", "smartphone_capture", {"highpass_hz": 200, "lowpass_hz": 9_000}, np.random.default_rng(3))
+        distant_bass, _ = apply_operation(bass_fixture, SAMPLE_RATE, "distant_mic_capture", "room_capture", {"distance_m": 1.5, "absorption": 0.45, "air_absorption_cutoff_hz": 12_000}, np.random.default_rng(2))
+        self.assertLess(_low_band_energy(phone_bass), _low_band_energy(bass_fixture) * 0.5)
+        self.assertGreater(_low_band_energy(distant_bass), _low_band_energy(phone_bass))
+
+        with self.assertRaises(ValueError):
+            apply_operation(audio, SAMPLE_RATE, "device_mic_response", "smartphone_capture", {"highpass_hz": 9_000, "lowpass_hz": 500}, np.random.default_rng(4))
 
     def test_ariel_effect_registry_is_deterministic_and_tracks_effects(self) -> None:
         audio = _fixture_audio(0.25)

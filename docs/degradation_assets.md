@@ -2,11 +2,10 @@
 
 ## Purpose
 
-Two active ARIEL/SonicMaster-parity effects require binary assets that are intentionally not stored in Git. The approved OpenRestore v0.1 bundle is installed at `assets/degradations/v0_1/`, next to the repository checkout. Its file-level checksums are tracked in `docs/degradation_assets_v0_1.sha256`.
+One active effect requires binary assets that are intentionally not stored in Git. The approved OpenRestore v0.1 bundle is installed at `assets/degradations/v0_1/`, next to the repository checkout. Its file-level checksums are tracked in `docs/degradation_assets_v0_1.sha256`.
 
 | Effect | Asset | What it models | Required layout |
 | --- | --- | --- | --- |
-| `mic` | 20 Poliphone smartphone microphone impulse responses | The measured transfer function of a phone microphone: frequency coloration and phase response. The renderer convolves the same mono `.npy` IR with each stereo channel. It is not room reverb and it does not add environmental noise. | `assets/degradations/v0_1/microphone_irs/*.npy` |
 | `reverb_real` | 12 real room impulse-response WAV files | Measured acoustic spaces. The renderer accepts stereo or four-channel B-format RIRs and convolves them with the clean signal. | `assets/degradations/v0_1/real_rirs/{stereo,b-formats}/*.wav` |
 
 The v0.1 asset source bundle is the already reviewed local ARIEL asset set: `configs/smallpoli/irs` for the 20 Poliphone IRs and `configs/realrirs` for the 12 selected real RIRs. OpenRestore does not read from ARIEL at runtime.
@@ -24,16 +23,19 @@ The installed RIR filenames match OpenAIR rooms: 1st Baptist Nashville, Elveden 
 
 ### Recorded Terms
 
-The SonicMaster paper cites both sources but states no license for either, so the terms below were established separately.
+| Asset set | Terms | Commercial use |
+| --- | --- | --- |
+| 12 OpenAIR RIRs | Creative Commons. The AHRC grant record for AH/J013838/1 states the library "has been licensed to three audio software companies under a Creative Commons License and included in their commercial releases" (Ableton Live 9, Presonus Studio One, Reason Studios), and third-party dataset indexes list OpenAIR as CC BY 4.0. | Permitted, with attribution |
 
-| Asset set | Terms | Commercial use | Consequence |
-| --- | --- | --- | --- |
-| 12 OpenAIR RIRs | Creative Commons. The AHRC grant record for AH/J013838/1 states the library "has been licensed to three audio software companies under a Creative Commons License and included in their commercial releases" (Ableton Live 9, Presonus Studio One, Reason Studios), and third-party dataset indexes list OpenAIR as CC BY 4.0. | Permitted, with attribution | Distributable. Per-room terms should still be confirmed for the 12 selected files. |
-| 20 Poliphone microphone IRs | "provided for non-commercial research purposes only. For commercial use, please contact the authors." | **Not permitted** | Not distributable with a benchmark that permits commercial use. |
+Both openair.hosted.york.ac.uk and openairlib.net were unreachable when this was written, so per-room confirmation for the 12 selected files needs the Internet Archive or direct contact with the University of York.
 
-Both openair.hosted.york.ac.uk and openairlib.net were unreachable when this was written, so per-room confirmation needs the Internet Archive or direct contact with the University of York.
+### Why Poliphone Is No Longer Required
 
-Poliphone is the only non-commercial component anywhere in the benchmark: the SonicMaster clean corpus is CC BY 2.0 and the OpenAIR RIRs carry a commercial-use precedent. `degradation_asset_provenance_approval` in `configs/releases/private_v0_1.yaml` therefore turns entirely on how the `mic` effect's impulse responses are sourced.
+v0.1 originally rendered a `mic` class by convolving with 20 Poliphone smartphone impulse responses (Salvi et al., IEEE Access 2025). Those are released for non-commercial research only, which is incompatible with a benchmark that permits commercial use, and they were the single restrictive component anywhere in the project.
+
+That class is now `smartphone_capture`, a parametric model that reproduces the same degradation from code alone. Nothing in the benchmark depends on Poliphone any more. The remaining asset dependency is OpenAIR, whose terms permit commercial use, so `degradation_asset_provenance_approval` no longer has a blocking obstacle.
+
+Measured microphone impulse responses remain worth adding later as a separate class rather than as a substitute, on the model of `reverb_real` beside the simulated reverb classes.
 
 ## Asset Release And IT Install
 
