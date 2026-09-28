@@ -66,7 +66,7 @@ Example: include only SonicMasterDataset/clean/*.flac; exclude HDF5 degraded art
 - Audit command:
 
 ```bash
-openrestore-data audit --config configs/datasets/<dataset>.yaml --output build/audits/<dataset>.json --probe-limit 50
+openrestor-data audit --config configs/datasets/<dataset>.yaml --output build/audits/<dataset>.json --probe-limit 50
 ```
 
 - Audio file count:

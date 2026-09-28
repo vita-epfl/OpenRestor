@@ -6,7 +6,7 @@
 - Review date: 2026-07-15
 - Reviewer: project owner
 - Sample size: informal random sample
-- Listening path: `/tmp/openrestore-listening/sonicmaster`
+- Listening path: `/tmp/openrestor-listening/sonicmaster`
 - Final quality status: pass with caveat for restoration only
 
 ## Aggregate Notes

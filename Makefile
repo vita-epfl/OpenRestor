@@ -5,14 +5,14 @@ install:
 	uv run lefthook install
 
 lint:
-	uv run ruff check openrestore
-	uv run ruff format --check openrestore
-	uv run mypy openrestore
-	uv run codespell openrestore
+	uv run ruff check openrestor
+	uv run ruff format --check openrestor
+	uv run mypy openrestor
+	uv run codespell openrestor
 
 format:
-	uv run ruff format openrestore
-	uv run ruff check --fix openrestore
+	uv run ruff format openrestor
+	uv run ruff check --fix openrestor
 
 test:
 	uv run pytest tests -q

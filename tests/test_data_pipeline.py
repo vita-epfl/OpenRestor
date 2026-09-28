@@ -5,8 +5,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import TestCase
 
-from openrestore.data.core import read_jsonl, sha256_file, write_jsonl
-from openrestore.data.pipeline import (
+from openrestor.data.core import read_jsonl, sha256_file, write_jsonl
+from openrestor.data.pipeline import (
     ariel_split_membership,
     sonicmaster_split_membership,
     split_sonicmaster_from_manifest,

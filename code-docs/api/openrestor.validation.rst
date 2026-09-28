@@ -1,21 +1,21 @@
-openrestore.validation package
+openrestor.validation package
 ==============================
 
 Submodules
 ----------
 
-openrestore.validation.cli module
+openrestor.validation.cli module
 ---------------------------------
 
-.. automodule:: openrestore.validation.cli
+.. automodule:: openrestor.validation.cli
    :members:
    :show-inheritance:
    :undoc-members:
 
-openrestore.validation.core module
+openrestor.validation.core module
 ----------------------------------
 
-.. automodule:: openrestore.validation.core
+.. automodule:: openrestor.validation.core
    :members:
    :show-inheritance:
    :undoc-members:
@@ -23,7 +23,7 @@ openrestore.validation.core module
 Module contents
 ---------------
 
-.. automodule:: openrestore.validation
+.. automodule:: openrestor.validation
    :members:
    :show-inheritance:
    :undoc-members:

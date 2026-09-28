@@ -23,7 +23,7 @@ def _path(value: str) -> Path:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="openrestore-data")
+    parser = argparse.ArgumentParser(prog="openrestor-data")
     commands = parser.add_subparsers(dest="command", required=True)
     for name in ("audit", "ingest"):
         command = commands.add_parser(name)

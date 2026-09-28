@@ -1,29 +1,29 @@
-openrestore.data package
+openrestor.data package
 ========================
 
 Submodules
 ----------
 
-openrestore.data.cli module
+openrestor.data.cli module
 ---------------------------
 
-.. automodule:: openrestore.data.cli
+.. automodule:: openrestor.data.cli
    :members:
    :show-inheritance:
    :undoc-members:
 
-openrestore.data.core module
+openrestor.data.core module
 ----------------------------
 
-.. automodule:: openrestore.data.core
+.. automodule:: openrestor.data.core
    :members:
    :show-inheritance:
    :undoc-members:
 
-openrestore.data.pipeline module
+openrestor.data.pipeline module
 --------------------------------
 
-.. automodule:: openrestore.data.pipeline
+.. automodule:: openrestor.data.pipeline
    :members:
    :show-inheritance:
    :undoc-members:
@@ -31,7 +31,7 @@ openrestore.data.pipeline module
 Module contents
 ---------------
 
-.. automodule:: openrestore.data
+.. automodule:: openrestor.data
    :members:
    :show-inheritance:
    :undoc-members:

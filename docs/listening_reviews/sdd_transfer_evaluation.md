@@ -6,7 +6,7 @@
 - Review date: 2026-07-15
 - Reviewer: project owner
 - Sample size: informal random sample
-- Listening path: `/tmp/openrestore-listening/sdd`
+- Listening path: `/tmp/openrestor-listening/sdd`
 - Final quality status: pass as public transfer-evaluation, high-quality reference material
 
 ## Aggregate Notes

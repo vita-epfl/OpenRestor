@@ -13,8 +13,8 @@ Every inference system writes one row per degraded item to `restoration_outputs.
 The scorer joins these participant fields to trusted benchmark data and writes `restoration_metadata.jsonl`. That artifact contains the clean/degraded paths, effect, source ID, dataset, split, severity, and deterministic degradation provenance. Participants must not invent or copy hidden clean-path metadata.
 
 ```bash
-openrestore-validate restoration_outputs --input restoration_outputs.jsonl
-openrestore-score validate-restored \
+openrestor-validate restoration_outputs --input restoration_outputs.jsonl
+openrestor-score validate-restored \
   --degraded-manifest degraded/index.jsonl \
   --restored-manifest restoration_outputs.jsonl
 ```
@@ -22,13 +22,13 @@ openrestore-score validate-restored \
 ## CPU Metrics
 
 ```bash
-openrestore-score no-restoration \
+openrestor-score no-restoration \
   --degraded-manifest degraded/index.jsonl \
   --degraded-root degraded/audio \
   --output-root baseline/audio \
   --output-manifest baseline/restoration_outputs.jsonl
 
-openrestore-score score \
+openrestor-score score \
   --degraded-manifest degraded/index.jsonl \
   --degraded-root degraded/audio \
   --clean-root clean/audio \
@@ -45,21 +45,21 @@ Install and cache the optional pack once on every scoring machine:
 
 ```bash
 pip install '.[perceptual]'
-openrestore-score setup-perceptual \
+openrestor-score setup-perceptual \
   --config configs/evaluation/perceptual.yaml \
-  --cache-dir ~/.cache/openrestore/perceptual-v0_1
+  --cache-dir ~/.cache/openrestor/perceptual-v0_1
 ```
 
 The setup command downloads the pinned CLAP, FADTK, and Audiobox weights, and records versions and hashes in `perceptual_cache_manifest.json`. IT and benchmark users run the same command. The FMA-Pop comparison uses the built-in `fadtk` `fma_pop` statistics for the same `clap-laion-music` backend as ARIEL. No separately supplied FMA statistics file is needed.
 
 ```bash
-openrestore-score perceptual \
+openrestor-score perceptual \
   --degraded-manifest degraded/index.jsonl \
   --degraded-root degraded/audio \
   --clean-root clean/audio \
   --restored-manifest outputs/restoration_outputs.jsonl \
   --config configs/evaluation/perceptual.yaml \
-  --cache-dir ~/.cache/openrestore/perceptual-v0_1 \
+  --cache-dir ~/.cache/openrestor/perceptual-v0_1 \
   --output-dir outputs/perceptual_scores
 ```
 

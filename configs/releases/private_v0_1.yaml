@@ -1,6 +1,6 @@
 # Private, immutable release contract. Do not publish its artifacts until source and asset approval.
-release_id: openrestore-paired-v0.1-private
-private_output_root: build/private-releases/openrestore-paired-v0.1
+release_id: openrestor-paired-v0.1-private
+private_output_root: build/private-releases/openrestor-paired-v0.1
 expected_degraded_examples: 620376
 seed: 20260714
 recipe_config: configs/degradations/single/v0_1.yaml

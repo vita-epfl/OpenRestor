@@ -14,7 +14,7 @@
 ## Sampling Command
 
 ```bash
-mkdir -p /tmp/openrestore-listening/<dataset>
+mkdir -p /tmp/openrestor-listening/<dataset>
 
 find /mnt/ssd2/datasets/OpenRestoreDataset/<source-root> \
   -type f -name '<extension>' \
@@ -22,7 +22,7 @@ find /mnt/ssd2/datasets/OpenRestoreDataset/<source-root> \
   | while IFS= read -r f; do
       b=$(basename "$f" .<extension-without-dot>)
       ffmpeg -nostdin -v error -y -ss 30 -i "$f" -t 30 -ar 44100 -ac 2 \
-        "/tmp/openrestore-listening/<dataset>/${b}.wav"
+        "/tmp/openrestor-listening/<dataset>/${b}.wav"
     done
 ```
 

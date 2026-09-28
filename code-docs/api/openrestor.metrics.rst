@@ -1,37 +1,37 @@
-openrestore.metrics package
+openrestor.metrics package
 ===========================
 
 Submodules
 ----------
 
-openrestore.metrics.cli module
+openrestor.metrics.cli module
 ------------------------------
 
-.. automodule:: openrestore.metrics.cli
+.. automodule:: openrestor.metrics.cli
    :members:
    :show-inheritance:
    :undoc-members:
 
-openrestore.metrics.core module
+openrestor.metrics.core module
 -------------------------------
 
-.. automodule:: openrestore.metrics.core
+.. automodule:: openrestor.metrics.core
    :members:
    :show-inheritance:
    :undoc-members:
 
-openrestore.metrics.perceptual module
+openrestor.metrics.perceptual module
 -------------------------------------
 
-.. automodule:: openrestore.metrics.perceptual
+.. automodule:: openrestor.metrics.perceptual
    :members:
    :show-inheritance:
    :undoc-members:
 
-openrestore.metrics.pipeline module
+openrestor.metrics.pipeline module
 -----------------------------------
 
-.. automodule:: openrestore.metrics.pipeline
+.. automodule:: openrestor.metrics.pipeline
    :members:
    :show-inheritance:
    :undoc-members:
@@ -39,7 +39,7 @@ openrestore.metrics.pipeline module
 Module contents
 ---------------
 
-.. automodule:: openrestore.metrics
+.. automodule:: openrestor.metrics
    :members:
    :show-inheritance:
    :undoc-members:

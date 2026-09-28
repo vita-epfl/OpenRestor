@@ -298,7 +298,7 @@ def write_hdf5_shards(
             raise ValueError("HDF5 sharding requires canonical equal-length degraded audio")
         shard_path = shards_dir / f"degraded-{shard_number:05d}.h5"
         with h5py.File(shard_path, "w") as shard:
-            shard.attrs["format"] = "openrestore.degraded.v0.1"
+            shard.attrs["format"] = "openrestor.degraded.v0.1"
             shard.attrs["sample_rate"] = CANONICAL_SAMPLE_RATE
             shard.attrs["samples"] = first_shape[0]
             shard.attrs["channels"] = first_shape[1]

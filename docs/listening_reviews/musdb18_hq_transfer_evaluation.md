@@ -6,7 +6,7 @@
 - Review date: 2026-07-15
 - Reviewer: project owner
 - Sample size: informal random sample
-- Listening path: `/tmp/openrestore-listening/musdb18_hq`
+- Listening path: `/tmp/openrestor-listening/musdb18_hq`
 - Final quality status: pass as public transfer-evaluation, high-quality mixture reference material
 
 ## Aggregate Notes

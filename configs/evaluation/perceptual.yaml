@@ -8,7 +8,7 @@ device:
   default: cuda
   deterministic: true
 cache:
-  directory: ~/.cache/openrestore/perceptual-fadtk-v0_1
+  directory: ~/.cache/openrestor/perceptual-fadtk-v0_1
   preprocessing_version: v0_1
 models:
   clap_similarity: laion-clap==1.1.7

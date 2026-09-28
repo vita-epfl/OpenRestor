@@ -36,12 +36,12 @@ Goal: freeze the minimum viable benchmark contract before implementation becomes
 - [x] Decide which metrics are required for the first release and which stay experimental.
 - [x] Define the scientific meaning of the main leaderboard track and external-data track.
 - [x] Create the Python package/repository skeleton that IT will later host:
-  - [x] `openrestore/data`
-  - [x] `openrestore/degradations`
-  - [x] `openrestore/metrics`
-  - [x] `openrestore/evaluation`
-  - [x] `openrestore/submissions`
-  - [x] `openrestore/leaderboard`
+  - [x] `openrestor/data`
+  - [x] `openrestor/degradations`
+  - [x] `openrestor/metrics`
+  - [x] `openrestor/evaluation`
+  - [x] `openrestor/submissions`
+  - [x] `openrestor/leaderboard`
   - [x] `configs`
   - [x] `schemas`
   - [x] `scripts`
@@ -155,7 +155,7 @@ OpenRestore is now effect-first. The active single-effect registry has 25 rows: 
 - [x] Keep simulated room behavior local through `pyroomacoustics`; support optional ARIEL-compatible microphone-transfer-function and real-RIR assets without requiring them for the core test suite.
 - [x] Implement deterministic per-item and per-operation seeds, with sampled values recorded in output metadata.
 - [x] Implement full operation tracking: recipe ID, severity label, seed, operation ID/variant, sampled parameters, output path, and SHA-256 checksum.
-- [x] Implement the local `openrestore-degrade` command:
+- [x] Implement the local `openrestor-degrade` command:
   - [x] YAML config loading and validation
   - [x] recipe listing
   - [x] deterministic batch WAV rendering
@@ -172,7 +172,7 @@ OpenRestore is now effect-first. The active single-effect registry has 25 rows: 
 - [x] Add execution/metadata/determinism coverage for all 25 active effects. Tests execute the six OpenRestore effects and all non-asset ARIEL effects twice with fixed seeds; the `mic` and `real` missing-asset paths are tested explicitly.
 - [x] Calibrate normal dataset parameter distributions through the completed listening review. No real degraded-music corpus will be integrated for v0.1.
 - [x] Create the release-asset contract for the reviewed 20 Poliphone microphone IRs and 12 real RIR WAVs. The Git-ignored bundle is project-owned at `assets/degradations/v0_1/`; IT installs and verifies the exact artifact using `docs/degradation_assets.md` and `docs/degradation_assets_v0_1.sha256`.
-- [ ] Upload `build/release_assets/openrestore-degradation-assets-v0_1.tar.gz` and its SHA-256 file as a private GitHub/GitLab release asset tagged `degradation-assets-v0.1`; record its URL, archive SHA-256, and Poliphone/OpenAIR provenance and redistribution terms in the release record. Mirror the final approved public bundle to Zenodo only if those terms permit redistribution.
+- [ ] Upload `build/release_assets/openrestor-degradation-assets-v0_1.tar.gz` and its SHA-256 file as a private GitHub/GitLab release asset tagged `degradation-assets-v0.1`; record its URL, archive SHA-256, and Poliphone/OpenAIR provenance and redistribution terms in the release record. Mirror the final approved public bundle to Zenodo only if those terms permit redistribution.
 - [x] Add degraded HDF5 shard writing and a release index that points each row at `degraded_audio_shard` and `degraded_audio_shard_index`. The WAV manifest remains the rendering provenance; the shard index is the release-facing reader contract.
 - [ ] Build the approved v0.1 paired degradation sets for every public clean split that OpenRestore releases: main-track SonicMaster training, held-out SonicMaster validation and public test, plus SDD and MUSDB18-HQ public transfer evaluation. Render the configured single effects, preserve the matching clean IDs, and keep the hidden evaluation set in a separate organizer-only build.
 - [ ] Freeze a release manifest for each paired public split. It must include clean and degraded relative paths or shard locations, recipe ID, sampled degradation metadata, dataset/split labels, audio properties, and SHA-256 checksums.
@@ -241,10 +241,10 @@ Goal: make scores scientifically meaningful and operationally reproducible.
 
 ### IT/software engineer tasks
 
-- [ ] Publish the versioned, downloadable validation/evaluation package: `openrestore-score`, metric configurations, schemas, templates, documentation, and a release archive or tagged repository revision.
+- [ ] Publish the versioned, downloadable validation/evaluation package: `openrestor-score`, metric configurations, schemas, templates, documentation, and a release archive or tagged repository revision.
 - [ ] Host the research-owned scoring command for public and hidden evaluation jobs.
 - [ ] Provide GPU-capable workers if selected metrics require them.
-- [ ] Run `openrestore-score setup-perceptual` in the shared GPU cache to download and verify the approved CLAP, FADTK LAION Music/FMA-Pop, and Audiobox assets; manage that cache, embeddings, and reference statistics in the hosted environment.
+- [ ] Run `openrestor-score setup-perceptual` in the shared GPU cache to download and verify the approved CLAP, FADTK LAION Music/FMA-Pop, and Audiobox assets; manage that cache, embeddings, and reference statistics in the hosted environment.
 - [ ] Store scores, reports, logs, and intermediate metric artifacts in hosted storage.
 - [ ] Publish generated reports and leaderboard-ready JSON artifacts to the agreed internal or public location.
 
@@ -328,7 +328,7 @@ The command must read these variables, restore every manifest item, and write ca
   - [ ] validate submission metadata and image digest
   - [ ] run a fixture smoke test with the fixed `/input` and `/output` mounts
   - [ ] execute the hidden inference run
-  - [ ] run `openrestore-score validate-restored` before any scoring
+  - [ ] run `openrestor-score validate-restored` before any scoring
   - [ ] join outputs with private clean references outside the participant container
   - [ ] run CPU and approved perceptual reports
   - [ ] write logs, checksums, trusted restoration metadata, and audit metadata

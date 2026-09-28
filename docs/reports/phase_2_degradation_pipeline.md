@@ -8,12 +8,12 @@ Phase 2 creates paired training and evaluation data by applying one explicitly s
 
 | Path | Responsibility |
 | --- | --- |
-| openrestore/degradations/core.py | Audio I/O, canonicalization, seeded sampling, peak safety, checksums, and FFmpeg codec round trips. |
-| openrestore/degradations/ariel_effects.py | OpenRestore-local adaptation of the legacy SonicMaster/ARIEL effect implementations. |
-| openrestore/degradations/effects.py | Effect registry, legacy primitive handlers, ARIEL-effect dispatch, and distant-microphone capture. |
-| openrestore/degradations/pipeline.py | Recipe loading, per-item deterministic seeds, operation execution, WAV rendering, manifest rows, checksums, HDF5 shards, and release index writing. |
-| openrestore/degradations/cli.py | `openrestore-degrade` rendering plus private-release planning, partition, merge, and validation commands. |
-| openrestore/degradations/release.py | Frozen-input verification, clean-release validation, deterministic 40-source plans, retry-safe partition receipts, merge, and release validation. |
+| openrestor/degradations/core.py | Audio I/O, canonicalization, seeded sampling, peak safety, checksums, and FFmpeg codec round trips. |
+| openrestor/degradations/ariel_effects.py | OpenRestore-local adaptation of the legacy SonicMaster/ARIEL effect implementations. |
+| openrestor/degradations/effects.py | Effect registry, legacy primitive handlers, ARIEL-effect dispatch, and distant-microphone capture. |
+| openrestor/degradations/pipeline.py | Recipe loading, per-item deterministic seeds, operation execution, WAV rendering, manifest rows, checksums, HDF5 shards, and release index writing. |
+| openrestor/degradations/cli.py | `openrestor-degrade` rendering plus private-release planning, partition, merge, and validation commands. |
+| openrestor/degradations/release.py | Frozen-input verification, clean-release validation, deterministic 40-source plans, retry-safe partition receipts, merge, and release validation. |
 | configs/degradations/single/v0_1.yaml | Active, effect-first v0.1 single-effect recipes. |
 | configs/releases/private_v0_1.yaml | Immutable private v0.1 contract for 25,849 clean clips and 620,376 degraded examples. |
 | configs/degradations/review_boundaries/v0_2.yaml | Fixed mild/strong listening endpoints for the OpenRestore additions. |
@@ -42,18 +42,18 @@ degradation_tracking is the compact audit trail. degradation_params stores the c
 
 ## Primary Commands
 
-    openrestore-degrade validate-config --config configs/degradations/single/v0_1.yaml
-    openrestore-degrade list-recipes --config configs/degradations/single/v0_1.yaml
-    openrestore-degrade render --manifest build/clean/clean_manifest.jsonl --clean-root build/clean/audio --output-root build/degraded --config configs/degradations/single/v0_1.yaml --output-manifest build/degraded/manifest.jsonl --checksums build/degraded/checksums.jsonl --seed 20260714
-    openrestore-degrade shard --output-root build/degraded --manifest build/degraded/manifest.jsonl --shards-dir build/release/shards --output-index build/release/index.jsonl --shard-size 960
+    openrestor-degrade validate-config --config configs/degradations/single/v0_1.yaml
+    openrestor-degrade list-recipes --config configs/degradations/single/v0_1.yaml
+    openrestor-degrade render --manifest build/clean/clean_manifest.jsonl --clean-root build/clean/audio --output-root build/degraded --config configs/degradations/single/v0_1.yaml --output-manifest build/degraded/manifest.jsonl --checksums build/degraded/checksums.jsonl --seed 20260714
+    openrestor-degrade shard --output-root build/degraded --manifest build/degraded/manifest.jsonl --shards-dir build/release/shards --output-index build/release/index.jsonl --shard-size 960
 
     # Freeze only after the canonical clean manifest and WAV checksums pass.
-    openrestore-degrade plan-release --clean-manifest build/clean/manifest.jsonl --clean-root build/clean/audio --release-config configs/releases/private_v0_1.yaml --output build/private-releases/openrestore-paired-v0.1/plan.json
-    openrestore-degrade render-partition --plan build/private-releases/openrestore-paired-v0.1/plan.json --partition-id sonicmaster_clean--train--00000 --clean-manifest build/clean/manifest.jsonl --clean-root build/clean/audio --release-config configs/releases/private_v0_1.yaml --work-root build/degradation-staging --release-root build/private-releases/openrestore-paired-v0.1
-    openrestore-degrade merge-release --plan build/private-releases/openrestore-paired-v0.1/plan.json --release-root build/private-releases/openrestore-paired-v0.1 --output-index build/private-releases/openrestore-paired-v0.1/index.jsonl --receipt build/private-releases/openrestore-paired-v0.1/release-receipt.json
-    openrestore-degrade validate-release --plan build/private-releases/openrestore-paired-v0.1/plan.json --release-root build/private-releases/openrestore-paired-v0.1 --receipt build/private-releases/openrestore-paired-v0.1/release-receipt.json
+    openrestor-degrade plan-release --clean-manifest build/clean/manifest.jsonl --clean-root build/clean/audio --release-config configs/releases/private_v0_1.yaml --output build/private-releases/openrestor-paired-v0.1/plan.json
+    openrestor-degrade render-partition --plan build/private-releases/openrestor-paired-v0.1/plan.json --partition-id sonicmaster_clean--train--00000 --clean-manifest build/clean/manifest.jsonl --clean-root build/clean/audio --release-config configs/releases/private_v0_1.yaml --work-root build/degradation-staging --release-root build/private-releases/openrestor-paired-v0.1
+    openrestor-degrade merge-release --plan build/private-releases/openrestor-paired-v0.1/plan.json --release-root build/private-releases/openrestor-paired-v0.1 --output-index build/private-releases/openrestor-paired-v0.1/index.jsonl --receipt build/private-releases/openrestor-paired-v0.1/release-receipt.json
+    openrestor-degrade validate-release --plan build/private-releases/openrestor-paired-v0.1/plan.json --release-root build/private-releases/openrestor-paired-v0.1 --receipt build/private-releases/openrestor-paired-v0.1/release-receipt.json
 
-The editable install exposes openrestore-degrade; python -m openrestore.degradations.cli is the fallback when a shell has not been refreshed after installation.
+The editable install exposes openrestor-degrade; python -m openrestor.degradations.cli is the fallback when a shell has not been refreshed after installation.
 
 ## Verification In Place
 

@@ -7,8 +7,8 @@ from unittest import TestCase
 
 import numpy as np
 
-from openrestore.degradations.core import sha256_file, write_audio, write_jsonl
-from openrestore.degradations.release import (
+from openrestor.degradations.core import sha256_file, write_audio, write_jsonl
+from openrestor.degradations.release import (
     create_partition_plan,
     merge_release,
     render_partition,

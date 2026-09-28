@@ -20,7 +20,7 @@ pre-commit:
       run: uv run ruff format {staged_files}
       stage_fixed: true
     type-check:
-      run: uv run mypy openrestore
+      run: uv run mypy openrestor
     codespell:
       glob: "*.py"
       exclude:

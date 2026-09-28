@@ -1,45 +1,45 @@
-openrestore.degradations package
+openrestor.degradations package
 ================================
 
 Submodules
 ----------
 
-openrestore.degradations.ariel\_effects module
+openrestor.degradations.ariel\_effects module
 ----------------------------------------------
 
-.. automodule:: openrestore.degradations.ariel_effects
+.. automodule:: openrestor.degradations.ariel_effects
    :members:
    :show-inheritance:
    :undoc-members:
 
-openrestore.degradations.cli module
+openrestor.degradations.cli module
 -----------------------------------
 
-.. automodule:: openrestore.degradations.cli
+.. automodule:: openrestor.degradations.cli
    :members:
    :show-inheritance:
    :undoc-members:
 
-openrestore.degradations.core module
+openrestor.degradations.core module
 ------------------------------------
 
-.. automodule:: openrestore.degradations.core
+.. automodule:: openrestor.degradations.core
    :members:
    :show-inheritance:
    :undoc-members:
 
-openrestore.degradations.effects module
+openrestor.degradations.effects module
 ---------------------------------------
 
-.. automodule:: openrestore.degradations.effects
+.. automodule:: openrestor.degradations.effects
    :members:
    :show-inheritance:
    :undoc-members:
 
-openrestore.degradations.pipeline module
+openrestor.degradations.pipeline module
 ----------------------------------------
 
-.. automodule:: openrestore.degradations.pipeline
+.. automodule:: openrestor.degradations.pipeline
    :members:
    :show-inheritance:
    :undoc-members:
@@ -47,7 +47,7 @@ openrestore.degradations.pipeline module
 Module contents
 ---------------
 
-.. automodule:: openrestore.degradations
+.. automodule:: openrestor.degradations
    :members:
    :show-inheritance:
    :undoc-members:

@@ -33,7 +33,7 @@ Labels are limited to:
 
 - **Define how CLI tools will run in hosted CI/CD and scheduled jobs**
   - Labels: `chore`
-  - Description: Decide how `openrestore-*` commands are invoked in hosted CI/CD and cron/scheduled jobs, including artifact passing and failure notification.
+  - Description: Decide how `openrestor-*` commands are invoked in hosted CI/CD and cron/scheduled jobs, including artifact passing and failure notification.
   - Acceptance: Sample CI job definitions or scheduled-job templates are committed.
 
 ---

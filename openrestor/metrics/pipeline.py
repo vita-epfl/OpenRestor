@@ -11,7 +11,7 @@ from typing import Any
 import numpy as np
 import soundfile as sf
 
-from openrestore.degradations.core import load_yaml, read_jsonl, sha256_file, write_jsonl
+from openrestor.degradations.core import load_yaml, read_jsonl, sha256_file, write_jsonl
 
 from .core import METRIC_DIRECTIONS, aae_metrics, category_for_row, effect_name, pairwise_metrics
 

@@ -15,7 +15,7 @@ def _path(value: str) -> Path:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="openrestore-score")
+    parser = argparse.ArgumentParser(prog="openrestor-score")
     commands = parser.add_subparsers(dest="command", required=True)
     validate = commands.add_parser("validate-restored")
     validate.add_argument("--degraded-manifest", type=_path, required=True)

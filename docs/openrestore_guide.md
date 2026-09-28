@@ -11,8 +11,8 @@ The benchmark reports separate diagnostic metrics. It does not currently define 
 | Artifact | Availability | Purpose |
 | --- | --- | --- |
 | Repository code, configurations, schemas, documentation, and tests | Public | Build datasets, render degradations, and inspect the benchmark implementation. |
-| Validation and evaluation package (`openrestore-score`), metric configurations, schemas, templates, and command documentation | Public and downloadable from the Git repository and versioned release archive | Validate restored WAVs and generate the same local CPU and optional GPU diagnostic reports used by OpenRestore. The interface is model-agnostic, so it can be called from any training or inference pipeline. |
-| Optional perceptual-model cache: CLAP, FADTK LAION Music/FMA-Pop reference, and Audiobox Aesthetics | Downloaded by `openrestore-score setup-perceptual` into a user- or IT-selected cache directory | The setup script downloads the approved checkpoint assets through the model backends, then records package versions, FMA-Pop reference provenance, and a cache hash in `perceptual_cache_manifest.json`. The GPU scorer refuses an absent or modified cache. |
+| Validation and evaluation package (`openrestor-score`), metric configurations, schemas, templates, and command documentation | Public and downloadable from the Git repository and versioned release archive | Validate restored WAVs and generate the same local CPU and optional GPU diagnostic reports used by OpenRestore. The interface is model-agnostic, so it can be called from any training or inference pipeline. |
+| Optional perceptual-model cache: CLAP, FADTK LAION Music/FMA-Pop reference, and Audiobox Aesthetics | Downloaded by `openrestor-score setup-perceptual` into a user- or IT-selected cache directory | The setup script downloads the approved checkpoint assets through the model backends, then records package versions, FMA-Pop reference provenance, and a cache hash in `perceptual_cache_manifest.json`. The GPU scorer refuses an absent or modified cache. |
 | Public release manifests, checksums, clean clips/shards, and paired OpenRestore-rendered degraded clips/shards | Downloadable with a benchmark release | Train on approved clean data and run consistent validation/public-test inference on the exact released degraded inputs. Each degraded manifest row joins one input to its clean reference and full degradation metadata. |
 | SonicMaster clean originals | Obtain under the upstream release terms | Default main-track training source; held-out items also support validation and public test. |
 | SDD and MUSDB18-HQ source audio | Obtain under their respective terms | Separately reported public transfer/local-evaluation sets. They are not main-track training or in-distribution public-test data. |
@@ -44,20 +44,20 @@ Users do not need to render their own degradations to train or evaluate from an 
 
 ## Public Evaluation Code
 
-OpenRestore publishes the validation and evaluation scripts as the downloadable `openrestore-score` package, including metric configurations, schemas, templates, and documentation. Users should run the supplied scorer rather than reimplement the metrics, so reports remain comparable across models. The interface is deliberately pipeline-agnostic: it does not import a model, training framework, checkpoint format, or inference library. Any system can participate by reading a degraded manifest, writing canonical restored WAVs, and emitting `restoration_outputs.jsonl`.
+OpenRestore publishes the validation and evaluation scripts as the downloadable `openrestor-score` package, including metric configurations, schemas, templates, and documentation. Users should run the supplied scorer rather than reimplement the metrics, so reports remain comparable across models. The interface is deliberately pipeline-agnostic: it does not import a model, training framework, checkpoint format, or inference library. Any system can participate by reading a degraded manifest, writing canonical restored WAVs, and emitting `restoration_outputs.jsonl`.
 
-The CPU scorer is part of the base package and runs locally wherever the clean references are available. The GPU perceptual pack is optional: install it, then run `openrestore-score setup-perceptual` once to download and verify the approved CLAP, FADTK, and Audiobox model cache. Both commands produce versioned, machine-readable reports as well as Markdown summaries, making them suitable for local experiments, training-validation hooks, and later organizer-side execution.
+The CPU scorer is part of the base package and runs locally wherever the clean references are available. The GPU perceptual pack is optional: install it, then run `openrestor-score setup-perceptual` once to download and verify the approved CLAP, FADTK, and Audiobox model cache. Both commands produce versioned, machine-readable reports as well as Markdown summaries, making them suitable for local experiments, training-validation hooks, and later organizer-side execution.
 
 ## Local Validation And Evaluation
 
 The CPU scorer compares degraded-to-clean and restored-to-clean audio using waveform and spectral metrics plus degradation-aware diagnostics. For `reverb_*` and `distant_mic_capture`, it also reports paired residual-room diagnostics: `rt60_s`, `drr_db`, and `late_tail_db`, estimated from the clean-to-evaluated transfer rather than from music in isolation:
 
 ```bash
-openrestore-score validate-restored \
+openrestor-score validate-restored \
   --degraded-manifest degraded/index.jsonl \
   --restored-manifest outputs/restoration_outputs.jsonl
 
-openrestore-score score \
+openrestor-score score \
   --degraded-manifest degraded/index.jsonl \
   --degraded-root degraded/audio \
   --clean-root clean/audio \
@@ -75,8 +75,8 @@ The optional GPU command adds CLAP similarity, FADTK against the local clean dis
 The v0.1 registry contains 24 canonical degradation classes. Every render is deterministic from the item, recipe, and seed; the manifest stores the selected effect, sampled parameters, provenance, and output checksum.
 
 ```bash
-openrestore-degrade validate-config --config configs/degradations/single/v0_1.yaml
-openrestore-degrade list-recipes --config configs/degradations/single/v0_1.yaml
+openrestor-degrade validate-config --config configs/degradations/single/v0_1.yaml
+openrestor-degrade list-recipes --config configs/degradations/single/v0_1.yaml
 ```
 
 Use the renderer when reproducing or preparing an approved degradation release. Do not replace release assets or alter recipe configurations while comparing methods: that changes the benchmark input distribution.
@@ -110,7 +110,7 @@ The organizer evaluation procedure is:
 
 1. Validate the submission manifest, immutable image digest, track declaration, and container interface on public fixture audio.
 2. Run the declared inference command with network disabled, hidden degraded inputs mounted read-only, an empty output mount, and enforced time, memory, disk, and GPU limits.
-3. Run `openrestore-score validate-restored` on the generated output. Duplicate IDs, missing files, invalid WAVs, mismatched canonical audio, or incomplete manifests fail the run rather than being silently skipped.
+3. Run `openrestor-score validate-restored` on the generated output. Duplicate IDs, missing files, invalid WAVs, mismatched canonical audio, or incomplete manifests fail the run rather than being silently skipped.
 4. Join valid output with the private clean references outside the submission container, then run the public CPU scorer and the selected organizer perceptual pack.
 5. Retain the image digest, submission manifest, command, resource configuration, logs, checksums, trusted `restoration_metadata.jsonl`, and metric reports. Publish only the approved scores and summaries, never hidden audio or private reference paths.
 

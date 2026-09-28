@@ -12,9 +12,9 @@ from unittest import TestCase, skipUnless
 import numpy as np
 import soundfile as sf
 
-from openrestore.degradations.core import write_jsonl
-from openrestore.metrics.core import pairwise_metrics
-from openrestore.metrics.pipeline import no_restoration, score, validate_restored_manifest
+from openrestor.degradations.core import write_jsonl
+from openrestor.metrics.core import pairwise_metrics
+from openrestor.metrics.pipeline import no_restoration, score, validate_restored_manifest
 
 SAMPLE_RATE = 44_100
 CONFIG = Path("configs/evaluation/metrics.yaml")
@@ -54,7 +54,7 @@ def _row(item_id: str, effect: str, severity: str = "test") -> dict[str, object]
 
 class MetricTests(TestCase):
     def test_metric_directions_and_determinism(self) -> None:
-        from openrestore.degradations.core import load_yaml
+        from openrestor.degradations.core import load_yaml
 
         config = load_yaml(CONFIG)
         clean = _audio()
@@ -167,7 +167,7 @@ class MetricTests(TestCase):
                 [
                     sys.executable,
                     "-m",
-                    "openrestore.metrics.cli",
+                    "openrestor.metrics.cli",
                     "no-restoration",
                     "--degraded-manifest",
                     str(manifest),
@@ -184,7 +184,7 @@ class MetricTests(TestCase):
                 [
                     sys.executable,
                     "-m",
-                    "openrestore.metrics.cli",
+                    "openrestor.metrics.cli",
                     "validate-restored",
                     "--degraded-manifest",
                     str(manifest),
@@ -231,7 +231,7 @@ class _FakePerceptualBackend:
 
 class PerceptualMetricTests(TestCase):
     def test_mock_perceptual_scoring_and_metadata_join(self) -> None:
-        from openrestore.metrics.perceptual import perceptual_score
+        from openrestor.metrics.perceptual import perceptual_score
 
         with TemporaryDirectory() as directory:
             root = Path(directory)
@@ -306,10 +306,10 @@ class RealPerceptualIntegrationTests(TestCase):
 
         if not torch.cuda.is_available():
             self.skipTest("CUDA is required")
-        from openrestore.metrics.perceptual import LearnedBackends
+        from openrestor.metrics.perceptual import LearnedBackends
 
         cache = Path(
-            os.environ.get("OPENRESTORE_PERCEPTUAL_CACHE", "~/.cache/openrestore/perceptual-v0_1")
+            os.environ.get("OPENRESTORE_PERCEPTUAL_CACHE", "~/.cache/openrestor/perceptual-v0_1")
         ).expanduser()
         backend = LearnedBackends(cache, "cuda")
         audio = _audio()

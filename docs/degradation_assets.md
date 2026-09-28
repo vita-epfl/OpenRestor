@@ -13,7 +13,7 @@ The v0.1 asset source bundle is the already reviewed local ARIEL asset set: `con
 
 ## Asset Release And IT Install
 
-1. The research owner uploads the directory `assets/degradations/v0_1/` to the approved private artifact store as `openrestore-degradation-assets-v0_1.tar.gz` and records its artifact URL, license/provenance record, and archive SHA-256 in the release record.
+1. The research owner uploads the directory `assets/degradations/v0_1/` to the approved private artifact store as `openrestor-degradation-assets-v0_1.tar.gz` and records its artifact URL, license/provenance record, and archive SHA-256 in the release record.
 2. IT downloads that exact approved archive into the repository root and extracts it so the paths above exist. Do not substitute an arbitrary Poliphone or OpenAIR download: changing the files changes deterministic output even with the same seed.
 3. IT verifies the unpacked files from the repository root:
 
@@ -24,7 +24,7 @@ The v0.1 asset source bundle is the already reviewed local ARIEL asset set: `con
    ```
 
    The expected counts are 20 microphone IRs and 12 RIR WAV files.
-4. IT runs `openrestore-degrade validate-config --config configs/degradations/single/v0_1.yaml`, then runs a small render containing `mic` and `reverb_real` before starting a release-scale job.
+4. IT runs `openrestor-degrade validate-config --config configs/degradations/single/v0_1.yaml`, then runs a small render containing `mic` and `reverb_real` before starting a release-scale job.
 
 The binary bundle remains outside Git because it is an externally sourced release artifact. It must be versioned and retained with the degradation config, Git revision, manifests, checksums, and release logs.
 

@@ -15,9 +15,9 @@ import numpy as np
 import soundfile as sf
 from scipy import signal
 
-from openrestore.degradations.core import load_yaml, read_jsonl, run_ffmpeg_codec, sha256_file, write_jsonl
-from openrestore.degradations.effects import apply_operation
-from openrestore.degradations.pipeline import CANONICAL_DEGRADATION_IDS, apply_recipe, render_degradations, validate_config, write_hdf5_shards
+from openrestor.degradations.core import load_yaml, read_jsonl, run_ffmpeg_codec, sha256_file, write_jsonl
+from openrestor.degradations.effects import apply_operation
+from openrestor.degradations.pipeline import CANONICAL_DEGRADATION_IDS, apply_recipe, render_degradations, validate_config, write_hdf5_shards
 
 SAMPLE_RATE = 44_100
 
@@ -186,7 +186,7 @@ class DegradationPrimitiveTests(TestCase):
             rendered, rendered_params = apply_operation(audio, SAMPLE_RATE, "ariel", "real", {"real_rir_dir": directory}, np.random.default_rng(1))
             self.assertEqual(rendered.shape, audio.shape)
             self.assertEqual(rendered_params["rir_name"], "test_rir")
-        with patch("openrestore.degradations.core.subprocess.run", side_effect=FileNotFoundError):
+        with patch("openrestor.degradations.core.subprocess.run", side_effect=FileNotFoundError):
             with self.assertRaisesRegex(RuntimeError, "FFmpeg on PATH"):
                 run_ffmpeg_codec(audio, SAMPLE_RATE, "mp3", "64k")
         with self.assertRaisesRegex(ValueError, "max_order"):
@@ -315,7 +315,7 @@ recipes:
                 encoding="utf-8",
             )
             listed = subprocess.run(
-                [sys.executable, "-m", "openrestore.degradations.cli", "list-recipes", "--config", str(config)],
+                [sys.executable, "-m", "openrestor.degradations.cli", "list-recipes", "--config", str(config)],
                 check=True,
                 capture_output=True,
                 text=True,
@@ -328,7 +328,7 @@ recipes:
                 [
                     sys.executable,
                     "-m",
-                    "openrestore.degradations.cli",
+                    "openrestor.degradations.cli",
                     "render",
                     "--manifest",
                     str(manifest),
@@ -356,7 +356,7 @@ recipes:
                 [
                     sys.executable,
                     "-m",
-                    "openrestore.degradations.cli",
+                    "openrestor.degradations.cli",
                     "shard",
                     "--output-root", str(output_root),
                     "--manifest", str(output_manifest),

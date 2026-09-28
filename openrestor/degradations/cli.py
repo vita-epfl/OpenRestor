@@ -22,7 +22,7 @@ def _path(value: str) -> Path:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="openrestore-degrade")
+    parser = argparse.ArgumentParser(prog="openrestor-degrade")
     commands = parser.add_subparsers(dest="command", required=True)
     render = commands.add_parser("render")
     render.add_argument("--manifest", type=_path, required=True)

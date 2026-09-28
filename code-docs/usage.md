@@ -4,7 +4,7 @@ OpenRestore ships four command-line entry points, each generated from an
 `argparse` parser in the corresponding subpackage\'s `cli` module. The
 subcommands and flags below are read directly from those sources.
 
-## `openrestore-data`
+## `openrestor-data`
 
 Phase 1 data pipeline. The command takes one subcommand:
 
@@ -55,7 +55,7 @@ Phase 1 data pipeline. The command takes one subcommand:
 : Write corpus statistics from a manifest. `--manifest` (required),
 `--output` (required), `--quiet`.
 
-## `openrestore-degrade`
+## `openrestor-degrade`
 
 Apply degradations to a clean corpus. The command takes one subcommand:
 
@@ -81,7 +81,7 @@ Apply degradations to a clean corpus. The command takes one subcommand:
 
 : List available degradation recipes. `--config` (required).
 
-## `openrestore-score`
+## `openrestor-score`
 
 Local scoring and restoration validation. The command takes one
 subcommand:
@@ -118,7 +118,7 @@ subcommand:
 `--degraded-manifest` (required), `--degraded-root` (required),
 `--output-root` (required), `--output-manifest` (required).
 
-## `openrestore-validate`
+## `openrestor-validate`
 
 Validate OpenRestore JSON and JSONL artifacts. Takes a positional `kind`
 (one of `index`, `degradation_tracking`, `submission_manifest`,

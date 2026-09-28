@@ -14,7 +14,7 @@ import librosa
 import numpy as np
 import soundfile as sf
 
-from openrestore.degradations.core import load_yaml, sha256_file, write_jsonl
+from openrestor.degradations.core import load_yaml, sha256_file, write_jsonl
 
 from .core import category_for_row, effect_name
 from .pipeline import _audio, _resolve, restoration_metadata, validate_restored_manifest
@@ -58,7 +58,7 @@ def _sha256_tree(path: Path) -> str:
 def _verify_cache(cache: Path) -> dict[str, Any]:
     manifest_path = _cache_manifest(cache)
     if not manifest_path.is_file():
-        raise RuntimeError("Run openrestore-score setup-perceptual before perceptual scoring")
+        raise RuntimeError("Run openrestor-score setup-perceptual before perceptual scoring")
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     if manifest.get("cache_sha256") != _sha256_tree(cache):
         raise RuntimeError(
@@ -96,7 +96,7 @@ def _package_version(name: str) -> str:
 class LearnedBackends:
     """Real LAION-CLAP, FADTK, and Audiobox backends used by the GPU command."""
 
-    identifier = "openrestore_perceptual_fadtk_v0_1"
+    identifier = "openrestor_perceptual_fadtk_v0_1"
 
     def __init__(self, cache_dir: Path, device: str):
         self.cache_dir = cache_dir

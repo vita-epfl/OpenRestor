@@ -17,10 +17,10 @@ jobs:
           python-version: "3.11"
           enable-cache: true
       - run: uv sync
-      - run: uv run ruff check openrestore
-      - run: uv run ruff format --check openrestore
-      - run: uv run mypy openrestore
-      - run: uv run codespell openrestore
+      - run: uv run ruff check openrestor
+      - run: uv run ruff format --check openrestor
+      - run: uv run mypy openrestor
+      - run: uv run codespell openrestor
 
   tests:
     runs-on: ubuntu-latest
@@ -33,8 +33,8 @@ jobs:
           python-version: "3.11"
       - run: uv sync
       - name: "Smoke: validate degradations config (from old CI)"
-        run: uv run openrestore-degrade validate-config --config configs/degradations/single/v0_1.yaml
+        run: uv run openrestor-degrade validate-config --config configs/degradations/single/v0_1.yaml
       - name: "Smoke: validate index fixture (from old CI)"
-        run: uv run python -m openrestore.validation.cli index --input tests/fixtures/index.json
+        run: uv run python -m openrestor.validation.cli index --input tests/fixtures/index.json
       - name: Run full test suite
         run: uv run pytest -v

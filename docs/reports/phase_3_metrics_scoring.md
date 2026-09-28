@@ -6,7 +6,7 @@ Implemented: CPU local scoring, strict participant restoration manifests, truste
 
 ## Current Pipeline
 
-Participants write `restoration_outputs.jsonl`: each row supplies an OpenRestore item ID, a restored WAV path, and nullable run metadata such as inference steps and batch time. `openrestore-score` validates every output, joins trusted degraded-manifest data, and writes `restoration_metadata.jsonl`. This ensures that clean/degraded paths, source ID, effect, severity, split, dataset, and degradation tracking are benchmark-owned rather than participant-provided.
+Participants write `restoration_outputs.jsonl`: each row supplies an OpenRestore item ID, a restored WAV path, and nullable run metadata such as inference steps and batch time. `openrestor-score` validates every output, joins trusted degraded-manifest data, and writes `restoration_metadata.jsonl`. This ensures that clean/degraded paths, source ID, effect, severity, split, dataset, and degradation tracking are benchmark-owned rather than participant-provided.
 
 The CPU report contains L1, RMSE, SNR, SI-SDR, SI-SNR, LSD, MRSTFT, log-mel, LTAS, SSIM, spectral KL, paired residual RT60 (`rt60_s`), direct-to-reverberant ratio (`drr_db`), late-tail energy (`late_tail_db`), and category/effect AAE diagnostics. The three room diagnostics estimate the clean-to-evaluated transfer, so they measure residual added room response rather than attempting to infer RT60 from music alone. The no-restoration baseline on the 75-item preview had zero artificial improvement.
 

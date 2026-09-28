@@ -5,7 +5,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import TestCase
 
-from openrestore.validation.core import validate_file
+from openrestor.validation.core import validate_file
 
 
 class SchemaValidationTests(TestCase):

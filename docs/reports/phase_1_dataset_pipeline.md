@@ -26,9 +26,9 @@ Any other training data belongs to the external-data track unless the benchmark 
 
 | Path | Responsibility |
 | --- | --- |
-| openrestore/data/core.py | Shared data structures, JSONL/YAML I/O, ARIEL-manifest and optional hash-fallback splitting, SHA-256, FFprobe metadata inspection, and source discovery. |
-| openrestore/data/pipeline.py | Dataset ingestion, split assignment, 30-second clip rendering, quality checks, manifests, checksums, shard creation, verification, and statistics. |
-| openrestore/data/cli.py | openrestore-data command-line interface. |
+| openrestor/data/core.py | Shared data structures, JSONL/YAML I/O, ARIEL-manifest and optional hash-fallback splitting, SHA-256, FFprobe metadata inspection, and source discovery. |
+| openrestor/data/pipeline.py | Dataset ingestion, split assignment, 30-second clip rendering, quality checks, manifests, checksums, shard creation, verification, and statistics. |
+| openrestor/data/cli.py | openrestor-data command-line interface. |
 | configs/datasets/*.yaml | Source declarations, roles, local roots, licensing reminders, and minimum source duration. |
 | configs/datasets/pipeline.yaml | Global split, segmentation, audio-canonicalization, and loudness-normalization policy. |
 | tests/test_data_pipeline.py | Generated WAV fixture and end-to-end pipeline tests. |
@@ -37,44 +37,44 @@ Any other training data belongs to the external-data track unless the benchmark 
 
 ## Structure And Flow
 
-1. openrestore-data audit discovers supported audio files and records source duration, sample rate, channels, and basic metadata.
-2. openrestore-data ingest writes a source-level index.jsonl. Each record has a stable item_id, source path, source metadata, source checksum, and assigned split.
-3. openrestore-data split assigns SonicMaster-derived items with a deterministic SHA-256-based fraction of the source identifier. This prevents order-dependent split changes.
-4. openrestore-data segment chooses valid source regions and calls FFmpeg to render canonical clips: 30 seconds, 44.1 kHz, stereo PCM WAV, loudness-normalized to the policy in pipeline.yaml.
+1. openrestor-data audit discovers supported audio files and records source duration, sample rate, channels, and basic metadata.
+2. openrestor-data ingest writes a source-level index.jsonl. Each record has a stable item_id, source path, source metadata, source checksum, and assigned split.
+3. openrestor-data split assigns SonicMaster-derived items with a deterministic SHA-256-based fraction of the source identifier. This prevents order-dependent split changes.
+4. openrestor-data segment chooses valid source regions and calls FFmpeg to render canonical clips: 30 seconds, 44.1 kHz, stereo PCM WAV, loudness-normalized to the policy in pipeline.yaml.
 5. The segment stage measures RMS and true-peak proxies, rejects silence and invalid output, and writes the clean output manifest plus a checksum JSONL file.
-6. openrestore-data shard groups finished WAVs and their manifest records into TAR archives for transfer or later conversion to another storage format.
-7. openrestore-data verify, source-stats, and stats validate artifact integrity and report corpus composition.
+6. openrestor-data shard groups finished WAVs and their manifest records into TAR archives for transfer or later conversion to another storage format.
+7. openrestor-data verify, source-stats, and stats validate artifact integrity and report corpus composition.
 
 The current on-disk contract is WAV plus JSONL. A clean manifest row is the join point for later phases and retains item_id, split, source provenance, clean path, audio properties, and checksum data.
 
 ## Primary Commands
 
-Run the following sequence for an auditable local build. The commands use the current `openrestore-data` interface; replace `build/` paths with the release workspace used by IT.
+Run the following sequence for an auditable local build. The commands use the current `openrestor-data` interface; replace `build/` paths with the release workspace used by IT.
 
 ```bash
 # 1. Inspect candidate source trees and write auditable source summaries.
-openrestore-data audit --config configs/datasets/sonicmaster_clean.yaml --output build/audits/sonicmaster_clean.json
-openrestore-data audit --config configs/datasets/sdd_transfer.yaml --output build/audits/sdd.json
-openrestore-data audit --config configs/datasets/musdb18_hq_transfer.yaml --output build/audits/musdb18_hq.json
+openrestor-data audit --config configs/datasets/sonicmaster_clean.yaml --output build/audits/sonicmaster_clean.json
+openrestor-data audit --config configs/datasets/sdd_transfer.yaml --output build/audits/sdd.json
+openrestor-data audit --config configs/datasets/musdb18_hq_transfer.yaml --output build/audits/musdb18_hq.json
 
 # 2. Index approved source files with media metadata and source checksums.
-openrestore-data ingest --config configs/datasets/sonicmaster_clean.yaml --output build/indexes/sonicmaster.jsonl
-openrestore-data ingest --config configs/datasets/sdd_transfer.yaml --output build/indexes/sdd.jsonl
-openrestore-data ingest --config configs/datasets/musdb18_hq_transfer.yaml --output build/indexes/musdb18_hq.jsonl
+openrestor-data ingest --config configs/datasets/sonicmaster_clean.yaml --output build/indexes/sonicmaster.jsonl
+openrestor-data ingest --config configs/datasets/sdd_transfer.yaml --output build/indexes/sdd.jsonl
+openrestor-data ingest --config configs/datasets/musdb18_hq_transfer.yaml --output build/indexes/musdb18_hq.jsonl
 
 # 3. Deterministically split SonicMaster and combine the fixed public transfer-evaluation sources.
-openrestore-data split --indexes build/indexes/sonicmaster.jsonl build/indexes/sdd.jsonl build/indexes/musdb18_hq.jsonl --output build/sources.jsonl
+openrestor-data split --indexes build/indexes/sonicmaster.jsonl build/indexes/sdd.jsonl build/indexes/musdb18_hq.jsonl --output build/sources.jsonl
 
 # 4. Render canonical clean clips and write their manifest and checksums.
-openrestore-data segment --sources build/sources.jsonl --output-root build/clean --manifest build/index.jsonl --checksums build/checksums.jsonl
+openrestor-data segment --sources build/sources.jsonl --output-root build/clean --manifest build/index.jsonl --checksums build/checksums.jsonl
 
 # 5. Package canonical WAVs into portable TAR shards, then verify every checksum.
-openrestore-data shard --output-root build/clean --manifest build/index.jsonl --shards-dir build/shards
-openrestore-data verify --root build/clean --checksums build/checksums.jsonl
+openrestor-data shard --output-root build/clean --manifest build/index.jsonl --shards-dir build/shards
+openrestor-data verify --root build/clean --checksums build/checksums.jsonl
 
 # 6. Report source and rendered-corpus composition for release review.
-openrestore-data source-stats --manifest build/sources.jsonl --output build/source_statistics.json
-openrestore-data stats --manifest build/index.jsonl --output build/statistics.json
+openrestor-data source-stats --manifest build/sources.jsonl --output build/source_statistics.json
+openrestor-data stats --manifest build/index.jsonl --output build/statistics.json
 ```
 
 - `audit` discovers supported audio files below a configured source root and records a bounded media-quality sample. It is the first check that the expected local dataset is present and plausible.

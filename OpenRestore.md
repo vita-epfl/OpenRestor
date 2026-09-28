@@ -387,9 +387,9 @@ authors:
 contact: ...
 code_url: ...
 code_commit: ...
-container_image: registry.example.org/openrestore/example:<release>
+container_image: registry.example.org/openrestor/example:<release>
 container_digest: sha256:...
-openrestore_release: <release>
+openrestor_release: <release>
 weights:
   mode: bundled-or-download
   uri: https://example.org/model-weights.ckpt
@@ -398,7 +398,7 @@ training_data:
   - OpenRestore train <release>
   - external data, declared with licenses if entering the external-data track
 inference_command: >
-  python -m openrestore_infer --input /input --metadata /input/index.jsonl --output /output
+  python -m openrestor_infer --input /input --metadata /input/index.jsonl --output /output
 hardware_requested:
   accelerator: none
   max_runtime_minutes: 120
@@ -423,10 +423,10 @@ The container must be runnable without manual intervention beyond pulling the im
 
 ### Submissions And Leaderboard Modules
 
-In the implementation roadmap, `openrestore/submissions` and `openrestore/leaderboard` are not
+In the implementation roadmap, `openrestor/submissions` and `openrestor/leaderboard` are not
 model code. They are the benchmark contract around participant evaluation and public reporting.
 
-`openrestore/submissions` should define how participants package a restoration system for official
+`openrestor/submissions` should define how participants package a restoration system for official
 evaluation. A submission is a runnable OCI/Docker container plus a manifest, not a folder of
 restored hidden-evaluation audio. This module should own the submission manifest parser and
 validator, the container interface specification, training-data declarations, weight URI/checksum
@@ -434,7 +434,7 @@ rules, hardware/runtime declarations, and invalid-submission checks. Its job is 
 organizers run this system reproducibly on the hidden evaluation split, and does it belong in the
 main track or the external-data track?
 
-`openrestore/leaderboard` should define how evaluated submissions become public results. It should
+`openrestor/leaderboard` should define how evaluated submissions become public results. It should
 take versioned score files, submission metadata, baseline rows, and benchmark release metadata, then
 produce a stable `leaderboard.json` and a static public table. This module should own score
 aggregation, main-track versus external-data ranking, per-degradation-family summaries, validation
@@ -451,7 +451,7 @@ and `leaderboard` publishes the resulting scores.
 The repository should separate public benchmark code from generated data. Audio shards, model weights, hidden evaluation files, and restored outputs should live in release/storage locations, not directly in the Git repository.
 
 ```text
-openrestore/
+openrestor/
   README.md
   OpenRestore.md
   pyproject.toml
@@ -475,7 +475,7 @@ openrestore/
     scores.schema.json
     leaderboard.schema.json
 
-  openrestore/
+  openrestor/
     data/
       ingest_sdd.py
       ingest_bbc.py
@@ -651,7 +651,7 @@ Keep optional infrastructure optional. RenkuLab, DaSCH, or other preservation pl
 
 ### 6. Build Container Evaluation
 
-- Publish the reusable validation/evaluation package (`openrestore-score`, configurations, schemas, templates, and documentation) through versioned repository and release artifacts so users can run the benchmark tools from any inference pipeline.
+- Publish the reusable validation/evaluation package (`openrestor-score`, configurations, schemas, templates, and documentation) through versioned repository and release artifacts so users can run the benchmark tools from any inference pipeline.
 - Freeze a container interface with fixed organizer mounts and environment variables: hidden degraded manifest `/input/degraded/index.jsonl` (`OPENRESTORE_INPUT_MANIFEST`), hidden degraded audio `/input/degraded/audio` (`OPENRESTORE_INPUT_ROOT`), restored WAV root `/output/audio` (`OPENRESTORE_OUTPUT_ROOT`), and restoration manifest `/output/restoration_outputs.jsonl` (`OPENRESTORE_OUTPUT_MANIFEST`).
 - Require the participant `inference_command` to consume that interface and write one canonical 44.1 kHz stereo restored WAV and one `restoration_outputs.jsonl` row per hidden degraded item. Do not expose clean references or their paths to the container.
 - Implement submission manifest validation, including immutable container digest, build recipe reference, training-data declaration, weight URL/checksum, inference command, and hardware request.

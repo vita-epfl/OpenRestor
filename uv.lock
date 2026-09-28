@@ -2101,7 +2101,7 @@ wheels = [
 ]
 
 [[package]]
-name = "openrestore"
+name = "openrestor"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [

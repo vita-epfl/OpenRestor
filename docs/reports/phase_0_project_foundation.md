@@ -13,15 +13,15 @@ This phase prevents the benchmark from becoming a collection of incompatible scr
 | Path | Responsibility |
 | --- | --- |
 | pyproject.toml | Python package metadata, runtime dependencies, and installed CLI entry points. |
-| openrestore/__init__.py | Root package namespace. |
-| openrestore/data/ | Reserved and implemented home of the Phase 1 dataset pipeline. |
-| openrestore/degradations/ | Reserved and implemented home of the Phase 2 renderer. |
-| openrestore/metrics/ | Reserved namespace for later objective metrics. |
-| openrestore/evaluation/ | Reserved namespace for later evaluation orchestration. |
-| openrestore/submissions/ | Reserved namespace for submission handling. |
-| openrestore/leaderboard/ | Reserved namespace for leaderboard publication logic. |
-| openrestore/validation/core.py | Draft 2020-12 JSON Schema validator for JSON and JSONL artifacts. |
-| openrestore/validation/cli.py | Installed openrestore-validate command. |
+| openrestor/__init__.py | Root package namespace. |
+| openrestor/data/ | Reserved and implemented home of the Phase 1 dataset pipeline. |
+| openrestor/degradations/ | Reserved and implemented home of the Phase 2 renderer. |
+| openrestor/metrics/ | Reserved namespace for later objective metrics. |
+| openrestor/evaluation/ | Reserved namespace for later evaluation orchestration. |
+| openrestor/submissions/ | Reserved namespace for submission handling. |
+| openrestor/leaderboard/ | Reserved namespace for leaderboard publication logic. |
+| openrestor/validation/core.py | Draft 2020-12 JSON Schema validator for JSON and JSONL artifacts. |
+| openrestor/validation/cli.py | Installed openrestor-validate command. |
 | schemas/*.schema.json | Initial contracts for index, degradation tracking, submissions, scores, and leaderboard entries. |
 | .github/workflows/ci.yml | Python 3.11 install, unit tests, degradation-config validation, and schema-fixture validation. |
 | docker/Dockerfile | Minimal Python 3.11 and FFmpeg runtime image definition. |
@@ -31,14 +31,14 @@ This phase prevents the benchmark from becoming a collection of incompatible scr
 
 ## Structure
 
-The repository is a Python package named openrestore. Each benchmark concern has its own namespace so future implementations can share validation and contracts without becoming tightly coupled.
+The repository is a Python package named openrestor. Each benchmark concern has its own namespace so future implementations can share validation and contracts without becoming tightly coupled.
 
-The current schemas are deliberately lightweight. They validate document structure and required fields; they do not yet enforce every future scientific policy. openrestore-validate accepts JSON and JSONL, loads the selected schema from schemas/, and reports invalid records before an artifact is used by another phase.
+The current schemas are deliberately lightweight. They validate document structure and required fields; they do not yet enforce every future scientific policy. openrestor-validate accepts JSON and JSONL, loads the selected schema from schemas/, and reports invalid records before an artifact is used by another phase.
 
 The installed command surface currently includes:
 
-    openrestore-validate index --input tests/fixtures/index.json
-    openrestore-degrade validate-config --config configs/degradations/single/v0_1.yaml
+    openrestor-validate index --input tests/fixtures/index.json
+    openrestor-degrade validate-config --config configs/degradations/single/v0_1.yaml
 
 The second command belongs to Phase 2 but proves the package and entry-point pattern is usable in CI and deployment environments.
 

@@ -1,10 +1,10 @@
-openrestore.leaderboard package
+openrestor.submissions package
 ===============================
 
 Module contents
 ---------------
 
-.. automodule:: openrestore.leaderboard
+.. automodule:: openrestor.submissions
    :members:
    :show-inheritance:
    :undoc-members:

@@ -9,7 +9,7 @@ from .core import validate_file
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(prog="openrestore-validate")
+    parser = argparse.ArgumentParser(prog="openrestor-validate")
     parser.add_argument(
         "kind",
         choices=[

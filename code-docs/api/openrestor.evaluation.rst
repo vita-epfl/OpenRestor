@@ -1,10 +1,10 @@
-openrestore.evaluation package
+openrestor.evaluation package
 ==============================
 
 Module contents
 ---------------
 
-.. automodule:: openrestore.evaluation
+.. automodule:: openrestor.evaluation
    :members:
    :show-inheritance:
    :undoc-members:
