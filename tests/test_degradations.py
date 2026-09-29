@@ -200,8 +200,6 @@ class DegradationPrimitiveTests(TestCase):
 
     def test_asset_and_external_tool_failures_are_actionable(self) -> None:
         audio = _fixture_audio(0.1)
-        with self.assertRaisesRegex(FileNotFoundError, "mic_ir_dir"):
-            apply_operation(audio, SAMPLE_RATE, "ariel", "mic", {}, np.random.default_rng(1))
         with self.assertRaisesRegex(FileNotFoundError, "real_rir_dir"):
             apply_operation(audio, SAMPLE_RATE, "ariel", "real", {}, np.random.default_rng(1))
         with TemporaryDirectory() as directory:

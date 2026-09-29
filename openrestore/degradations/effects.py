@@ -36,7 +36,6 @@ def apply_operation(
         # Canonical benchmark operations. The original primitives above remain
         # callable so historic configs can still be reproduced.
         "spectral_eq": spectral_eq,
-        "microphone_response": microphone_response,
         "compression": compression,
         "clipping": clipping,
         "saturation_overdrive": saturation_overdrive,
@@ -97,17 +96,6 @@ def spectral_eq(
         result = low * (10 ** (-tilt_db / 40)) + high * (10 ** (tilt_db / 40))
         return limit_audio(result), {"variant": mode, "pivot_hz": pivot_hz, "tilt_db": tilt_db}
     raise ValueError(f"Unknown spectral_eq mode: {mode}")
-
-
-def microphone_response(
-    audio: np.ndarray, sample_rate: int, variant: str | None, params: dict[str, Any], rng: np.random.Generator
-) -> tuple[np.ndarray, dict[str, Any]]:
-    result, source = apply_ariel_effect(audio, sample_rate, "mic", params, rng)
-    wet = float(params.get("wet", 1.0))
-    if not 0.0 <= wet <= 1.0:
-        raise ValueError("microphone_response wet must be between 0 and 1")
-    result = audio * (1.0 - wet) + result * wet
-    return limit_audio(result), {"variant": variant or "measured_microphone_ir", "wet": wet, "source_effect": source}
 
 
 def compression(

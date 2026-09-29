@@ -117,17 +117,6 @@ def _room(audio: np.ndarray, sample_rate: int, room_size: np.ndarray, source: np
     return np.column_stack([signal.fftconvolve(audio[:, channel], rir, mode="full")[: len(audio)] for channel in range(2)])
 
 
-def _load_mic(audio: np.ndarray, directory: str, mic_number: int) -> tuple[np.ndarray, str]:
-    files = sorted(Path(directory).glob("*.npy"))
-    if not files:
-        raise FileNotFoundError("The `mic` effect requires parameters.mic_ir_dir containing ARIEL-compatible .npy IRs")
-    path = files[mic_number % len(files)]
-    impulse = np.load(path, allow_pickle=False)
-    impulse = impulse / np.max(np.abs(impulse))
-    impulse = impulse[np.argmax(impulse):]
-    return np.column_stack([signal.fftconvolve(audio[:, channel], impulse, mode="full")[: len(audio)] for channel in range(2)]), path.stem
-
-
 def _real_rir(audio: np.ndarray, directory: str, index: int) -> tuple[np.ndarray, str]:
     root = Path(directory)
     files = sorted(path for path in root.rglob("*.wav") if path.is_file()) if directory and root.is_dir() else []
@@ -190,10 +179,6 @@ def apply_ariel_effect(audio: np.ndarray, sample_rate: int, effect: str, params:
     if effect == "xband":
         count = integer(8, 12); gains = np.array([-3, -2, -1, 2, 3] * ((count + 4) // 5))[:count] if medium else rng.integers(-6, 7, count); frequencies = np.geomspace(40, 16000, count)
         return _peak_eq(audio, frequencies, frequencies[-1] / (frequencies[-1] - frequencies[-2]) / 2, gains, sample_rate), {"effect": effect, "n_bands": count, "gains_db": gains.tolist()}
-    if effect == "mic":
-        number = int(params.get("mic_number", integer(0, 19)))
-        output, name = _load_mic(audio, str(params.get("mic_ir_dir", "")), number)
-        return output, {"effect": effect, "mic_number": number, "microphone": name}
     if effect in {"bright", "dark", "airy", "boom", "warm"}:
         limits = {"bright": (6, 15), "dark": (6, 15), "airy": (10, 20), "boom": (10, 20), "warm": (6, 20)}
         gain = integer(limits[effect][0], limits[effect][1])

@@ -16,7 +16,7 @@ The benchmark reports separate diagnostic metrics. It does not currently define 
 | Public release manifests, checksums, clean clips/shards, and paired OpenRestore-rendered degraded clips/shards | Downloadable with a benchmark release | Train on approved clean data and run consistent validation/public-test inference on the exact released degraded inputs. Each degraded manifest row joins one input to its clean reference and full degradation metadata. |
 | SonicMaster clean originals | Obtain under the upstream release terms | Default main-track training source; held-out items also support validation and public test. |
 | SDD and MUSDB18-HQ source audio | Obtain under their respective terms | Separately reported public transfer/local-evaluation sets. They are not main-track training or in-distribution public-test data. |
-| Degradation asset bundle: Poliphone microphone IRs and real RIR WAVs | Versioned release artifact, outside Git | Required only to render the corresponding microphone and real-room degradations. See [degradation_assets.md](degradation_assets.md). |
+| Degradation asset bundle: 12 real RIR WAVs from OpenAIR | Versioned release artifact, outside Git | Required only to render the `reverb_real` degradation. The other 20 classes need no assets. See [degradation_assets.md](degradation_assets.md). |
 | Hidden evaluation audio, clean references, and hidden manifests | Organizer-only | Official evaluation. These files are never distributed to participants. |
 
 FMA-Pop is not an OpenRestore music dataset. FADTK uses its built-in FMA-Pop reference statistics only for an optional perceptual diagnostic.
@@ -109,7 +109,7 @@ Step 4 writes one WAV per clip per recipe under `work/degraded/<split>/<dataset>
 
 Two caveats:
 
-- `mic` and `reverb_real` need the binary asset bundle described in [degradation_assets.md](degradation_assets.md). Without it the run **fails** rather than skipping those classes. To render the other 19 classes without the bundle, copy the recipe config, delete those two recipes, and set `canonical_registry: false` in the copy. That flag is what relaxes the check requiring all 21 canonical IDs in order, so a subset config is rejected without it. A subset render is a local experiment only: an official release must use the full canonical config.
+- `reverb_real` needs the binary asset bundle described in [degradation_assets.md](degradation_assets.md). Without it the run **fails** rather than skipping that class. To render the other 20 classes without the bundle, copy the recipe config, delete that recipe, and set `canonical_registry: false` in the copy. That flag is what relaxes the check requiring all 21 canonical IDs in order, so a subset config is rejected without it. A subset render is a local experiment only: an official release must use the full canonical config.
 - Scores computed on your own audio are for local inspection only. They are not comparable to official OpenRestore results, which are defined over released or hidden benchmark items.
 
 ## Local Output Contract

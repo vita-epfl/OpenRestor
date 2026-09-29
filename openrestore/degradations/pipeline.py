@@ -55,7 +55,6 @@ REQUIRED_PRIMITIVES = {
     "device_mic_response",
     "codec_resampling",
     "spectral_eq",
-    "microphone_response",
     "compression",
     "clipping",
     "saturation_overdrive",

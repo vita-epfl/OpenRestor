@@ -19,23 +19,39 @@ recipes:
       pivot_hz: 1200
       tilt_db: 14
       review_boundary: high
-- id: review_low_mic
+- id: review_low_smartphone_capture
   severity: low_preview
   operations:
-  - primitive: microphone_response
+  - primitive: device_mic_response
+    variant: smartphone_capture
     parameters:
-      mic_ir_dir: assets/degradations/v0_1/microphone_irs
-      mic_number: 10
-      wet: 0.35
+      highpass_hz: 90
+      resonance_hz: 2500
+      resonance_db: 4
+      resonance_q: 1.0
+      dip_hz: 1500
+      dip_db: 2
+      lowpass_hz: 14000
+      agc_strength: 0.4
+      drive: 1.5
+      self_noise_snr_db: 52
       review_boundary: low
-- id: review_high_mic
+- id: review_high_smartphone_capture
   severity: high_preview
   operations:
-  - primitive: microphone_response
+  - primitive: device_mic_response
+    variant: smartphone_capture
     parameters:
-      mic_ir_dir: assets/degradations/v0_1/microphone_irs
-      mic_number: 10
-      wet: 1.0
+      highpass_hz: 250
+      resonance_hz: 5000
+      resonance_db: 9
+      resonance_q: 2.0
+      dip_hz: 700
+      dip_db: 5
+      lowpass_hz: 7000
+      agc_strength: 0.8
+      drive: 3.0
+      self_noise_snr_db: 38
       review_boundary: high
 - id: review_low_lowpass
   severity: low_preview
