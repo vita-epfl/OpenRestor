@@ -2,7 +2,15 @@
 
 This roadmap splits the OpenRestore implementation into the runnable research/audio pipeline and the hosted Information Technology ("IT") platform around it. It is written for a small collaborative team where the research engineer owns what will be hosted: the scientific validity, audio processing, dataset generation, degradation code, metric code, baselines, schemas, command-line tools, and reproducible local pipeline. IT/software engineers own how that runnable pipeline is hosted, secured, deployed, monitored, scaled, stored, and exposed to users.
 
-OpenRestore is a benchmark rather than a single restoration model. The critical shared contract is simple: each item is a 30-second 44.1 kHz musical clip with one degraded input, one clean reference, deterministic degradation metadata, and a portable manifest row. Main-track training uses SonicMaster clean originals only. Validation/model selection uses held-out SonicMaster clean audio. The source-separated SonicMaster public test is the in-distribution test. The Song Describer Dataset ("SDD") and Music Demixing Dataset 2018 High Quality ("MUSDB18-HQ") mixture audio are separately reported public transfer/local-evaluation sets. Official leaderboard scoring uses a hidden organizer-only evaluation set.
+OpenRestore is a benchmark rather than a single restoration model. It has three evaluation tracks, built and released in order:
+
+| Track | What it measures | Degradations per item | Clean reference |
+| --- | --- | --- | --- |
+| **Diagnostic** | capability per degradation type, attributable to one cause | exactly one, from the 21 canonical classes | yes |
+| **Blind-Synthetic** | blind restoration when the degradation is unknown and may be compound | 0 to 3, random type, order and intensity | yes |
+| **Blind-Real** | generalisation to genuinely degraded recordings | unknown, naturally occurring | **no** |
+
+The Diagnostic track carries the original contract: each item is a 30-second 44.1 kHz musical clip with one degraded input, one clean reference, deterministic degradation metadata, and a portable manifest row. Main-track training uses SonicMaster clean originals only. Validation/model selection uses held-out SonicMaster clean audio. The source-separated SonicMaster public test is the in-distribution test. The Song Describer Dataset ("SDD") and Music Demixing Dataset 2018 High Quality ("MUSDB18-HQ") mixture audio are separately reported public transfer/local-evaluation sets. Official leaderboard scoring uses a hidden organizer-only evaluation set.
 
 ## Ownership Summary
 
@@ -139,19 +147,19 @@ Goal: build a trustworthy data pipeline before generating large degraded release
 - [x] reproducible miniature dataset build
 - [x] dataset statistics report
 
-## Phase 2 - Degradation Pipeline
+## Phase 2 - Degradation Pipeline (Diagnostic Track)
 
-Goal: generate deterministic, realistic degraded musical audio with complete metadata.
+Goal: generate deterministic, realistic degraded musical audio with complete metadata, with exactly one degradation per item so every failure is attributable to one cause.
 
 ### Current v0.1 Contract
 
-OpenRestore is now effect-first. The active single-effect registry has 25 rows: the 19 ARIEL/SonicMaster parity effects plus six OpenRestore additions. Categories remain metadata and reporting groups, not recipe IDs. Every output has one explicitly selected effect; the runner never samples effect choices or combines effects. Normal dataset recipes use deterministic randomized parameters within that selected effect; medium_preview is a separate, fixed-central listening profile.
+OpenRestore is now effect-first. The active single-effect registry has exactly 21 canonical classes. Categories remain metadata and reporting groups, not recipe IDs. Every output has one explicitly selected effect; the runner never samples effect choices or combines effects. Normal dataset recipes use deterministic randomized parameters within that selected effect; medium_preview is a separate, fixed-central listening profile.
 
 ### Research/audio engineer tasks
 
-- [x] Define and document the 25-effect v0.1 registry, including origin, group, relevance, status, and benchmark role.
-- [x] Port the 19 ARIEL/SonicMaster single effects: `comp`, `punch`, `xband`, `mic`, `bright`, `dark`, `airy`, `boom`, `clarity`, `mud`, `warm`, `vocal`, `small`, `big`, `mix`, `real`, `stereo`, `clip`, and `volume`.
-- [x] Implement the six OpenRestore additions: noise, hum, clicks_crackle, codec, bandwidth, and distant_mic_capture.
+- [x] Define and document the 21-class v0.1 registry, including origin, group, relevance, status, and benchmark role.
+- [x] Port the ARIEL/SonicMaster single effects, folded into the canonical classes. Legacy names such as `comp`, `punch`, `xband`, `bright`, `dark`, `airy`, `boom`, `clarity`, `mud`, `warm`, `vocal` and `stereo` remain callable aliases for reproducing historical manifests but are not benchmark classes. `volume` is removed, and `telephone_band` and `transcode_chain` must not be reintroduced as classes.
+- [x] Implement the OpenRestore additions: noise, hum, clicks_crackle, dropouts_glitches, neural_codec, channel_damage, pitch_speed_instability, distant_mic_capture, and the asset-free smartphone_capture that replaced the measured-IR `mic` class.
 - [x] Keep simulated room behavior local through `pyroomacoustics`; support optional ARIEL-compatible microphone-transfer-function and real-RIR assets without requiring them for the core test suite.
 - [x] Implement deterministic per-item and per-operation seeds, with sampled values recorded in output metadata.
 - [x] Implement full operation tracking: recipe ID, severity label, seed, operation ID/variant, sampled parameters, output path, and SHA-256 checksum.
@@ -163,13 +171,13 @@ OpenRestore is now effect-first. The active single-effect registry has 25 rows: 
   - [x] local progress logging
   - [x] deterministic HDF5 shard packaging and shard-index writing
 - [x] Add generated stereo fixtures and deterministic pipeline tests.
-- [x] Run a three-song, 25-effect medium listening preview: 75 WAVs with verified manifest paths and checksums.
+- [x] Run medium listening previews over the active registry with verified manifest paths and checksums.
 - [x] Perform an initial listening review and tune the medium hum profile to an audible 50 Hz signal with harmonics.
-- [x] Add fixed minimum/maximum listening-boundary recipes for the six OpenRestore additions; normal datasets still sample deterministically within approved ranges.
+- [x] Add fixed minimum/maximum listening-boundary recipes in `configs/degradations/review_boundaries/`; normal datasets still sample deterministically within approved ranges.
 
 ### Remaining research/audio work
 
-- [x] Add execution/metadata/determinism coverage for all 25 active effects. Tests execute the six OpenRestore effects and all non-asset ARIEL effects twice with fixed seeds; the `mic` and `real` missing-asset paths are tested explicitly.
+- [x] Add execution/metadata/determinism coverage for all 21 active classes. Tests execute every non-asset class twice with fixed seeds; the `real` missing-asset path is tested explicitly.
 - [x] Calibrate normal dataset parameter distributions through the completed listening review. No real degraded-music corpus will be integrated for v0.1.
 - [x] Create the release-asset contract for the reviewed 12 real RIR WAVs (the 20 Poliphone microphone IRs were retired with the `mic` class). The Git-ignored bundle is project-owned at `assets/degradations/v0_1/`; IT installs and verifies the exact artifact using `docs/degradation_assets.md` and `docs/degradation_assets_v0_1.sha256`.
 - [ ] Upload `build/release_assets/openrestore-degradation-assets-v0_1.tar.gz` and its SHA-256 file as a private GitHub/GitLab release asset tagged `degradation-assets-v0.1`; record its URL, archive SHA-256, and OpenAIR provenance and redistribution terms in the release record. Mirror the final approved public bundle to Zenodo only if those terms permit redistribution.
@@ -181,9 +189,9 @@ OpenRestore is now effect-first. The active single-effect registry has 25 rows: 
 
 ### Checkable evidence
 
-- [x] `python -m unittest tests.test_degradations`: 8 tests passing, including all-effect execution, HDF5, CLI shard, and failure-path coverage.
+- [x] `python -m unittest tests.test_degradations`: 12 tests passing, including all-class execution, HDF5, CLI shard, and failure-path coverage.
 - [x] validate-config passes for the active single-effect configuration.
-- [x] The medium preview has 75 valid WAVs across 25 effects; every stored SHA-256 checksum matches its file.
+- [x] Every stored SHA-256 checksum in the listening previews matches its file.
 
 ### IT/software engineer tasks
 
@@ -198,16 +206,92 @@ OpenRestore is now effect-first. The active single-effect registry has 25 rows: 
 
 ### Shared deliverables
 
-- [x] `configs/degradations/single/v0_1.yaml` with the 25-effect single registry.
+- [x] `configs/degradations/single/v0_1.yaml` with the 21-class single registry.
 - [x] deterministic degradation Command-Line Interface ("CLI").
-- [x] first local listening preview: 75 degraded examples across 25 effects.
-- [x] first local shard-backed degraded miniature candidate: 75 preview outputs in eight HDF5 shards with a portable `index.jsonl`. It remains a candidate until ranges and approved external assets are frozen.
+- [x] first local listening previews across the 21 canonical classes, including the validated `smartphone_capture` endpoints.
+- [x] first local shard-backed degraded miniature candidate with a portable `index.jsonl`. It remains a candidate until ranges and approved external assets are frozen.
 - [ ] v0.1 public paired degradation release for every approved public split: downloadable degraded audio/shards, clean/degraded manifests, portable indexes, checksums, recipe config, asset-bundle version, Git revision, and release notes.
 - [ ] hosted private paired degradation release for the hidden evaluation split, with the same provenance but no public download path.
+
+## Phase 2B - Blind-Synthetic Benchmark
+
+Goal: measure blind restoration, where the system is not told what went wrong and more than one thing may have.
+
+This is a separate dataset with its own train, validation and test splits. It does not replace the Diagnostic track and does not change the 21 canonical classes.
+
+### Research/audio engineer tasks
+
+- [ ] Define the compound sampling policy:
+  - [ ] a random number of degradations per item, 0 to 3, genuinely variable rather than always three
+  - [ ] random types drawn from the 21 canonical classes
+  - [ ] random application order
+  - [ ] random intensities, still `strong_random` per class with every sampled value recorded
+- [ ] Define a small compatibility matrix that rejects absurd or redundant combinations, for example stacking two bandwidth classes or two reverberation classes. Keep it a matrix of pairwise rules, not a library of predefined recipes.
+- [ ] Reserve a small percentage of **clean, undegraded** items in the test split, to measure whether a system over-restores audio that needs nothing.
+- [ ] Implement the compound runner with deterministic per-item seeds, recording the full ordered operation chain.
+- [ ] Define the metadata exposure policy: degradation metadata is published for train and validation so classifiers, routers and blind models can be trained, and is withheld at inference time on test.
+- [ ] Build the train/validation/test splits from the same frozen SonicMaster source assignment, with no source leakage between them or into the Diagnostic track.
+- [ ] Freeze a release manifest with clean and degraded paths, the ordered degradation chain, seeds, audio properties, and checksums.
+
+### IT/software engineer tasks
+
+- [ ] Run the compound degradation build at release scale with the same scheduling, retry and provenance guarantees as the Diagnostic build.
+- [ ] Publish the train/validation/test release, and serve test items **without** their degradation metadata.
+
+### Shared deliverables
+
+- [ ] compound degradation configuration and compatibility matrix
+- [ ] Blind-Synthetic train/validation/test release with manifests and checksums
+- [ ] documented metadata-exposure boundary between train/validation and test
+
+## Phase 2C - Blind-Real Benchmark
+
+Goal: evaluate generalisation on real recordings that are degraded by their own history rather than by our code.
+
+Test split only. No clean ground truth exists, and no degradation label is available at inference.
+
+### Scope
+
+The target is live and amateur music capture: concerts, audience and taper recordings, old festival captures, soundboard and tape transfers, consumer microphones. Old Montreux Jazz Festival recordings are the reference mental image. Extreme historical material such as cylinder recordings is explicitly out of scope, being too far from the application target.
+
+### Research/audio engineer tasks
+
+- [ ] Use the [Internet Archive Music Dataset (IAMD)](https://adasp.telecom-paris.fr/resources/2026-08-01-iamd-dataset/) as the **discovery catalogue**: it covers 4.1M captioned 30-second segments from 548k Creative Commons files, with Internet Archive metadata and per-item licence records.
+- [ ] Do **not** use IAMD's own 320 kbps MP3 segments in the final benchmark. Resolve each candidate to its Internet Archive identifier and download the highest-quality original source audio available for that item.
+- [ ] Filter by licence, preferring CC0 and CC BY, accepting CC BY-SA only if it is compatible with the release policy, and avoiding NC assets so the benchmark distribution stays permissive.
+- [ ] Filter by Internet Archive metadata to target live, concert, audience, tape and soundboard captures.
+- [ ] Curate roughly 300 to 500 fixed excerpts of 10 to 30 seconds, selected for real capture conditions rather than for a specific artefact.
+- [ ] Record per-item provenance: Internet Archive identifier, licence, attribution, original format, and the exact excerpt bounds.
+- [ ] Document the known limits of the set: unknown and uncontrolled degradations, no clean reference, and a selection bias toward what the Internet Archive happens to hold.
+
+### IT/software engineer tasks
+
+- [ ] Provide a crawl and download path to Internet Archive originals with retry and rate-limit handling.
+- [ ] Host the curated excerpts, their provenance records and their attribution file.
+
+### Shared deliverables
+
+- [ ] Blind-Real curation configuration with licence and metadata filters
+- [ ] 300-500 excerpt test set with per-item provenance and attribution
+- [ ] documented scope statement and known limits
 
 ## Phase 3 - Metrics, AAE Diagnostics, And Reports
 
 Goal: make scores scientifically meaningful and operationally reproducible.
+
+### Per-Track Metric Protocols
+
+The three tracks cannot share one protocol, because only two of them have a clean reference.
+
+| Track | Protocol |
+| --- | --- |
+| Diagnostic | Full paired reconstruction metrics plus per-class AAE. The class label is known, so AAE is reported per degradation class. |
+| Blind-Synthetic | The same paired metrics, but AAE is reported over the ordered degradation chain rather than a single class. Add an over-restoration measure on the clean test items, where the correct behaviour is to change nothing. |
+| Blind-Real | No clean reference exists, so **no similarity-to-clean metric is possible**. Do not use input-to-output similarity as a primary metric either: it penalises legitimate correction. Use several complementary no-reference and perceptual metrics instead, and document their limits explicitly. No heavy human evaluation is planned for now. |
+
+- [ ] Define and freeze the three protocols above, including which metrics are official and which stay experimental per track.
+- [ ] Implement the over-restoration measure for the clean items in the Blind-Synthetic test split.
+- [ ] Select and validate the no-reference metric set for Blind-Real, and write down what each one cannot tell us.
 
 ### Research/audio engineer tasks
 
@@ -255,7 +339,7 @@ Goal: make scores scientifically meaningful and operationally reproducible.
 - [x] `configs/evaluation/metrics.yaml`
 - [x] metric validation fixtures
 - [x] `scores.json` schema
-- [x] first metric report for the no-restoration baseline: 75 preview outputs, zero invalid outputs, and zero reported improvement as expected.
+- [x] first metric report for the no-restoration baseline: zero invalid outputs and zero reported improvement, as expected.
 
 ## Phase 4 - Baselines
 

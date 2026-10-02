@@ -218,6 +218,41 @@ For public releases, avoid machine-specific absolute paths such as `/work/vita/.
 
 `degradation_tracking` is also the bridge to metric reporting: each non-empty family determines which degradation-specific metrics and AAE measurements should be computed for that item.
 
+## Benchmark Tracks
+
+OpenRestore evaluates restoration in three tracks. They answer different questions and are built and released in order. The 21 canonical degradation classes defined below belong to the Diagnostic track; the other two reuse them or do not use them at all.
+
+| Track | Question it answers | Degradations per item | Clean reference | Degradation labels at inference |
+| --- | --- | --- | --- | --- |
+| Diagnostic | Which degradation types can the system handle, and where exactly does it fail? | exactly one | yes | yes |
+| Blind-Synthetic | Can it restore when it is not told what is wrong, and when several things are? | 0 to 3 | yes | no |
+| Blind-Real | Does it generalise to recordings degraded by their own history? | unknown | **no** | no |
+
+### Diagnostic Track
+
+The 21 canonical synthetic classes, exactly one per example, paired clean and degraded. This is the interpretable core of the benchmark: because one example has one cause, a failure is attributable to a specific degradation rather than to an unidentifiable mixture. Intensities are drawn from each class's `strong_random` range, with no discrete mild/medium/severe levels, and every sampled parameter and seed is recorded deterministically.
+
+### Blind-Synthetic Track
+
+A separate dataset with its own train, validation and test splits, built from the same canonical classes but applied in combination.
+
+- A random number of degradations per item, 0 to 3, genuinely variable rather than always three.
+- Random types, random application order, random intensities.
+- Clean targets remain available, so evaluation stays quantitative.
+- Degradation metadata is published for train and validation, so classifiers, routers and blind models can be trained on it, and is withheld at inference on test.
+- The test split includes a small percentage of clean, undegraded items, to measure whether a system over-restores audio that needs nothing.
+- A small compatibility matrix rejects absurd or redundant combinations, such as two bandwidth classes or two reverberation classes stacked together. It stays a matrix of pairwise rules rather than a library of predefined recipes.
+
+### Blind-Real Track
+
+Test only, no clean ground truth, no degradation label. The purpose is generalisation to real recordings.
+
+The target is live and amateur music capture: concerts, audience and taper recordings, old festival captures, soundboard and tape transfers, consumer microphones. Old Montreux Jazz Festival recordings are the reference mental image. Extreme historical material such as cylinder recordings is deliberately out of scope, being too far from the application target.
+
+The source is the [Internet Archive Music Dataset (IAMD)](https://adasp.telecom-paris.fr/resources/2026-08-01-iamd-dataset/), used as a **discovery catalogue** rather than as audio: it indexes 4.1M captioned 30-second segments from 548k Creative Commons files, with Internet Archive metadata and per-item licence records that can be filtered. Its own segments are re-encoded to 320 kbps MP3 and must not be used in the benchmark; candidates are resolved to their Internet Archive identifier and the best available original source audio is downloaded instead. Licence filtering prefers CC0 and CC BY, accepts CC BY-SA only where compatible with the release policy, and avoids NC assets so the benchmark distribution stays permissive. The target size is roughly 300 to 500 fixed excerpts of 10 to 30 seconds.
+
+The [MSR Challenge](https://msrchallenge.com/) remains a relevant external reference, and its real live subset is conceptually close to this track. OpenRestore should not be built by copying their blind set; their subset may later serve as an external transfer benchmark instead.
+
 ## Degradation Pipeline
 
 ### Degradation Taxonomy
@@ -263,10 +298,16 @@ Do not use mild, medium, and strong as separate recipe IDs. Intensity remains ra
 
 ### Splits
 
+Diagnostic and Blind-Synthetic tracks:
+
 - `train`: public clean and degraded pairs for model development.
 - `validation`: public clean and degraded pairs for local debugging and ablations.
-- `test`: public clean and degraded pairs for reproducible diagnostic reports before official submission.
+- `test`: public clean and degraded pairs for reproducible diagnostic reports before official submission. For Blind-Synthetic, degradation metadata is withheld here and a small percentage of items are clean.
 - `evaluation`: hidden clean and degraded pairs used only by the organizers for official leaderboard scoring. Participants do not receive the audio or item list before evaluation.
+
+Blind-Real track:
+
+- `blind_real_test`: public test only. No clean reference, no degradation label, no training or validation counterpart.
 
 ### Leaderboard Policy
 
@@ -345,6 +386,16 @@ Initial AAE descriptors:
 | Codec / transmission | Band energy discontinuities, pre-echo proxy, modulation artifacts, codec-classifier confidence if validated | Residual codec-artifact descriptor error. Treat as experimental until the estimator is robust. |
 
 SonicMaster reports degradation-specific behavior with AAE for its degradation groups instead of relying only on a single global score. OpenRestore should follow that principle, but keep the implementation transparent: each AAE descriptor must be open-source, versioned, tested on controlled degradations, and reported separately from perceptual metrics.
+
+### Metrics Per Track
+
+Only two of the three tracks have a clean reference, so one protocol cannot serve all three.
+
+| Track | Protocol |
+| --- | --- |
+| Diagnostic | Full paired reconstruction metrics plus AAE reported per degradation class, since the class is known. |
+| Blind-Synthetic | The same paired metrics, with AAE reported over the ordered degradation chain rather than one class. Adds an over-restoration measure on the clean test items, where the correct behaviour is to change nothing. |
+| Blind-Real | No clean reference exists, so no similarity-to-clean metric is possible. Input-to-output similarity must not be a primary metric either, because it penalises legitimate correction. Use several complementary no-reference and perceptual metrics, and document the limits of each. No heavy human evaluation is planned for now. |
 
 ### Optional Metrics
 
@@ -625,10 +676,36 @@ Keep optional infrastructure optional. RenkuLab, DaSCH, or other preservation pl
 ### 3. Implement Degradations And Tracking
 
 - Implement the v0.1 canonical degradation classes in `configs/degradations/single/v0_1.yaml`; keep legacy primitive names only as compatibility aliases.
-- Keep the final first-release inventory at exactly 21 classes: spectral EQ, microphone, low/high-pass filtering, compression, clipping, saturation, four reverb modes, distant capture, noise/hum/clicks, dropouts/glitches, codec families, stereo damage, and pitch/speed instability.
+- Keep the Diagnostic inventory at exactly 21 classes: spectral EQ, smartphone capture, low/high-pass filtering, compression, clipping, saturation, four reverb modes, distant capture, noise/hum/clicks, dropouts/glitches, codec families, stereo damage, and pitch/speed instability. `volume` stays removed, and `telephone_band` and `transcode_chain` must not be reintroduced as classes.
 - Store compact per-item metadata in `degradation_tracking` and keep full recipe/config files versioned with the release.
-- Use one explicitly selected degradation per output in v0.1. Do not sample effect choices or combine effects; sample only the selected effects parameters.
+- Use one explicitly selected degradation per output in the Diagnostic track. Do not sample effect choices or combine effects there; sample only the selected effect's parameters.
 - Validate each degradation on a small fixed fixture set so outputs are reproducible across releases.
+
+The benchmark build now has four distinct workstreams, in dependency order.
+
+#### A. Finalize and generate the Diagnostic benchmark
+
+- Freeze the 21-class registry and its parameter ranges after listening review.
+- Render the paired clean/degraded release for every public split, plus the organizer-only hidden split.
+
+#### B. Generate the Blind-Synthetic dataset
+
+- Implement compound sampling: 0 to 3 degradations per item, random types, order and intensities, with the full ordered chain recorded per item.
+- Add the pairwise compatibility matrix that rejects absurd or redundant combinations.
+- Build train, validation and test splits from the same frozen source assignment, with no leakage between them or into the Diagnostic track.
+- Reserve a small percentage of clean items in test, and withhold degradation metadata at inference on test while publishing it for train and validation.
+
+#### C. Build the Blind-Real test set
+
+- Use IAMD as a discovery catalogue over Internet Archive Creative Commons audio, filtering by licence (CC0 and CC BY preferred, CC BY-SA only if compatible, NC avoided) and by metadata indicating live, concert, audience, tape or soundboard capture.
+- Resolve each candidate to its Internet Archive identifier and fetch the best available original audio; do not use IAMD's own 320 kbps MP3 segments.
+- Curate roughly 300 to 500 fixed excerpts of 10 to 30 seconds, with per-item provenance, licence and attribution.
+
+#### D. Define a separate metric protocol per track
+
+- Diagnostic: paired metrics plus per-class AAE.
+- Blind-Synthetic: paired metrics, AAE over the degradation chain, plus an over-restoration measure on the clean items.
+- Blind-Real: no-reference and perceptual metrics only, with documented limits. No similarity to clean, since none exists, and no input-to-output similarity as a primary metric.
 
 ### 4. Implement Metrics And Reports
 
@@ -735,6 +812,7 @@ OpenRestore should learn from related benchmarks without duplicating them.
 - MUSHRA listening test recommendation ITU-R BS.1534: <https://www.itu.int/rec/R-REC-BS.1534>
 - Zimtohrli: <https://arxiv.org/abs/2509.26133>
 - Stable Audio 3: <https://arxiv.org/abs/2605.17991>
+- Internet Archive Music Dataset (IAMD): <https://adasp.telecom-paris.fr/resources/2026-08-01-iamd-dataset/>
 - Song Describer Dataset: <https://github.com/mulab-mir/song-describer-dataset>
 - Song Describer Dataset paper: <https://arxiv.org/abs/2311.10057>
 - BBC Sound Effects: <https://sound-effects.bbcrewind.co.uk/>
