@@ -40,6 +40,20 @@ def build_parser() -> argparse.ArgumentParser:
         command.add_argument("--source-root", type=_path, help="Override the config's source_root when the dataset is mounted elsewhere")
         command.add_argument("--quiet", action="store_true")
     commands.choices["audit"].add_argument("--probe-limit", type=int, default=25)
+    scan = commands.add_parser("blind-real-scan", help="Scan the IAMD catalogue for Blind-Real candidates")
+    scan.add_argument("--output", type=_path, required=True)
+    scan.add_argument("--shards", type=int, default=2320)
+    scan.add_argument("--start", type=int, default=0)
+    scan.add_argument("--workers", type=int, default=12)
+    scan.add_argument("--quiet", action="store_true")
+
+    cand = commands.add_parser("blind-real-candidates", help="Filter a scanned catalogue by licence and live-capture evidence")
+    cand.add_argument("--catalogue", type=_path, required=True)
+    cand.add_argument("--output", type=_path, required=True)
+    cand.add_argument("--stats", type=_path)
+    cand.add_argument("--allow-share-alike", action="store_true")
+    cand.add_argument("--any-recording", action="store_true", help="Do not require live-capture evidence")
+
     split = commands.add_parser("split")
     split.add_argument("--indexes", type=_path, nargs="+", required=True)
     split.add_argument("--output", type=_path, required=True)
@@ -85,8 +99,27 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> None:
     args = build_parser().parse_args()
-    progress = not args.quiet
-    if args.command == "audit":
+    progress = not getattr(args, "quiet", False)
+    if args.command == "blind-real-scan":
+        from .blind_real import scan_catalogue
+        written = scan_catalogue(args.output, args.shards, args.workers, args.start, progress=not args.quiet)
+        print(f"wrote {written} catalogue rows to {args.output}")
+    elif args.command == "blind-real-candidates":
+        import json as _json
+        from .blind_real import catalogue_statistics, filter_candidates
+        rows = read_jsonl(args.catalogue)
+        kept = filter_candidates(rows, args.allow_share_alike, not args.any_recording)
+        from .core import write_jsonl as _write
+        _write(args.output, kept)
+        stats = catalogue_statistics(rows)
+        stats["selected"] = len(kept)
+        text = _json.dumps(stats, indent=2, sort_keys=True)
+        if args.stats:
+            args.stats.parent.mkdir(parents=True, exist_ok=True)
+            args.stats.write_text(text + "\n", encoding="utf-8")
+        print(text)
+        print(f"\nselected {len(kept)} of {len(rows)} segments -> {args.output}")
+    elif args.command == "audit":
         audit(_dataset_config(args), args.output, args.probe_limit, progress=progress)
     elif args.command == "ingest":
         ingest(_dataset_config(args), args.output, progress=progress)
