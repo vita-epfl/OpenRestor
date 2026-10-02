@@ -286,7 +286,7 @@ The benchmark exposes exactly these 21 classes. Legacy SonicMaster/ARIEL names r
 
 #### Asset Requirements
 
-The `reverb_real` effect needs compatible RIR WAV files in `parameters.real_rir_dir`. The remaining 20 effects run without external assets. Simulated room effects use the local `pyroomacoustics` dependency.
+The `reverb_real` effect needs compatible RIR WAV files in `parameters.real_rir_dir`: 14 OpenAIR recordings from five rooms, all Public Domain or CC BY, with no non-commercial or share-alike condition. The remaining 20 effects run without external assets. Simulated room effects use the local `pyroomacoustics` dependency.
 
 #### Recipe Inventory
 

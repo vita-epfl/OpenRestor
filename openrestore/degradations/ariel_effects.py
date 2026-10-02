@@ -117,9 +117,14 @@ def _room(audio: np.ndarray, sample_rate: int, room_size: np.ndarray, source: np
     return np.column_stack([signal.fftconvolve(audio[:, channel], rir, mode="full")[: len(audio)] for channel in range(2)])
 
 
-def _real_rir(audio: np.ndarray, directory: str, index: int) -> tuple[np.ndarray, str]:
+def _real_rir_files(directory: str) -> list[Path]:
+    """List the installed RIR bundle in a stable order, so a seed selects the same file."""
     root = Path(directory)
-    files = sorted(path for path in root.rglob("*.wav") if path.is_file()) if directory and root.is_dir() else []
+    return sorted(path for path in root.rglob("*.wav") if path.is_file()) if directory and root.is_dir() else []
+
+
+def _real_rir(audio: np.ndarray, directory: str, index: int) -> tuple[np.ndarray, str]:
+    files = _real_rir_files(directory)
     if not files:
         raise FileNotFoundError("The `real` effect requires parameters.real_rir_dir containing ARIEL-compatible WAV RIRs")
     path = files[index % len(files)]
@@ -214,8 +219,12 @@ def apply_ariel_effect(audio: np.ndarray, sample_rate: int, effect: str, params:
             output = audio * (1.0 - float(wet)) + output * float(wet)
         return output, {"effect": effect, "room_size": room_size.tolist(), "source_position": source.tolist(), "mic_position": microphone.tolist(), "absorptive_walls": sorted(selected), "wet": wet}
     if effect == "real":
-        index = int(params.get("rir_index", integer(0, 11)))
-        output, name = _real_rir(audio, str(params.get("real_rir_dir", "")), index)
+        directory = str(params.get("real_rir_dir", ""))
+        available = len(_real_rir_files(directory))
+        if available == 0:
+            raise FileNotFoundError("The `real` effect requires parameters.real_rir_dir containing ARIEL-compatible WAV RIRs")
+        index = int(params.get("rir_index", integer(0, available - 1)))
+        output, name = _real_rir(audio, directory, index)
         wet = params.get("wet")
         if wet is not None:
             output = audio * (1.0 - float(wet)) + output * float(wet)

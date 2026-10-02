@@ -6,13 +6,13 @@ One active effect requires binary assets that are intentionally not stored in Gi
 
 | Effect | Asset | What it models | Required layout |
 | --- | --- | --- | --- |
-| `reverb_real` | 12 real room impulse-response WAV files | Measured acoustic spaces. The renderer accepts stereo or four-channel B-format RIRs and convolves them with the clean signal. | `assets/degradations/v0_1/real_rirs/{stereo,b-formats}/*.wav` |
+| `reverb_real` | 14 real room impulse-response WAV files from five rooms | Measured acoustic spaces. The renderer accepts stereo or four-channel B-format RIRs and convolves them with the clean signal. | `assets/degradations/v0_1/real_rirs/{stereo,b-formats}/*.wav` |
 
-The v0.1 asset source bundle is the already reviewed local ARIEL asset set: `configs/realrirs` for the 12 selected real RIRs. OpenRestore does not read from ARIEL at runtime.
+The v0.1 asset bundle is downloaded directly from OpenAIR at `https://webfiles.york.ac.uk/OPENAIR/IRs/`. It no longer derives from the ARIEL asset set, and OpenRestore does not read from ARIEL at runtime.
 
 ## Upstream Provenance
 
-The RIRs originate from a published third-party dataset, as documented in the SonicMaster paper (arXiv:2508.03448), whose fourth Reverb function uses "12 selected room impulse responses from the openAIR library dataset".
+The RIRs originate from OpenAIR, the library the SonicMaster paper also draws on for its fourth Reverb function. OpenRestore selects its own subset on licence grounds rather than reusing SonicMaster's twelve.
 
 | Asset set | Upstream source | Citation |
 | --- | --- | --- |
@@ -22,34 +22,27 @@ The installed RIR filenames match OpenAIR rooms: 1st Baptist Nashville, Elveden 
 
 ### Recorded Terms
 
-**OpenAIR licenses each recording separately, and three of our twelve files forbid commercial use.** The library-wide "CC BY 4.0" label that circulates in third-party dataset catalogues is wrong. The authoritative per-room statements were recovered from the Internet Archive, because openairlib.net and openair.hosted.york.ac.uk are both suspended; each room page carries a "License for this content:" field.
+**The bundle contains only OpenAIR recordings whose stated terms permit commercial use and redistribution.** OpenAIR licenses each recording separately, so the library-wide "CC BY 4.0" label used by third-party dataset catalogues does not hold. Terms were read from each room's "License for this content" field as captured by the Internet Archive, because the OpenAIR web pages are suspended; the audio itself remains available at `https://webfiles.york.ac.uk/OPENAIR/IRs/`.
 
-| File | OpenAIR room | Declared license | Commercial | Derivatives |
-| --- | --- | --- | --- | --- |
-| `stereo/1st_baptist_nashville_far_close.wav` | 1st Baptist Nashville | Public Domain | yes | yes |
-| `stereo/st_georges_medium.wav` | St Georges Episcopal Church | Public Domain | yes | yes |
-| `b-formats/heslington_impulseresponseheslingtonchurch-003.wav` | Heslington Church | Attribution Share Alike | yes | share-alike |
-| `b-formats/heslington_impulseresponseheslingtonchurch-007.wav` | Heslington Church | Attribution Share Alike | yes | share-alike |
-| `b-formats/patrick_soundfield_s1r1.wav` | St Patrick's Church, Patrington | Attribution Share Alike | yes | share-alike |
-| `b-formats/patrick_soundfield_s3r3.wav` | St Patrick's Church, Patrington | Attribution Share Alike | yes | share-alike |
-| `b-formats/stalbans_b_wxyz.wav` | Lady Chapel, St Albans Cathedral | Attribution Share Alike | yes | share-alike |
-| `b-formats/falkland_tennis_court_b_format.wav` | Falkland Palace Royal Tennis Court | Attribution **Non-commercial** Share Alike | **no** | share-alike |
-| `stereo/elveden_1a_marble_hall.wav` | Elveden Hall, Suffolk | Attribution **Non-commercial No Derivatives** | **no** | **no** |
-| `stereo/elveden_4a_hats_cloaks_visitors.wav` | Elveden Hall, Suffolk | Attribution **Non-commercial No Derivatives** | **no** | **no** |
-| `b-formats/roncooke_sssr.wav` | Ron Cooke Hub (unconfirmed) | **unknown** | ? | ? |
-| `b-formats/roncooke_tsfr.wav` | Ron Cooke Hub (unconfirmed) | **unknown** | ? | ? |
+| Room | Files | Stated license | Attribution |
+| --- | --- | --- | --- |
+| 1st Baptist Nashville | 3 stereo | Public Domain | not required |
+| Hoffmann Lime Kiln, Langcliffe | 6 B-format | Public Domain | not required |
+| Saint Laurentius Church, Molenbeek-Bekkevoort | 1 stereo | Public Domain | not required |
+| St Georges Episcopal Church | 3 stereo | Public Domain | not required |
+| Spokane Woman's Club | 1 stereo | Attribution (CC BY) | **required** |
 
-Two further notes. The site's generic Terms and Conditions reserve all rights and forbid republication and commercial use, but they open with "Unless otherwise stated", and the per-room license fields are that statement, so the table above governs. And no Ron Cooke Hub page exists anywhere in the Internet Archive's capture of the site, so those two files may postdate the last snapshot or come from elsewhere entirely; their provenance is unresolved.
+Fourteen files across five rooms. Per-file credits are in `assets/degradations/v0_1/real_rirs/ATTRIBUTION.md`, which any release distributing these files, or audio rendered through them, must carry.
 
-The No Derivatives condition on the two Elveden files is the hardest of the three blocks: rendering music through an impulse response produces a derivative of it, which ND forbids outright regardless of whether the result is sold.
+Nothing in the bundle is non-commercial or no-derivatives, and nothing carries a share-alike obligation, so no clause propagates to the rendered corpus.
 
-Consequences for `reverb_real`, in increasing order of cost:
+### Rooms Deliberately Excluded
 
-1. Keep the 7 unambiguously commercial-friendly files (2 Public Domain, 5 Attribution Share Alike) and drop the other 5. The released degraded audio for this class would carry a share-alike obligation, which nothing else in the benchmark does.
-2. Keep only the 2 Public Domain files. No obligation at all, but only two rooms of variety.
-3. Drop `reverb_real` and ship 20 classes with no asset dependency at all, as was done for the `mic` class.
+A survey of 75 archived OpenAIR room pages found 22 rooms with permissive terms, of which 19 have stereo or B-format files the renderer can read. The bundle takes only the five Public Domain and CC BY rooms. The 14 remaining permissive rooms are Attribution Share Alike: usable commercially, but share-alike would propagate to the rendered `reverb_real` audio, and nothing else in the benchmark imposes such a clause. They are available to revisit if the release policy ever accepts share-alike.
 
-Any of the first two changes which file a given seed selects, since `_real_rir` indexes a sorted listing, so they must be settled before release-scale rendering starts. `ariel_effects.py` also samples `rir_index` over `integer(0, 11)`, which assumes twelve files and would need adjusting.
+Also excluded regardless of licence: rooms whose only files are mono or 5.1, which the renderer rejects; `st-patricks-patrington-model` and `waveguide-web-example-audio`, which are simulations rather than measurements and would defeat the purpose of a measured-RIR class; and `slinky-ir`, which is a spring rather than a space.
+
+The earlier bundle, which mixed Public Domain, Share Alike, Non-commercial Share Alike and No Derivatives files plus two files of unresolved provenance, was retired to `build/retired-assets/openair_real_rirs_v0_1_mixed_licences/`.
 
 ### Retired: The Poliphone Microphone IRs
 
@@ -70,7 +63,7 @@ Measured microphone impulse responses are still worth adding later as a separate
    find assets/degradations/v0_1/real_rirs -type f -name '*.wav' | wc -l
    ```
 
-   The expected count is 12 RIR WAV files.
+   The expected count is 14 RIR WAV files.
 4. IT runs `openrestore-degrade validate-config --config configs/degradations/single/v0_1.yaml`, then runs a small render containing `reverb_real` before starting a release-scale job.
 
 The binary bundle remains outside Git because it is an externally sourced release artifact. It must be versioned and retained with the degradation config, Git revision, manifests, checksums, and release logs.
