@@ -394,3 +394,105 @@ recipes:
             index_rows = read_jsonl(release_root / "index.jsonl")
             self.assertEqual(index_rows[0]["degraded_audio_shard"], "shards/degraded-00000.h5")
             self.assertTrue((release_root / index_rows[0]["degraded_audio_shard"]).is_file())
+
+
+class BlindSyntheticTests(TestCase):
+    CONFIG = Path("configs/degradations/blind_synthetic/v0_1.yaml")
+
+    def test_chains_are_deterministic_compatible_and_sometimes_empty(self) -> None:
+        from openrestore.degradations.blind import load_blind_config, sample_chain
+
+        config, recipes = load_blind_config(self.CONFIG)
+        self.assertEqual(len(recipes), 21)
+
+        chains = [sample_chain(f"item-{i:05d}", 20260714, config, recipes) for i in range(1500)]
+
+        # Deterministic for a fixed seed, and responsive to a changed one.
+        self.assertEqual(sample_chain("item-00000", 20260714, config, recipes), chains[0])
+        self.assertNotEqual(sample_chain("item-00000", 7, config, recipes), chains[0])
+
+        # The count stays inside the configured range and genuinely varies.
+        lengths = {len(c) for c in chains}
+        self.assertTrue(lengths <= {0, 1, 2, 3}, lengths)
+        self.assertGreater(len(lengths), 2, "the chain length should not be near-constant")
+        self.assertIn(0, lengths, "some items must stay clean, to measure over-restoration")
+
+        # No class repeats inside one chain.
+        for chain in chains:
+            self.assertEqual(len(set(chain)), len(chain), chain)
+
+        # The compatibility matrix actually holds.
+        for members in (config.get("exclusive_groups") or {}).values():
+            for chain in chains:
+                self.assertLessEqual(sum(1 for c in chain if c in members), 1, chain)
+        for first, second in config.get("incompatible_pairs") or []:
+            for chain in chains:
+                self.assertFalse(first in chain and second in chain, chain)
+
+    def test_render_records_the_ordered_chain_and_metadata_can_be_withheld(self) -> None:
+        from openrestore.degradations.blind import (
+            CLEAN_REFERENCE_FIELDS,
+            REVEALING_FIELDS,
+            render_blind_synthetic,
+            withhold_degradation_metadata,
+        )
+
+        audio = _fixture_audio(1.0)
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            clean_root = root / "clean"
+            rows = []
+            for index in range(6):
+                item = f"sonicmaster_clean--src{index}--00"
+                relative = Path("train") / "sonicmaster_clean" / f"{item}.wav"
+                _write_audio(clean_root / relative, audio)
+                rows.append({
+                    "id": item, "dataset": "sonicmaster_clean", "split": "train",
+                    "source_id": f"src{index}", "clean_path": relative.as_posix(),
+                    "duration_seconds": 1.0, "sample_rate": SAMPLE_RATE, "channels": 2,
+                    "audio_sha256": "0" * 64, "quality": {"rms": 0.1},
+                })
+            manifest = root / "clean.jsonl"
+            write_jsonl(manifest, rows)
+
+            out = render_blind_synthetic(
+                manifest, clean_root, root / "degraded", self.CONFIG,
+                root / "blind.jsonl", root / "blind_ck.jsonl", 20260714,
+            )
+            self.assertEqual(len(out), len(rows))
+            for row in out:
+                self.assertEqual(row["degradation_count"], len(row["degradation_chain"]))
+                # One recorded operation per link in the chain, in the same order.
+                self.assertEqual(len(row["degradation_params"]), len(row["degradation_chain"]))
+                self.assertEqual(row["degradation_tracking"]["chain"], row["degradation_chain"])
+                self.assertTrue((root / "degraded" / row["degraded_path"]).is_file())
+
+            withheld = withhold_degradation_metadata(out)
+            for row in withheld:
+                for field in REVEALING_FIELDS:
+                    self.assertNotIn(field, row)
+                self.assertIn("clean_path", row)  # clean targets stay published
+
+            inference = withhold_degradation_metadata(out, withhold_clean=True)
+            for row in inference:
+                for field in tuple(REVEALING_FIELDS) + tuple(CLEAN_REFERENCE_FIELDS):
+                    self.assertNotIn(field, row)
+                self.assertIn("degraded_path", row)
+
+    def test_invalid_blind_configs_are_rejected(self) -> None:
+        from openrestore.degradations.blind import load_blind_config
+
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "bad.yaml"
+            path.write_text("blind_synthetic: true\n", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "source_recipe_config"):
+                load_blind_config(path)
+
+            path.write_text(
+                "source_recipe_config: configs/degradations/single/v0_1.yaml\n"
+                "degradation_count:\n  weights:\n    0: 1.0\n"
+                "exclusive_groups:\n  room: [reverb_small, not_a_class]\n",
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "unknown classes"):
+                load_blind_config(path)
