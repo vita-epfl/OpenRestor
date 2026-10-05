@@ -199,3 +199,153 @@ def best_original_file(metadata: dict[str, Any]) -> dict[str, Any] | None:
         if best is None or rank < best[0]:
             best = (rank, size, item)
     return best[2] if best else None
+
+
+# --- Selection: deduplicate, cap, rank, freeze -------------------------------------
+
+LICENCE_TIER = {"CC0": 3, "BY": 2, "BY-SA": 1}
+
+# Strong evidence is a structured field or a phrase that is hard to produce by accident;
+# weak evidence is a bare keyword in free text, which a studio release can easily carry.
+STRONG_LIVE_FIELDS = ("is_live", "venue", "location")
+STRONG_LIVE_PHRASES = ("recorded live", "live at", "live in", "soundboard", "audience", "taper", "bootleg")
+
+
+def live_evidence(row: dict[str, Any]) -> dict[str, Any]:
+    """Describe *why* a row looks live, so the ranking can prefer better evidence."""
+    structured = [f for f in STRONG_LIVE_FIELDS if row.get(f) not in (None, "", 0, 0.0)]
+    hits: list[str] = []
+    for field in LIVE_TEXT_FIELDS:
+        value = row.get(field)
+        if not value:
+            continue
+        for match in _LIVE_PATTERN.finditer(str(value).lower()):
+            hits.append(f"{field}:{match.group(0)}")
+    phrases = [h for h in hits if any(p in h for p in STRONG_LIVE_PHRASES)]
+    score = 3 * len(structured) + 2 * len(phrases) + len({h.split(":", 1)[0] for h in hits})
+    return {"structured_fields": structured, "keyword_hits": sorted(set(hits)), "strong_phrases": sorted(set(phrases)), "evidence_score": score}
+
+
+def _quality_score(row: dict[str, Any]) -> float:
+    """Prefer candidates whose source audio is likely to be high fidelity."""
+    score = 0.0
+    try:
+        rate = float(str(row.get("sample_rate") or 0).split()[0])
+        score += 2.0 if rate >= 88200 else 1.0 if rate >= 44100 else 0.0
+    except (TypeError, ValueError):
+        pass
+    try:
+        score += 1.0 if float(row.get("bit_depth") or 0) >= 24 else 0.0
+    except (TypeError, ValueError):
+        pass
+    try:
+        score += 1.0 if float(row.get("channels") or 0) >= 2 else 0.0
+    except (TypeError, ValueError):
+        pass
+    score += 0.5 * sum(1 for f in ("venue", "city", "country", "date", "artist") if row.get(f))
+    return score
+
+
+def rank_candidates(rows: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Score every candidate automatically, best first. No listening involved."""
+    ranked = []
+    for row in rows:
+        evidence = live_evidence(row)
+        licence = LICENCE_TIER.get(str(row.get("license_type") or "").strip(), 0)
+        ranked.append({
+            **row,
+            "live_evidence": evidence,
+            "licence_tier": licence,
+            "quality_score": _quality_score(row),
+            "rank_score": 10.0 * licence + 2.0 * evidence["evidence_score"] + _quality_score(row),
+        })
+    ranked.sort(key=lambda r: (-r["rank_score"], str(r.get("identifier")), str(r.get("key"))))
+    return ranked
+
+
+def select_candidates(
+    rows: Iterable[dict[str, Any]],
+    target: int = 400,
+    cap_per_identifier: int = 2,
+) -> list[dict[str, Any]]:
+    """Deduplicate by Internet Archive identifier, cap per item, then take the best.
+
+    One Internet Archive item can yield dozens of segments, so without a cap a handful
+    of concerts would dominate the set. The cap is what buys acoustic variety.
+    """
+    if cap_per_identifier < 1:
+        raise ValueError("cap_per_identifier must be at least 1")
+    taken: dict[str, int] = {}
+    selected: list[dict[str, Any]] = []
+    for row in rank_candidates(rows):
+        identifier = str(row.get("identifier"))
+        if taken.get(identifier, 0) >= cap_per_identifier:
+            continue
+        taken[identifier] = taken.get(identifier, 0) + 1
+        selected.append(row)
+        if len(selected) >= target:
+            break
+    return selected
+
+
+def freeze_candidate_list(
+    selected: list[dict[str, Any]], excerpt_seconds: float = 20.0
+) -> list[dict[str, Any]]:
+    """Turn ranked candidates into a frozen, auditable Blind-Real item list.
+
+    Each row records where the audio comes from, under what terms, and why it was
+    picked. There is no clean reference and no degradation label, by design.
+    """
+    frozen = []
+    for position, row in enumerate(selected):
+        identifier = str(row.get("identifier"))
+        frozen.append({
+            "id": f"blind_real--{identifier}--{position:04d}",
+            "dataset": "blind_real",
+            "split": "blind_real_test",
+            "internet_archive_identifier": identifier,
+            "internet_archive_metadata": internet_archive_metadata_url(identifier),
+            "iamd_key": row.get("key"),
+            "iamd_segment_path": row.get("segment_path"),
+            "excerpt_seconds": excerpt_seconds,
+            "license_type": row.get("license_type"),
+            "license_url": row.get("license_url"),
+            "license_source": row.get("license_source"),
+            "attribution": row.get("artist") or row.get("creator") or row.get("uploader"),
+            "title": row.get("title"),
+            "venue": row.get("venue"),
+            "city": row.get("city"),
+            "country": row.get("country"),
+            "date": row.get("date") or row.get("year"),
+            "collection": row.get("collection"),
+            "source_sample_rate": row.get("sample_rate"),
+            "source_bit_depth": row.get("bit_depth"),
+            "source_channels": row.get("channels"),
+            "selection": {
+                "rank_position": position,
+                "rank_score": round(float(row.get("rank_score", 0.0)), 3),
+                "licence_tier": row.get("licence_tier"),
+                "live_evidence": row.get("live_evidence"),
+                "qa_listened": False,
+                "qa_verdict": None,
+            },
+        })
+    return frozen
+
+
+def selection_statistics(frozen: list[dict[str, Any]]) -> dict[str, Any]:
+    from collections import Counter
+
+    licences = Counter(str(r.get("license_type")) for r in frozen)
+    identifiers = Counter(r["internet_archive_identifier"] for r in frozen)
+    structured = sum(1 for r in frozen if r["selection"]["live_evidence"]["structured_fields"])
+    phrases = sum(1 for r in frozen if r["selection"]["live_evidence"]["strong_phrases"])
+    return {
+        "items": len(frozen),
+        "distinct_identifiers": len(identifiers),
+        "max_per_identifier": max(identifiers.values()) if identifiers else 0,
+        "licence_distribution": dict(licences.most_common()),
+        "with_structured_live_evidence": structured,
+        "with_strong_live_phrase": phrases,
+        "weak_evidence_only": len(frozen) - structured - phrases,
+    }

@@ -246,23 +246,55 @@ This is a separate dataset with its own train, validation and test splits. It do
 
 ## Phase 2C - Blind-Real Benchmark
 
-Goal: evaluate generalisation on real recordings that are degraded by their own history rather than by our code.
+Goal: evaluate generalisation on real recordings degraded by their own history rather than by our code.
 
-Test split only. No clean ground truth exists, and no degradation label is available at inference.
+Test split only. No clean ground truth, and no degradation label at inference.
+
+**Status: data curation blocked on source quality, not tooling.** The pipeline below is implemented and measured. What is missing is source material that actually matches the target under a licence we can redistribute.
 
 ### Scope
 
-The target is live and amateur music capture: concerts, audience and taper recordings, old festival captures, soundboard and tape transfers, consumer microphones. Old Montreux Jazz Festival recordings are the reference mental image. Extreme historical material such as cylinder recordings is explicitly out of scope, being too far from the application target.
+Live and amateur music capture: concerts, audience and taper recordings, old festival captures, soundboard and tape transfers, consumer microphones. Old Montreux Jazz Festival recordings are the reference mental image. Extreme historical material such as cylinder recordings is out of scope, being too far from the application target.
 
-### Research/audio engineer tasks
+### Two Distinct Sources
 
-- [ ] Use the [Internet Archive Music Dataset (IAMD)](https://adasp.telecom-paris.fr/resources/2026-08-01-iamd-dataset/) as the **discovery catalogue**: it covers 4.1M captioned 30-second segments from 548k Creative Commons files, with Internet Archive metadata and per-item licence records.
-- [ ] Do **not** use IAMD's own 320 kbps MP3 segments in the final benchmark. Resolve each candidate to its Internet Archive identifier and download the highest-quality original source audio available for that item.
-- [ ] Filter by licence, preferring CC0 and CC BY, accepting CC BY-SA only if it is compatible with the release policy, and avoiding NC assets so the benchmark distribution stays permissive.
-- [ ] Filter by Internet Archive metadata to target live, concert, audience, tape and soundboard captures.
-- [ ] Curate roughly 300 to 500 fixed excerpts of 10 to 30 seconds, selected for real capture conditions rather than for a specific artefact.
-- [ ] Record per-item provenance: Internet Archive identifier, licence, attribution, original format, and the exact excerpt bounds.
-- [ ] Document the known limits of the set: unknown and uncontrolled degradations, no clean reference, and a selection bias toward what the Internet Archive happens to hold.
+They are kept separate because their licence situations differ completely.
+
+| Source | Size | Licence situation |
+| --- | --- | --- |
+| [IAMD](https://adasp.telecom-paris.fr/resources/2026-08-01-iamd-dataset/) (`Telecom-Paris/iamd_v0`) | 4.1M segments, 2,320 parquet shards | Per-item Creative Commons declared and machine-readable. Usable. |
+| [Internet Archive Live Music Archive](https://archive.org/details/etree) (`collection:etree`) | 304,969 concert recordings | **No machine-readable licence.** A 1,000-item sample found 999 with no `licenseurl` at all and one BY-NC. Item metadata carries no rights field whatsoever: the collection rests on per-band taper policies, not a stated licence. |
+
+So the source that actually holds live concerts fails the licence gate, and the source that passes it mostly holds netlabel and studio material. That is the blocker, and no amount of tooling moves it.
+
+### Curation Pipeline
+
+- [x] 1. Scan metadata only. Reads only the catalogue columns from remote parquet shards, never the embedded audio; a failing shard is skipped rather than ending the scan.
+- [x] 2. Filter permissive licences. CC0 and BY by default; BY-SA is opt-in because share-alike would propagate to the release. NC and ND are always excluded.
+- [x] 3. Detect live candidates from title, tags, description and collection, matched on word boundaries.
+- [x] 4. Deduplicate by Internet Archive identifier.
+- [x] 5. Cap clips per identifier, so a handful of concerts cannot dominate the set.
+- [x] 6. Rank candidates automatically on licence tier, strength of live evidence, and likely source fidelity. No listening involved.
+- [x] 7. Freeze the candidate list with per-item provenance: identifier, licence, attribution, venue, source format, and why it was selected.
+- [ ] 8. Compare the Blind-Real candidate distribution against the Blind-Synthetic degraded distribution, with a distributional measure rather than per-clip scoring. The question is whether Blind-Synthetic covers the acoustic domain of real live capture at all, not which clips to keep. The repository already ships FAD over CLAP embeddings in the perceptual pack, so `FAD-LAION(blind_real, blind_synthetic_degraded)` is the cheapest first answer; MERT or another music embedding is a reasonable alternative. This runs **before** the list is declared final.
+- [ ] 9. Minimal QA listening, only to reject obvious false positives. Not a quality judgement of each clip.
+- [ ] 10. Resolve each retained identifier to its Internet Archive original and download the best available file. IAMD's own 320 kbps MP3 segments are never used in the benchmark.
+- [ ] 11. Cut fixed excerpts of 10 to 30 seconds and record the exact bounds.
+
+### Measured On A 1% Probe
+
+24 of 2,320 shards, 43,925 segments:
+
+| | |
+| --- | --- |
+| Permissive **and** live-looking | 703 segments |
+| Distinct Internet Archive items behind them | 224 |
+| Frozen at target 400, cap 2 per item | 319 items, BY 303 and CC0 16 |
+| Of those, with structured evidence (`venue` or `is_live`) | **13** |
+| With a strong phrase (`recorded live`, `soundboard`, `audience`, ...) | **90** |
+| **With a bare keyword only** | **216** |
+
+IAMD's `is_live` column is empty throughout the probe and `venue` is set on 14 of 703 rows, so the live signal is almost entirely a keyword in free text. Two thirds of a frozen list would therefore be unvetted guesses, which is why step 9 is not optional and why the volume figures should not be read as readiness.
 
 ### IT/software engineer tasks
 
@@ -271,7 +303,8 @@ The target is live and amateur music capture: concerts, audience and taper recor
 
 ### Shared deliverables
 
-- [ ] Blind-Real curation configuration with licence and metadata filters
+- [x] catalogue scan, licence and live filters, deduplication, cap, automatic ranking, and the frozen-list writer
+- [ ] distribution-coverage report against Blind-Synthetic
 - [ ] 300-500 excerpt test set with per-item provenance and attribution
 - [ ] documented scope statement and known limits
 

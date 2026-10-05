@@ -54,6 +54,14 @@ def build_parser() -> argparse.ArgumentParser:
     cand.add_argument("--allow-share-alike", action="store_true")
     cand.add_argument("--any-recording", action="store_true", help="Do not require live-capture evidence")
 
+    freeze = commands.add_parser("blind-real-freeze", help="Deduplicate, cap, rank and freeze the Blind-Real candidate list")
+    freeze.add_argument("--candidates", type=_path, required=True)
+    freeze.add_argument("--output", type=_path, required=True)
+    freeze.add_argument("--stats", type=_path)
+    freeze.add_argument("--target", type=int, default=400)
+    freeze.add_argument("--cap-per-identifier", type=int, default=2)
+    freeze.add_argument("--excerpt-seconds", type=float, default=20.0)
+
     split = commands.add_parser("split")
     split.add_argument("--indexes", type=_path, nargs="+", required=True)
     split.add_argument("--output", type=_path, required=True)
@@ -100,7 +108,24 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> None:
     args = build_parser().parse_args()
     progress = not getattr(args, "quiet", False)
-    if args.command == "blind-real-scan":
+    if args.command == "blind-real-freeze":
+        import json as _json
+        from .blind_real import freeze_candidate_list, select_candidates, selection_statistics
+        from .core import write_jsonl as _write
+        rows = read_jsonl(args.candidates)
+        frozen = freeze_candidate_list(
+            select_candidates(rows, args.target, args.cap_per_identifier), args.excerpt_seconds
+        )
+        _write(args.output, frozen)
+        stats = selection_statistics(frozen)
+        stats["candidates_considered"] = len(rows)
+        text = _json.dumps(stats, indent=2, sort_keys=True)
+        if args.stats:
+            args.stats.parent.mkdir(parents=True, exist_ok=True)
+            args.stats.write_text(text + "\n", encoding="utf-8")
+        print(text)
+        print(f"\nfroze {len(frozen)} items -> {args.output}")
+    elif args.command == "blind-real-scan":
         from .blind_real import scan_catalogue
         written = scan_catalogue(args.output, args.shards, args.workers, args.start, progress=not args.quiet)
         print(f"wrote {written} catalogue rows to {args.output}")
