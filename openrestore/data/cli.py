@@ -54,6 +54,18 @@ def build_parser() -> argparse.ArgumentParser:
     cand.add_argument("--allow-share-alike", action="store_true")
     cand.add_argument("--any-recording", action="store_true", help="Do not require live-capture evidence")
 
+    report = commands.add_parser("blind-real-report", help="Catalogue report: permissive items, confidence tiers, achievable split sizes")
+    report.add_argument("--catalogue", type=_path, required=True)
+    report.add_argument("--output", type=_path)
+    report.add_argument("--cap-per-identifier", type=int, default=2)
+
+    rsplit = commands.add_parser("blind-real-split", help="Assign source-disjoint splits over Internet Archive identifiers")
+    rsplit.add_argument("--items", type=_path, required=True)
+    rsplit.add_argument("--output", type=_path, required=True)
+    rsplit.add_argument("--seed", type=int, default=20260714)
+    rsplit.add_argument("--validation-identifiers", type=int, default=0)
+    rsplit.add_argument("--test-identifiers", type=int, default=0)
+
     freeze = commands.add_parser("blind-real-freeze", help="Deduplicate, cap, rank and freeze the Blind-Real candidate list")
     freeze.add_argument("--candidates", type=_path, required=True)
     freeze.add_argument("--output", type=_path, required=True)
@@ -108,7 +120,29 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> None:
     args = build_parser().parse_args()
     progress = not getattr(args, "quiet", False)
-    if args.command == "blind-real-freeze":
+    if args.command == "blind-real-report":
+        import json as _json
+        from .blind_real import scan_report
+        text = _json.dumps(scan_report(read_jsonl(args.catalogue), args.cap_per_identifier), indent=2, sort_keys=True)
+        if args.output:
+            args.output.parent.mkdir(parents=True, exist_ok=True)
+            args.output.write_text(text + "\n", encoding="utf-8")
+        print(text)
+    elif args.command == "blind-real-split":
+        from .blind_real import assign_source_disjoint_splits, validate_source_disjoint
+        from .core import write_jsonl as _write
+        rows = assign_source_disjoint_splits(
+            read_jsonl(args.items), args.seed, args.validation_identifiers, args.test_identifiers
+        )
+        validate_source_disjoint(rows)
+        _write(args.output, rows)
+        from collections import Counter
+        counts = Counter(r["split"] for r in rows)
+        ids = {r["split"]: len({x.get("internet_archive_identifier") or x.get("identifier") for x in rows if x["split"] == r["split"]}) for r in rows}
+        print(f"wrote {len(rows)} clips to {args.output}")
+        for split in sorted(counts):
+            print(f"  {split:26} {counts[split]:6} clips  {ids[split]:5} identifiers")
+    elif args.command == "blind-real-freeze":
         import json as _json
         from .blind_real import freeze_candidate_list, select_candidates, selection_statistics
         from .core import write_jsonl as _write

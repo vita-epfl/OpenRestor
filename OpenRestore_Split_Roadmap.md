@@ -12,30 +12,28 @@ OpenRestore is a benchmark rather than a single restoration model. It has three 
 
 The Diagnostic track carries the original contract: each item is a 30-second 44.1 kHz musical clip with one degraded input, one clean reference, deterministic degradation metadata, and a portable manifest row. Main-track training uses SonicMaster clean originals only. Validation/model selection uses held-out SonicMaster clean audio. The source-separated SonicMaster public test is the in-distribution test. The Song Describer Dataset ("SDD") and Music Demixing Dataset 2018 High Quality ("MUSDB18-HQ") mixture audio are separately reported public transfer/local-evaluation sets. Official leaderboard scoring uses a hidden organizer-only evaluation set.
 
-## Scope Priorities
+## Benchmark Architecture
 
-OpenRestore is a contribution on audio restoration. The risk to guard against is turning it into a second, unasked-for contribution on Internet Archive data curation, so scope is tiered explicitly.
+OpenRestore has four evaluation sets. Two are paired against a clean reference and two are not; three are public and one is organizer-only.
 
-### v0.1 - required
+| Set | Degradations | Clean reference | Splits | Availability |
+| --- | --- | --- | --- | --- |
+| **Diagnostic** | exactly one of 21 synthetic classes | yes | train / validation / test | public |
+| **Blind-Synthetic** | 0 to 3 synthetic, random type, order and intensity | yes | train / validation / test | public |
+| **Blind-Real Public** | none added; real recordings degraded by their own history | **no** | train / validation / test | public |
+| **Blind-Real Hidden** | none added; real concert captures | **no** | test only | **organizer-only** |
 
-- **Diagnostic track.** The 21 canonical classes, one degradation per item. This is the core of the benchmark.
-- **Blind-Synthetic track.** Compound chains of 0 to 3 degradations, train/validation/test, clean targets retained.
+Why both Blind-Real sets exist: the public one is what lets anyone develop, validate and compare locally, and the hidden one is what measures generalisation without the public test being trained on. **The hidden set does not replace the public test.**
 
-Both are conceptually complete and implemented. What remains is generation at release scale.
+Neither Blind-Real set is paired, so neither can measure fidelity to a clean reference. Their metrics are defined separately, later; nothing in their construction waits on that.
 
-### v0.1 - small bonus
+### Deliberately not prerequisites
 
-- **Blind-Real pilot.** 50 to 100 high-confidence clips from IAMD and Internet Archive originals. High-confidence means structured live evidence or a strong phrase, not a bare keyword. The point is to demonstrate the track exists and is measurable, not to be exhaustive.
+These are secondary analyses, not gates on building the datasets:
 
-### v0.2 - deliberately not done
-
-There is no paper driving these, so they stay out of scope until one does.
-
-- 300 to 500 Blind-Real clips.
-- The full 2,320-shard IAMD scan.
-- Manual QA listening at scale.
+- Mass human QA listening.
 - Distribution matching against Blind-Synthetic with MAD, MERT or another distributional measure.
-- A finer taxonomy of live capture conditions.
+- Any listening study. The benchmark must not develop a hard dependency on one.
 
 ## Ownership Summary
 
@@ -269,63 +267,62 @@ This is a separate dataset with its own train, validation and test splits. It do
 - [ ] Blind-Synthetic train/validation/test release with manifests and checksums
 - [ ] documented metadata-exposure boundary between train/validation and test
 
-## Phase 2C - Blind-Real Benchmark
+## Phase 2C - Blind-Real Public
 
-Goal: evaluate generalisation on real recordings degraded by their own history rather than by our code.
+Goal: a public track of real recordings degraded by their own history, with train, validation and test splits, so anyone can develop, validate and compare a blind restoration system locally.
 
-Test split only. No clean ground truth, and no degradation label at inference.
-
-**Status: data curation blocked on source quality, not tooling.** The pipeline below is implemented and measured. What is missing is source material that actually matches the target under a licence we can redistribute.
-
-**Scope for v0.1 is a 50 to 100 clip pilot**, drawn only from candidates with structured live evidence or a strong phrase. The 300 to 500 clip set, the full catalogue scan, scaled QA listening and distribution matching are v0.2 and deliberately not done: see Scope Priorities.
+No clean reference. No degradation label. **No synthetic degradation is ever added**: the whole point is that the degradation is real and uncontrolled.
 
 ### Scope
 
-Live and amateur music capture: concerts, audience and taper recordings, old festival captures, soundboard and tape transfers, consumer microphones. Old Montreux Jazz Festival recordings are the reference mental image. Extreme historical material such as cylinder recordings is out of scope, being too far from the application target.
+Live and amateur music capture: concerts, audience and taper recordings, soundboard and tape transfers, old festival captures, consumer microphones. Old Montreux Jazz Festival recordings are the reference mental image. Extreme historical material such as cylinder recordings stays out of scope, being too far from the application target.
 
-### Two Distinct Sources
+### Source
 
-They are kept separate because their licence situations differ completely.
+[IAMD](https://adasp.telecom-paris.fr/resources/2026-08-01-iamd-dataset/) (`Telecom-Paris/iamd_v0`) is used as a **catalogue**, never as audio: its own segments are re-encoded 320 kbps MP3. Each retained candidate is resolved through its `identifier` to the Internet Archive item, and the best available original is downloaded from there.
 
-| Source | Size | Licence situation |
-| --- | --- | --- |
-| [IAMD](https://adasp.telecom-paris.fr/resources/2026-08-01-iamd-dataset/) (`Telecom-Paris/iamd_v0`) | 4.1M segments, 2,320 parquet shards | Per-item Creative Commons declared and machine-readable. Usable. |
-| [Internet Archive Live Music Archive](https://archive.org/details/etree) (`collection:etree`) | 304,969 concert recordings | **No machine-readable licence.** A 1,000-item sample found 999 with no `licenseurl` at all and one BY-NC. Item metadata carries no rights field whatsoever: the collection rests on per-band taper policies, not a stated licence. |
+The [Internet Archive Live Music Archive](https://archive.org/details/etree) holds 304,969 concert recordings and would be the ideal source, but it has **no machine-readable licence**: a 1,000-item sample found 999 with no `licenseurl` and one BY-NC, and item metadata carries no rights field at all. It therefore cannot pass the licence gate and is not used.
 
-So the source that actually holds live concerts fails the licence gate, and the source that passes it mostly holds netlabel and studio material. That is the blocker, and no amount of tooling moves it.
+### Licence policy
 
-### Curation Pipeline
+CC0 and CC BY are the priority. CC BY-SA is acceptable only if it is compatible with the release policy, since share-alike would propagate. NC and ND are always excluded.
 
-- [x] 1. Scan metadata only. Reads only the catalogue columns from remote parquet shards, never the embedded audio; a failing shard is skipped rather than ending the scan.
-- [x] 2. Filter permissive licences. CC0 and BY by default; BY-SA is opt-in because share-alike would propagate to the release. NC and ND are always excluded.
+### Confidence scoring
+
+A candidate is scored, not merely matched, on:
+
+- **structured evidence** — a populated `venue` or `is_live` field;
+- **strong phrases** — `recorded live`, `soundboard`, `audience`, `taper`, `bootleg`, `live at`;
+- **weak keywords** — a bare `live` in free text;
+- **likely source fidelity** — sample rate, bit depth, channel count, metadata completeness;
+- **licence tier** — CC0 above CC BY above CC BY-SA.
+
+**A weak keyword alone is not sufficient.** A candidate whose only evidence is the word "live" somewhere in free text is excluded, because IAMD's `is_live` column is empty throughout the probe and `venue` is set on only 14 of 703 rows, so bare keywords carry very little signal.
+
+### Split policy
+
+- [ ] Splits are **strictly source-disjoint by Internet Archive identifier**. No identifier, and therefore no concert and no Internet Archive item, may appear in more than one split. Positions within one concert are not independent samples.
+- [ ] Clips per identifier are capped, so a single concert cannot dominate any split.
+- [ ] Target shape: train takes the largest share, validation and public test a few hundred clips each. **Do not force round numbers before the full catalogue is known.** The scan report sizes these.
+
+### Curation pipeline
+
+- [x] 1. Scan metadata only from the IAMD parquet shards; the embedded audio column is never transferred and a failing shard is skipped rather than ending the scan.
+- [x] 2. Filter permissive licences.
 - [x] 3. Detect live candidates from title, tags, description and collection, matched on word boundaries.
 - [x] 4. Deduplicate by Internet Archive identifier.
-- [x] 5. Cap clips per identifier, so a handful of concerts cannot dominate the set.
-- [x] 6. Rank candidates automatically on licence tier, strength of live evidence, and likely source fidelity. No listening involved.
-- [x] 7. Freeze the candidate list with per-item provenance: identifier, licence, attribution, venue, source format, and why it was selected.
-- [ ] 8. Resolve each retained identifier to its Internet Archive original and download the best available file. IAMD's own 320 kbps MP3 segments are never used in the benchmark.
-- [ ] 9. Cut fixed excerpts of 10 to 30 seconds and record the exact bounds.
-- [ ] 10. Minimal QA listening on the pilot, only to reject obvious false positives. Not a quality judgement of each clip.
+- [x] 5. Cap clips per identifier.
+- [x] 6. Rank candidates automatically by confidence.
+- [x] 7. Freeze the candidate list with per-item provenance.
+- [ ] 8. Assign source-disjoint train/validation/test splits over identifiers.
+- [ ] 9. Resolve each identifier to its Internet Archive original and download the best available file.
+- [ ] 10. Cut fixed excerpts of 10 to 30 seconds and record the exact bounds.
 
-Deferred to v0.2, not blocking v0.1:
+The **full 2,320-shard IAMD scan is required** for this track and is running. It is what turns size targets from guesses into measurements.
 
-- [ ] Compare the Blind-Real candidate distribution against the Blind-Synthetic degraded distribution, with a distributional measure rather than per-clip scoring. The question is whether Blind-Synthetic covers the acoustic domain of real live capture at all, not which clips to keep. The repository already ships FAD over CLAP embeddings in the perceptual pack, so `FAD-LAION(blind_real, blind_synthetic_degraded)` is the cheapest first answer; MERT or another music embedding is a reasonable alternative.
-- [ ] Scale from the pilot to 300-500 clips, with QA listening across the whole set.
+### Scan report
 
-### Measured On A 1% Probe
-
-24 of 2,320 shards, 43,925 segments:
-
-| | |
-| --- | --- |
-| Permissive **and** live-looking | 703 segments |
-| Distinct Internet Archive items behind them | 224 |
-| Frozen at target 400, cap 2 per item | 319 items, BY 303 and CC0 16 |
-| Of those, with structured evidence (`venue` or `is_live`) | **13** |
-| With a strong phrase (`recorded live`, `soundboard`, `audience`, ...) | **90** |
-| **With a bare keyword only** | **216** |
-
-IAMD's `is_live` column is empty throughout the probe and `venue` is set on 14 of 703 rows, so the live signal is almost entirely a keyword in free text. Two thirds of a frozen list would therefore be unvetted guesses, which is why step 9 is not optional and why the volume figures should not be read as readiness.
+When the scan completes, produce a short report covering: total permissive items; live candidates by confidence level; distinct `identifier` count; distribution by licence; distribution by collection; candidates remaining after the per-identifier cap; and a realistic estimate of achievable train, validation and test sizes.
 
 ### IT/software engineer tasks
 
@@ -334,11 +331,53 @@ IAMD's `is_live` column is empty throughout the probe and `venue` is set on 14 o
 
 ### Shared deliverables
 
-- [x] catalogue scan, licence and live filters, deduplication, cap, automatic ranking, and the frozen-list writer
-- [ ] **v0.1:** 50-100 clip high-confidence pilot with per-item provenance and attribution
-- [ ] **v0.1:** documented scope statement and known limits
-- [ ] v0.2: distribution-coverage report against Blind-Synthetic
-- [ ] v0.2: 300-500 excerpt test set
+- [x] catalogue scan, licence and confidence filters, deduplication, cap, ranking, and the frozen-list writer
+- [ ] IAMD scan report
+- [ ] source-disjoint train/validation/public-test splits
+- [ ] per-item provenance and attribution records
+- [ ] documented scope statement and known limits
+
+## Phase 2D - Blind-Real Hidden
+
+Goal: measure real generalisation on material no participant can have trained on.
+
+Test split only, organizer-only, and **deliberately not sourced from IAMD**, so that training on all of IAMD does not amount to training on this set.
+
+### Source
+
+Real concert captures from YouTube, preferring content under a Creative Commons licence or with clearly documented permission to use. Licence or permission is established per item before the item is included.
+
+### Non-publication rule
+
+- [ ] The audio is **never published**. Neither are its URLs, video IDs or timestamps. Publishing any of those would let a participant reconstruct the set.
+- [ ] A complete manifest is kept **internally**, recording for every item: provenance, licence or permission evidence, source URL, timestamp, content hash, and the exact excerpt bounds.
+- [ ] Participants never receive these files. They submit a container; the organizers run it.
+
+### Evaluation
+
+Server-side, by executing the containers participants submit, using the same frozen container interface as the hidden Diagnostic evaluation in Phase 5. The hidden inputs are mounted read-only and no clean reference exists to withhold.
+
+### Why it exists
+
+To measure generalisation on genuinely unseen real recordings, and to keep the public Blind-Real test from being contaminated or gamed. It **does not replace the public test**, which is what makes local development possible.
+
+### Research/audio engineer tasks
+
+- [ ] Define the per-item licence or permission evidence standard, and the rejection rule when it is ambiguous.
+- [ ] Build the internal provenance manifest schema, including hash and excerpt bounds.
+- [ ] Curate the set and keep it in organizer-controlled storage only.
+- [ ] Verify no overlap of artist, concert or recording with the public Blind-Real set.
+
+### IT/software engineer tasks
+
+- [ ] Store the audio, manifest and provenance in organizer-only storage with no participant download path.
+- [ ] Mount the hidden inputs read-only into submitted containers and keep them out of logs and error messages.
+
+### Shared deliverables
+
+- [ ] internal provenance manifest with licence or permission evidence per item
+- [ ] organizer-only hidden Blind-Real test set
+- [ ] documented non-publication policy
 
 ## Phase 3 - Metrics, AAE Diagnostics, And Reports
 

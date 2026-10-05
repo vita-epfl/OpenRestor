@@ -220,39 +220,55 @@ For public releases, avoid machine-specific absolute paths such as `/work/vita/.
 
 ## Benchmark Tracks
 
-OpenRestore evaluates restoration in three tracks. They answer different questions and are built and released in order. The 21 canonical degradation classes defined below belong to the Diagnostic track; the other two reuse them or do not use them at all.
+OpenRestore has four evaluation sets. Two are paired against a clean reference and two are not; three are public and one is organizer-only. The 21 canonical degradation classes defined below belong to the Diagnostic set; Blind-Synthetic reuses them in combination, and neither Blind-Real set uses them at all.
 
-| Track | Question it answers | Degradations per item | Clean reference | Degradation labels at inference |
+| Set | Degradations per item | Clean reference | Splits | Availability |
 | --- | --- | --- | --- | --- |
-| Diagnostic | Which degradation types can the system handle, and where exactly does it fail? | exactly one | yes | yes |
-| Blind-Synthetic | Can it restore when it is not told what is wrong, and when several things are? | 0 to 3 | yes | no |
-| Blind-Real | Does it generalise to recordings degraded by their own history? | unknown | **no** | no |
+| Diagnostic | exactly one of 21 synthetic classes | yes | train / validation / test | public |
+| Blind-Synthetic | 0 to 3 synthetic, random type, order, intensity | yes | train / validation / test | public |
+| Blind-Real Public | none added; degraded by its own history | **no** | train / validation / test | public |
+| Blind-Real Hidden | none added; real concert captures | **no** | test only | **organizer-only** |
 
-### Diagnostic Track
+### Diagnostic
 
-The 21 canonical synthetic classes, exactly one per example, paired clean and degraded. This is the interpretable core of the benchmark: because one example has one cause, a failure is attributable to a specific degradation rather than to an unidentifiable mixture. Intensities are drawn from each class's `strong_random` range, with no discrete mild/medium/severe levels, and every sampled parameter and seed is recorded deterministically.
+Exactly one degradation per example, paired clean and degraded. This is the interpretable core: because one example has one cause, a failure is attributable to a specific degradation rather than to an unidentifiable mixture. Intensities are drawn from each class's `strong_random` range, with no discrete mild/medium/severe levels, and every sampled parameter and seed is recorded deterministically.
 
-### Blind-Synthetic Track
+### Blind-Synthetic
 
-A separate dataset with its own train, validation and test splits, built from the same canonical classes but applied in combination.
+A separate dataset with its own train, validation and test splits, built from the same canonical classes applied in combination.
 
 - A random number of degradations per item, 0 to 3, genuinely variable rather than always three.
-- Random types, random application order, random intensities.
+- Random types, random application order, continuous random intensities.
 - Clean targets remain available, so evaluation stays quantitative.
 - Degradation metadata is published for train and validation, so classifiers, routers and blind models can be trained on it, and is withheld at inference on test.
 - The test split includes a small percentage of clean, undegraded items, to measure whether a system over-restores audio that needs nothing.
-- A small compatibility matrix rejects absurd or redundant combinations, such as two bandwidth classes or two reverberation classes stacked together. It stays a matrix of pairwise rules rather than a library of predefined recipes.
+- A small compatibility matrix rejects absurd or redundant combinations rather than enumerating recipes.
 
-### Blind-Real Track
+### Blind-Real Public
 
-Test only, no clean ground truth, no degradation label. The purpose is generalisation to real recordings.
+Real recordings degraded by their own history, with public train, validation and test splits so anyone can develop and compare locally. **No synthetic degradation is ever added.** There is no clean reference and no degradation label.
 
-The target is live and amateur music capture: concerts, audience and taper recordings, old festival captures, soundboard and tape transfers, consumer microphones. Old Montreux Jazz Festival recordings are the reference mental image. Extreme historical material such as cylinder recordings is deliberately out of scope, being too far from the application target.
+The target is live and amateur music capture: concerts, audience and taper recordings, soundboard and tape transfers, old festival captures, consumer microphones. Extreme historical material such as cylinder recordings is out of scope.
 
-The source is the [Internet Archive Music Dataset (IAMD)](https://adasp.telecom-paris.fr/resources/2026-08-01-iamd-dataset/), used as a **discovery catalogue** rather than as audio: it indexes 4.1M captioned 30-second segments from 548k Creative Commons files, with Internet Archive metadata and per-item licence records that can be filtered. Its own segments are re-encoded to 320 kbps MP3 and must not be used in the benchmark; candidates are resolved to their Internet Archive identifier and the best available original source audio is downloaded instead. Licence filtering prefers CC0 and CC BY, accepts CC BY-SA only where compatible with the release policy, and avoids NC assets so the benchmark distribution stays permissive. The target size is roughly 300 to 500 fixed excerpts of 10 to 30 seconds.
+[IAMD](https://adasp.telecom-paris.fr/resources/2026-08-01-iamd-dataset/) serves as a catalogue, never as audio: candidates are resolved through their Internet Archive `identifier` and the best available original is downloaded from the Archive, because IAMD's own segments are re-encoded 320 kbps MP3. Licence filtering prefers CC0 and CC BY, accepts CC BY-SA only where compatible with the release policy, and always excludes NC and ND.
 
-The [MSR Challenge](https://msrchallenge.com/) remains a relevant external reference, and its real live subset is conceptually close to this track. OpenRestore should not be built by copying their blind set; their subset may later serve as an external transfer benchmark instead.
+Candidates are scored by confidence rather than merely matched: structured evidence such as a populated `venue` or `is_live` field, then strong phrases like `recorded live` or `soundboard`, then weak keywords, combined with likely source fidelity and licence tier. **A bare keyword alone is not sufficient evidence.**
 
+Splits are **strictly source-disjoint by Internet Archive identifier**: no identifier, concert or Archive item may cross splits, because positions within one concert are not independent samples. Clips per identifier are capped so no single concert dominates.
+
+### Blind-Real Hidden
+
+A separate organizer-only test set, **not sourced from IAMD**, so that training on all of IAMD does not amount to training on this set. Its material is real concert capture from YouTube under a Creative Commons licence or with documented permission.
+
+Its audio is never published, and neither are its URLs, video IDs or timestamps. A complete internal manifest records provenance, licence or permission evidence, URL, timestamp, content hash and excerpt bounds. Participants never receive the files: they submit a container and the organizers run it server-side.
+
+It measures generalisation on genuinely unseen recordings and protects the public test from contamination and gaming. **It does not replace the public Blind-Real test**, which is what makes local development possible.
+
+### What Blind-Real cannot measure
+
+Neither Blind-Real set is paired, so neither can measure fidelity to a clean reference. Their metrics are defined separately, later. Mass human QA listening, distribution matching with MAD or MERT, and listening studies are secondary analyses, not prerequisites for building these datasets.
+
+## Degradation Pipeline
 ## Degradation Pipeline
 
 ### Degradation Taxonomy
@@ -305,9 +321,13 @@ Diagnostic and Blind-Synthetic tracks:
 - `test`: public clean and degraded pairs for reproducible diagnostic reports before official submission. For Blind-Synthetic, degradation metadata is withheld here and a small percentage of items are clean.
 - `evaluation`: hidden clean and degraded pairs used only by the organizers for official leaderboard scoring. Participants do not receive the audio or item list before evaluation.
 
-Blind-Real track:
+Blind-Real Public track, all without a clean reference or degradation label, and all source-disjoint by Internet Archive identifier:
 
-- `blind_real_test`: public test only. No clean reference, no degradation label, no training or validation counterpart.
+- `blind_real_train`, `blind_real_validation`, `blind_real_test`.
+
+Blind-Real Hidden track:
+
+- `blind_real_hidden`: organizer-only test. Never distributed; its audio, URLs, IDs and timestamps are not published.
 
 ### Leaderboard Policy
 
@@ -395,7 +415,8 @@ Only two of the three tracks have a clean reference, so one protocol cannot serv
 | --- | --- |
 | Diagnostic | Full paired reconstruction metrics plus AAE reported per degradation class, since the class is known. |
 | Blind-Synthetic | The same paired metrics, with AAE reported over the ordered degradation chain rather than one class. Adds an over-restoration measure on the clean test items, where the correct behaviour is to change nothing. |
-| Blind-Real | No clean reference exists, so no similarity-to-clean metric is possible. Input-to-output similarity must not be a primary metric either, because it penalises legitimate correction. Use several complementary no-reference and perceptual metrics, and document the limits of each. No heavy human evaluation is planned for now. |
+| Blind-Real Public | No clean reference exists, so no similarity-to-clean metric is possible. Input-to-output similarity must not be a primary metric either, because it penalises legitimate correction. Use several complementary no-reference and perceptual metrics, and document the limits of each. The exact set is defined separately, later. |
+| Blind-Real Hidden | The same no-reference protocol, computed server-side after running a submitted container. Scores are published; the audio, URLs and timestamps are not. |
 
 ### Optional Metrics
 

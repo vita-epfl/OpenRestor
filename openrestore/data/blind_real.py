@@ -349,3 +349,135 @@ def selection_statistics(frozen: list[dict[str, Any]]) -> dict[str, Any]:
         "with_strong_live_phrase": phrases,
         "weak_evidence_only": len(frozen) - structured - phrases,
     }
+
+
+# --- Confidence tiers and source-disjoint splits ------------------------------------
+
+# A bare keyword in free text is not evidence. IAMD's is_live column is empty across the
+# probe and venue is set on 14 of 703 rows, so "live" appearing somewhere carries very
+# little signal and the weak tier is excluded from the track by default.
+CONFIDENCE_TIERS = ("structured", "strong_phrase", "weak_keyword", "none")
+
+
+def confidence_tier(row: dict[str, Any]) -> str:
+    """Grade why a row looks live, from a populated field down to a bare keyword."""
+    evidence = row.get("live_evidence") or live_evidence(row)
+    if evidence["structured_fields"]:
+        return "structured"
+    if evidence["strong_phrases"]:
+        return "strong_phrase"
+    if evidence["keyword_hits"]:
+        return "weak_keyword"
+    return "none"
+
+
+def select_high_confidence(
+    rows: Iterable[dict[str, Any]],
+    accept_tiers: tuple[str, ...] = ("structured", "strong_phrase"),
+) -> list[dict[str, Any]]:
+    """Keep only candidates whose live evidence is better than a bare keyword."""
+    return [row for row in rows if confidence_tier(row) in accept_tiers]
+
+
+def assign_source_disjoint_splits(
+    rows: Iterable[dict[str, Any]],
+    seed: int = 20260714,
+    validation_identifiers: int = 0,
+    test_identifiers: int = 0,
+    validation_fraction: float = 0.15,
+    test_fraction: float = 0.15,
+) -> list[dict[str, Any]]:
+    """Split by Internet Archive identifier, never by clip.
+
+    Positions within one concert are not independent samples, so an identifier that
+    crossed splits would leak. Identifiers are partitioned first and their clips follow.
+    Absolute counts override the fractions when given, which is how a target of a few
+    hundred validation and test clips is met without reshaping the train split.
+    """
+    from .core import stable_fraction
+
+    row_list = list(rows)
+    identifiers = sorted({str(row["internet_archive_identifier"] if "internet_archive_identifier" in row else row["identifier"]) for row in row_list})
+    if not identifiers:
+        return []
+    ordered = sorted(identifiers, key=lambda i: stable_fraction(i, seed))
+
+    if validation_identifiers or test_identifiers:
+        n_val, n_test = validation_identifiers, test_identifiers
+    else:
+        n_val = max(1, int(round(len(ordered) * validation_fraction)))
+        n_test = max(1, int(round(len(ordered) * test_fraction)))
+    if n_val + n_test >= len(ordered):
+        raise ValueError(
+            f"validation and test would consume all {len(ordered)} identifiers, leaving no train split"
+        )
+    assignment = {i: "blind_real_validation" for i in ordered[:n_val]}
+    assignment.update({i: "blind_real_test" for i in ordered[n_val : n_val + n_test]})
+    assignment.update({i: "blind_real_train" for i in ordered[n_val + n_test :]})
+
+    assigned = []
+    for row in row_list:
+        identifier = str(row.get("internet_archive_identifier") or row.get("identifier"))
+        assigned.append({**row, "split": assignment[identifier]})
+    return assigned
+
+
+def validate_source_disjoint(rows: Iterable[dict[str, Any]]) -> None:
+    """Fail loudly if any identifier appears in more than one split."""
+    seen: dict[str, str] = {}
+    for row in rows:
+        identifier = str(row.get("internet_archive_identifier") or row.get("identifier"))
+        split = str(row.get("split"))
+        if identifier in seen and seen[identifier] != split:
+            raise ValueError(f"identifier {identifier!r} leaks across {seen[identifier]!r} and {split!r}")
+        seen[identifier] = split
+
+
+def scan_report(rows: Iterable[dict[str, Any]], cap_per_identifier: int = 2) -> dict[str, Any]:
+    """The catalogue report: what the scan actually found, and what sizes it supports."""
+    from collections import Counter
+
+    total = 0
+    licences: Counter[str] = Counter()
+    collections: Counter[str] = Counter()
+    permissive_ids: set[str] = set()
+    tiers: Counter[str] = Counter()
+    tier_ids: dict[str, set[str]] = {t: set() for t in CONFIDENCE_TIERS}
+    allowed = set(PERMISSIVE_LICENCES)
+    for row in rows:
+        total += 1
+        licence = str(row.get("license_type") or "unknown")
+        licences[licence] += 1
+        collections[str(row.get("collection") or "unknown")] += 1
+        if licence not in allowed:
+            continue
+        identifier = str(row.get("identifier"))
+        permissive_ids.add(identifier)
+        tier = confidence_tier(row)
+        tiers[tier] += 1
+        tier_ids[tier].add(identifier)
+
+    usable_ids = tier_ids["structured"] | tier_ids["strong_phrase"]
+    capped = len(usable_ids) * cap_per_identifier
+    # Identifiers, not clips, are what the split policy partitions.
+    val = test = min(300, max(1, len(usable_ids) // 6))
+    return {
+        "segments_scanned": total,
+        "licence_distribution": dict(licences.most_common()),
+        "permissive_segments": sum(licences[l] for l in PERMISSIVE_LICENCES),
+        "permissive_distinct_identifiers": len(permissive_ids),
+        "live_candidates_by_confidence": dict(tiers.most_common()),
+        "distinct_identifiers_by_confidence": {t: len(ids) for t, ids in tier_ids.items()},
+        "high_confidence_identifiers": len(usable_ids),
+        "clips_after_cap": capped,
+        "top_collections": dict(collections.most_common(25)),
+        "achievable_sizes": {
+            "note": "identifier-level, cap of %d clip(s) each, source-disjoint" % cap_per_identifier,
+            "validation_identifiers": val,
+            "test_identifiers": test,
+            "train_identifiers": max(0, len(usable_ids) - val - test),
+            "validation_clips": val * cap_per_identifier,
+            "test_clips": test * cap_per_identifier,
+            "train_clips": max(0, len(usable_ids) - val - test) * cap_per_identifier,
+        },
+    }

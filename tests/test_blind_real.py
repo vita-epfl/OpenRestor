@@ -110,3 +110,83 @@ class BlindRealCurationTests(TestCase):
         ]}
         self.assertEqual(best_original_file(metadata)["name"], "show.flac")
         self.assertIsNone(best_original_file({"files": [{"name": "a.txt", "source": "original"}]}))
+
+
+class BlindRealSplitTests(TestCase):
+    def test_confidence_tiers_grade_evidence(self) -> None:
+        from openrestore.data.blind_real import confidence_tier, select_high_confidence
+
+        structured = _row(venue="Olympia", tags="live")
+        strong = _row(tags="recorded live; soundboard")
+        weak = _row(tags="live")
+        none = _row(title="Studio Album")
+        self.assertEqual(confidence_tier(structured), "structured")
+        self.assertEqual(confidence_tier(strong), "strong_phrase")
+        self.assertEqual(confidence_tier(weak), "weak_keyword")
+        self.assertEqual(confidence_tier(none), "none")
+
+        # A bare keyword is not evidence, so the weak tier is excluded by default.
+        kept = select_high_confidence([structured, strong, weak, none])
+        self.assertEqual(len(kept), 2)
+
+    def test_splits_are_disjoint_by_identifier(self) -> None:
+        from openrestore.data.blind_real import assign_source_disjoint_splits, validate_source_disjoint
+
+        # Several clips per concert: they must all land in the same split.
+        rows = [
+            {"identifier": f"concert{i}", "key": f"c{i}-{j}"}
+            for i in range(40) for j in range(3)
+        ]
+        assigned = assign_source_disjoint_splits(rows, validation_identifiers=6, test_identifiers=6)
+        validate_source_disjoint(assigned)
+
+        per_identifier: dict[str, set[str]] = {}
+        for row in assigned:
+            per_identifier.setdefault(row["identifier"], set()).add(row["split"])
+        for identifier, splits in per_identifier.items():
+            self.assertEqual(len(splits), 1, f"{identifier} crossed splits: {splits}")
+
+        counts: dict[str, int] = {}
+        for identifier, splits in per_identifier.items():
+            split = next(iter(splits))
+            counts[split] = counts.get(split, 0) + 1
+        self.assertEqual(counts["blind_real_validation"], 6)
+        self.assertEqual(counts["blind_real_test"], 6)
+        self.assertEqual(counts["blind_real_train"], 28)
+
+        # Deterministic for a fixed seed.
+        again = assign_source_disjoint_splits(rows, validation_identifiers=6, test_identifiers=6)
+        self.assertEqual([r["split"] for r in assigned], [r["split"] for r in again])
+
+    def test_leakage_is_detected_and_overconsumption_rejected(self) -> None:
+        from openrestore.data.blind_real import assign_source_disjoint_splits, validate_source_disjoint
+
+        leaking = [
+            {"identifier": "gig", "split": "blind_real_train"},
+            {"identifier": "gig", "split": "blind_real_test"},
+        ]
+        with self.assertRaisesRegex(ValueError, "leaks across"):
+            validate_source_disjoint(leaking)
+
+        rows = [{"identifier": f"i{i}"} for i in range(4)]
+        with self.assertRaisesRegex(ValueError, "no train split"):
+            assign_source_disjoint_splits(rows, validation_identifiers=2, test_identifiers=2)
+
+    def test_scan_report_sizes_from_identifiers_not_clips(self) -> None:
+        from openrestore.data.blind_real import scan_report
+
+        rows = [_row(identifier=f"gig{i}", key=f"k{i}", license_type="BY",
+                     tags="recorded live", venue="Hall" if i % 2 else None) for i in range(60)]
+        rows += [_row(identifier=f"weak{i}", key=f"w{i}", license_type="BY", tags="live") for i in range(20)]
+        rows += [_row(identifier=f"nc{i}", key=f"n{i}", license_type="BY-NC-SA", tags="recorded live") for i in range(30)]
+        report = scan_report(rows, cap_per_identifier=2)
+
+        self.assertEqual(report["segments_scanned"], 110)
+        self.assertEqual(report["permissive_segments"], 80)
+        self.assertEqual(report["high_confidence_identifiers"], 60)
+        self.assertEqual(report["distinct_identifiers_by_confidence"]["weak_keyword"], 20)
+        self.assertEqual(report["clips_after_cap"], 120)
+        sizes = report["achievable_sizes"]
+        self.assertEqual(
+            sizes["train_identifiers"] + sizes["validation_identifiers"] + sizes["test_identifiers"], 60
+        )
