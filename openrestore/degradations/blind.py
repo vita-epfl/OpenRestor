@@ -124,12 +124,25 @@ def render_blind_synthetic(
     output_manifest: Path,
     checksums: Path,
     seed: int,
+    slice_index: int = 0,
+    slice_count: int = 1,
     progress: bool = False,
     progress_interval: int = 50,
 ) -> list[dict[str, Any]]:
-    """Render one compound example per clean item, recording the whole ordered chain."""
+    """Render one compound example per clean item, recording the whole ordered chain.
+
+    A slice renders a contiguous part of the manifest so the work can run in parallel.
+    Slicing does not change any output: the chain and every sampled parameter derive
+    from the global seed and the item ID, never from the item's position.
+    """
+    if slice_count < 1 or not 0 <= slice_index < slice_count:
+        raise ValueError(f"slice_index must be in [0, {slice_count}) with slice_count >= 1")
     config, recipes = load_blind_config(config_path)
     clean_rows = read_jsonl(manifest)
+    if slice_count > 1:
+        size = (len(clean_rows) + slice_count - 1) // slice_count
+        start = slice_index * size
+        clean_rows = clean_rows[start : start + size]
     output_rows: list[dict[str, Any]] = []
     checksum_rows: list[dict[str, str]] = []
     clean_count = 0

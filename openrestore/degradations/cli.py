@@ -36,6 +36,8 @@ def build_parser() -> argparse.ArgumentParser:
     blind.add_argument("--output-manifest", type=_path, required=True)
     blind.add_argument("--checksums", type=_path, required=True)
     blind.add_argument("--seed", type=int, default=20260714)
+    blind.add_argument("--slice-index", type=int, default=0, help="Render only this slice of the manifest")
+    blind.add_argument("--slice-count", type=int, default=1, help="Total number of slices the manifest is split into")
     blind.add_argument("--quiet", action="store_true")
 
     withhold = commands.add_parser("withhold-blind-metadata")
@@ -97,7 +99,8 @@ def main() -> None:
     if args.command == "render-blind-synthetic":
         render_blind_synthetic(
             args.manifest, args.clean_root, args.output_root, args.config,
-            args.output_manifest, args.checksums, args.seed, progress=not args.quiet,
+            args.output_manifest, args.checksums, args.seed,
+            args.slice_index, args.slice_count, progress=not args.quiet,
         )
     elif args.command == "withhold-blind-metadata":
         from .core import read_jsonl, write_jsonl

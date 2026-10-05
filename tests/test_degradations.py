@@ -479,6 +479,52 @@ class BlindSyntheticTests(TestCase):
                     self.assertNotIn(field, row)
                 self.assertIn("degraded_path", row)
 
+    def test_slicing_does_not_change_any_output(self) -> None:
+        """A sliced render must be identical to a whole one: nothing depends on position."""
+        from openrestore.degradations.blind import render_blind_synthetic
+
+        audio = _fixture_audio(1.0)
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            clean_root = root / "clean"
+            rows = []
+            for index in range(11):
+                item = f"sonicmaster_clean--src{index}--00"
+                relative = Path("train") / "sonicmaster_clean" / f"{item}.wav"
+                _write_audio(clean_root / relative, audio)
+                rows.append({
+                    "id": item, "dataset": "sonicmaster_clean", "split": "train",
+                    "source_id": f"src{index}", "clean_path": relative.as_posix(),
+                    "duration_seconds": 1.0, "sample_rate": SAMPLE_RATE, "channels": 2,
+                })
+            manifest = root / "clean.jsonl"
+            write_jsonl(manifest, rows)
+
+            whole = render_blind_synthetic(
+                manifest, clean_root, root / "whole", self.CONFIG,
+                root / "whole.jsonl", root / "whole_ck.jsonl", 20260714,
+            )
+            sliced: list = []
+            for index in range(4):
+                sliced += render_blind_synthetic(
+                    manifest, clean_root, root / "sliced", self.CONFIG,
+                    root / f"s{index}.jsonl", root / f"s{index}_ck.jsonl", 20260714,
+                    slice_index=index, slice_count=4,
+                )
+            self.assertEqual(len(sliced), len(whole))
+            by_id = {r["id"]: r for r in sliced}
+            self.assertEqual(set(by_id), {r["id"] for r in whole})
+            for row in whole:
+                other = by_id[row["id"]]
+                self.assertEqual(other["degradation_chain"], row["degradation_chain"])
+                self.assertEqual(other["degraded_audio_sha256"], row["degraded_audio_sha256"])
+
+            with self.assertRaises(ValueError):
+                render_blind_synthetic(
+                    manifest, clean_root, root / "bad", self.CONFIG,
+                    root / "bad.jsonl", root / "bad_ck.jsonl", 1, slice_index=4, slice_count=4,
+                )
+
     def test_invalid_blind_configs_are_rejected(self) -> None:
         from openrestore.degradations.blind import load_blind_config
 
