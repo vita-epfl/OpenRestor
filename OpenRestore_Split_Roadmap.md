@@ -12,6 +12,31 @@ OpenRestore is a benchmark rather than a single restoration model. It has three 
 
 The Diagnostic track carries the original contract: each item is a 30-second 44.1 kHz musical clip with one degraded input, one clean reference, deterministic degradation metadata, and a portable manifest row. Main-track training uses SonicMaster clean originals only. Validation/model selection uses held-out SonicMaster clean audio. The source-separated SonicMaster public test is the in-distribution test. The Song Describer Dataset ("SDD") and Music Demixing Dataset 2018 High Quality ("MUSDB18-HQ") mixture audio are separately reported public transfer/local-evaluation sets. Official leaderboard scoring uses a hidden organizer-only evaluation set.
 
+## Scope Priorities
+
+OpenRestore is a contribution on audio restoration. The risk to guard against is turning it into a second, unasked-for contribution on Internet Archive data curation, so scope is tiered explicitly.
+
+### v0.1 - required
+
+- **Diagnostic track.** The 21 canonical classes, one degradation per item. This is the core of the benchmark.
+- **Blind-Synthetic track.** Compound chains of 0 to 3 degradations, train/validation/test, clean targets retained.
+
+Both are conceptually complete and implemented. What remains is generation at release scale.
+
+### v0.1 - small bonus
+
+- **Blind-Real pilot.** 50 to 100 high-confidence clips from IAMD and Internet Archive originals. High-confidence means structured live evidence or a strong phrase, not a bare keyword. The point is to demonstrate the track exists and is measurable, not to be exhaustive.
+
+### v0.2 - deliberately not done
+
+There is no paper driving these, so they stay out of scope until one does.
+
+- 300 to 500 Blind-Real clips.
+- The full 2,320-shard IAMD scan.
+- Manual QA listening at scale.
+- Distribution matching against Blind-Synthetic with MAD, MERT or another distributional measure.
+- A finer taxonomy of live capture conditions.
+
 ## Ownership Summary
 
 | Area | Research/audio engineer owns | IT/software engineers own | Shared decision points |
@@ -252,6 +277,8 @@ Test split only. No clean ground truth, and no degradation label at inference.
 
 **Status: data curation blocked on source quality, not tooling.** The pipeline below is implemented and measured. What is missing is source material that actually matches the target under a licence we can redistribute.
 
+**Scope for v0.1 is a 50 to 100 clip pilot**, drawn only from candidates with structured live evidence or a strong phrase. The 300 to 500 clip set, the full catalogue scan, scaled QA listening and distribution matching are v0.2 and deliberately not done: see Scope Priorities.
+
 ### Scope
 
 Live and amateur music capture: concerts, audience and taper recordings, old festival captures, soundboard and tape transfers, consumer microphones. Old Montreux Jazz Festival recordings are the reference mental image. Extreme historical material such as cylinder recordings is out of scope, being too far from the application target.
@@ -276,10 +303,14 @@ So the source that actually holds live concerts fails the licence gate, and the 
 - [x] 5. Cap clips per identifier, so a handful of concerts cannot dominate the set.
 - [x] 6. Rank candidates automatically on licence tier, strength of live evidence, and likely source fidelity. No listening involved.
 - [x] 7. Freeze the candidate list with per-item provenance: identifier, licence, attribution, venue, source format, and why it was selected.
-- [ ] 8. Compare the Blind-Real candidate distribution against the Blind-Synthetic degraded distribution, with a distributional measure rather than per-clip scoring. The question is whether Blind-Synthetic covers the acoustic domain of real live capture at all, not which clips to keep. The repository already ships FAD over CLAP embeddings in the perceptual pack, so `FAD-LAION(blind_real, blind_synthetic_degraded)` is the cheapest first answer; MERT or another music embedding is a reasonable alternative. This runs **before** the list is declared final.
-- [ ] 9. Minimal QA listening, only to reject obvious false positives. Not a quality judgement of each clip.
-- [ ] 10. Resolve each retained identifier to its Internet Archive original and download the best available file. IAMD's own 320 kbps MP3 segments are never used in the benchmark.
-- [ ] 11. Cut fixed excerpts of 10 to 30 seconds and record the exact bounds.
+- [ ] 8. Resolve each retained identifier to its Internet Archive original and download the best available file. IAMD's own 320 kbps MP3 segments are never used in the benchmark.
+- [ ] 9. Cut fixed excerpts of 10 to 30 seconds and record the exact bounds.
+- [ ] 10. Minimal QA listening on the pilot, only to reject obvious false positives. Not a quality judgement of each clip.
+
+Deferred to v0.2, not blocking v0.1:
+
+- [ ] Compare the Blind-Real candidate distribution against the Blind-Synthetic degraded distribution, with a distributional measure rather than per-clip scoring. The question is whether Blind-Synthetic covers the acoustic domain of real live capture at all, not which clips to keep. The repository already ships FAD over CLAP embeddings in the perceptual pack, so `FAD-LAION(blind_real, blind_synthetic_degraded)` is the cheapest first answer; MERT or another music embedding is a reasonable alternative.
+- [ ] Scale from the pilot to 300-500 clips, with QA listening across the whole set.
 
 ### Measured On A 1% Probe
 
@@ -304,9 +335,10 @@ IAMD's `is_live` column is empty throughout the probe and `venue` is set on 14 o
 ### Shared deliverables
 
 - [x] catalogue scan, licence and live filters, deduplication, cap, automatic ranking, and the frozen-list writer
-- [ ] distribution-coverage report against Blind-Synthetic
-- [ ] 300-500 excerpt test set with per-item provenance and attribution
-- [ ] documented scope statement and known limits
+- [ ] **v0.1:** 50-100 clip high-confidence pilot with per-item provenance and attribution
+- [ ] **v0.1:** documented scope statement and known limits
+- [ ] v0.2: distribution-coverage report against Blind-Synthetic
+- [ ] v0.2: 300-500 excerpt test set
 
 ## Phase 3 - Metrics, AAE Diagnostics, And Reports
 

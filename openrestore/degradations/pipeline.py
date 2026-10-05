@@ -254,17 +254,29 @@ def write_hdf5_shards(
 
     for shard_number, start in enumerate(range(0, len(rows), shard_size)):
         chunk = rows[start : start + shard_size]
-        decoded = [read_audio(output_root / row["degraded_path"])[0] for row in chunk]
-        first_shape = decoded[0].shape if decoded else (0, 2)
-        if any(audio.shape != first_shape for audio in decoded):
-            raise ValueError("HDF5 sharding requires canonical equal-length degraded audio")
+        # One clip is read at a time and written straight into the dataset. Buffering a
+        # whole shard first would cost shard_size x 10 MB of float32 twice over, which is
+        # ~18 GB at a shard size of 840 and is what a memory limit kills without a trace.
+        first_shape = read_audio(output_root / chunk[0]["degraded_path"])[0].shape if chunk else (0, 2)
         shard_path = shards_dir / f"degraded-{shard_number:05d}.h5"
         with h5py.File(shard_path, "w") as shard:
             shard.attrs["format"] = "openrestore.degraded.v0.1"
             shard.attrs["sample_rate"] = CANONICAL_SAMPLE_RATE
             shard.attrs["samples"] = first_shape[0]
             shard.attrs["channels"] = first_shape[1]
-            shard.create_dataset("audio", data=np.stack(decoded), compression="gzip", shuffle=True)
+            audio_set = shard.create_dataset(
+                "audio",
+                shape=(len(chunk), *first_shape),
+                dtype="float32",
+                chunks=(1, *first_shape) if chunk else None,
+                compression="gzip",
+                shuffle=True,
+            )
+            for offset, row in enumerate(chunk):
+                clip = read_audio(output_root / row["degraded_path"])[0]
+                if clip.shape != first_shape:
+                    raise ValueError("HDF5 sharding requires canonical equal-length degraded audio")
+                audio_set[offset] = clip
             shard.create_dataset("item_id", data=[str(row["id"]) for row in chunk], dtype=text_type)
             shard.create_dataset("clean_id", data=[str(row["clean_id"]) for row in chunk], dtype=text_type)
             shard.create_dataset("degraded_path", data=[str(row["degraded_path"]) for row in chunk], dtype=text_type)
