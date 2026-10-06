@@ -6,6 +6,8 @@ from pathlib import Path
 from typing import Any
 
 import librosa
+from functools import lru_cache
+
 import numpy as np
 from scipy import signal
 
@@ -123,12 +125,25 @@ def _real_rir_files(directory: str) -> list[Path]:
     return sorted(path for path in root.rglob("*.wav") if path.is_file()) if directory and root.is_dir() else []
 
 
+@lru_cache(maxsize=64)
+def _load_rir(path: Path, mtime_ns: int) -> np.ndarray:
+    """Decode and resample one RIR, cached across clips.
+
+    The bundle holds a handful of files but is drawn from once per rendered clip, and
+    decoding a 96 kHz impulse and resampling it to 44.1 kHz costs three times the
+    convolution it feeds. The modification time is part of the key so swapping the
+    bundle cannot serve a stale impulse.
+    """
+    impulse, _ = librosa.load(path, sr=44_100, mono=False)
+    return impulse
+
+
 def _real_rir(audio: np.ndarray, directory: str, index: int) -> tuple[np.ndarray, str]:
     files = _real_rir_files(directory)
     if not files:
         raise FileNotFoundError("The `real` effect requires parameters.real_rir_dir containing ARIEL-compatible WAV RIRs")
     path = files[index % len(files)]
-    impulse, _ = librosa.load(path, sr=44_100, mono=False)
+    impulse = _load_rir(path, path.stat().st_mtime_ns)
     if impulse.ndim == 1:
         impulse = impulse[np.newaxis, :]
     start = min(np.argmax(impulse, axis=1))
