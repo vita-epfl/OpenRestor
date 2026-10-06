@@ -51,6 +51,15 @@ LIVE_KEYWORDS = (
 LIVE_TEXT_FIELDS = ("collection", "tags", "title", "album", "notes", "equipment", "credits", "recording_mode", "audio_type")
 
 
+def stream_jsonl(path: Path) -> Iterable[dict[str, Any]]:
+    """Yield rows one at a time. The catalogue is gigabytes; materialising it is not viable."""
+    with path.open(encoding="utf-8") as handle:
+        for line in handle:
+            line = line.strip()
+            if line:
+                yield json.loads(line)
+
+
 def shard_urls(count: int, start: int = 0) -> list[str]:
     return [IAMD_SHARD_URL.format(index=i) for i in range(start, start + count)]
 

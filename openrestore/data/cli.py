@@ -122,8 +122,8 @@ def main() -> None:
     progress = not getattr(args, "quiet", False)
     if args.command == "blind-real-report":
         import json as _json
-        from .blind_real import scan_report
-        text = _json.dumps(scan_report(read_jsonl(args.catalogue), args.cap_per_identifier), indent=2, sort_keys=True)
+        from .blind_real import scan_report, stream_jsonl
+        text = _json.dumps(scan_report(stream_jsonl(args.catalogue), args.cap_per_identifier), indent=2, sort_keys=True)
         if args.output:
             args.output.parent.mkdir(parents=True, exist_ok=True)
             args.output.write_text(text + "\n", encoding="utf-8")
@@ -165,12 +165,11 @@ def main() -> None:
         print(f"wrote {written} catalogue rows to {args.output}")
     elif args.command == "blind-real-candidates":
         import json as _json
-        from .blind_real import catalogue_statistics, filter_candidates
-        rows = read_jsonl(args.catalogue)
-        kept = filter_candidates(rows, args.allow_share_alike, not args.any_recording)
+        from .blind_real import filter_candidates, scan_report, stream_jsonl
         from .core import write_jsonl as _write
+        kept = filter_candidates(stream_jsonl(args.catalogue), args.allow_share_alike, not args.any_recording)
         _write(args.output, kept)
-        stats = catalogue_statistics(rows)
+        stats = scan_report(stream_jsonl(args.catalogue))
         stats["selected"] = len(kept)
         text = _json.dumps(stats, indent=2, sort_keys=True)
         if args.stats:
