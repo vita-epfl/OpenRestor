@@ -195,19 +195,22 @@ def best_original_file(metadata: dict[str, Any]) -> dict[str, Any] | None:
     resolving the identifier is to get behind IAMD's re-encoded segments.
     """
     preference = [".flac", ".wav", ".aiff", ".aif", ".shn", ".ape", ".m4a", ".ogg", ".mp3"]
-    best: tuple[int, int, dict[str, Any]] | None = None
+    candidates: list[tuple[int, int, str, dict[str, Any]]] = []
     for item in metadata.get("files", []):
-        name = str(item.get("name", "")).lower()
+        name = str(item.get("name", ""))
         if item.get("source") not in (None, "original"):
             continue
-        suffix = next((p for p in preference if name.endswith(p)), None)
+        suffix = next((p for p in preference if name.lower().endswith(p)), None)
         if suffix is None:
             continue
-        rank = preference.index(suffix)
-        size = int(item.get("size") or 0)
-        if best is None or rank < best[0]:
-            best = (rank, size, item)
-    return best[2] if best else None
+        candidates.append((preference.index(suffix), -int(item.get("size") or 0), name, item))
+    if not candidates:
+        return None
+    # An item is often a whole concert split into tracks, so a tie-break is needed and it
+    # must not depend on the order the API happens to return. Best format first, then the
+    # longest file, then the name: reproducible from the metadata alone.
+    candidates.sort(key=lambda c: c[:3])
+    return candidates[0][3]
 
 
 # --- Selection: deduplicate, cap, rank, freeze -------------------------------------
@@ -491,4 +494,83 @@ def scan_report(rows: Iterable[dict[str, Any]], cap_per_identifier: int = 2) -> 
             "test_clips": test * cap_per_identifier,
             "train_clips": max(0, len(usable_ids) - val - test) * cap_per_identifier,
         },
+    }
+
+
+# --- Resolving candidates to Internet Archive originals -----------------------------
+
+def fetch_item_metadata(identifier: str, timeout: float = 60.0) -> dict[str, Any]:
+    """Fetch one Internet Archive item's metadata. No audio is transferred."""
+    import urllib.request
+
+    with urllib.request.urlopen(internet_archive_metadata_url(identifier), timeout=timeout) as response:
+        return json.load(response)
+
+
+def original_download_url(identifier: str, filename: str) -> str:
+    import urllib.parse
+
+    return f"https://archive.org/download/{identifier}/{urllib.parse.quote(filename)}"
+
+
+def resolve_originals(
+    identifiers: Iterable[str], workers: int = 6, progress: bool = True
+) -> list[dict[str, Any]]:
+    """Resolve identifiers to their best original audio file, without downloading it.
+
+    Run before any download so the volume is known in advance: a single concert in
+    lossless form can be hundreds of megabytes, and the choice of file matters more
+    than the choice of item.
+    """
+    identifiers = list(dict.fromkeys(identifiers))
+    resolved: list[dict[str, Any]] = []
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        futures = {pool.submit(fetch_item_metadata, i): i for i in identifiers}
+        for done, future in enumerate(as_completed(futures), start=1):
+            identifier = futures[future]
+            try:
+                metadata = future.result()
+            except Exception as error:  # noqa: BLE001 - one bad item must not end the pass
+                resolved.append({"identifier": identifier, "status": f"metadata-failed: {type(error).__name__}"})
+                continue
+            best = best_original_file(metadata)
+            if best is None:
+                resolved.append({"identifier": identifier, "status": "no-usable-original"})
+                continue
+            item = metadata.get("metadata", {})
+            resolved.append({
+                "identifier": identifier,
+                "status": "resolved",
+                "file_name": best.get("name"),
+                "file_format": best.get("format"),
+                "file_size_bytes": int(best.get("size") or 0),
+                "file_sha1": best.get("sha1"),
+                "download_url": original_download_url(identifier, str(best.get("name"))),
+                "item_licenseurl": item.get("licenseurl"),
+                "item_title": item.get("title"),
+                "item_creator": item.get("creator"),
+                "item_date": item.get("date"),
+                "item_collection": item.get("collection"),
+            })
+            if progress and (done % 20 == 0 or done == len(identifiers)):
+                print(f"[resolve] {done}/{len(identifiers)}", flush=True)
+    resolved.sort(key=lambda r: r["identifier"])
+    return resolved
+
+
+def resolve_summary(resolved: list[dict[str, Any]]) -> dict[str, Any]:
+    from collections import Counter
+
+    status = Counter(r["status"] for r in resolved)
+    ok = [r for r in resolved if r["status"] == "resolved"]
+    sizes = sorted(r["file_size_bytes"] for r in ok)
+    formats = Counter(str(r.get("file_format")) for r in ok)
+    return {
+        "identifiers": len(resolved),
+        "status": dict(status),
+        "total_download_bytes": sum(sizes),
+        "total_download_gb": round(sum(sizes) / 1e9, 2),
+        "median_file_mb": round(sizes[len(sizes) // 2] / 1e6, 1) if sizes else 0.0,
+        "largest_file_mb": round(sizes[-1] / 1e6, 1) if sizes else 0.0,
+        "formats": dict(formats.most_common()),
     }
