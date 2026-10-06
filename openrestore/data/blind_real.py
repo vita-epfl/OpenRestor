@@ -216,7 +216,10 @@ LICENCE_TIER = {"CC0": 3, "BY": 2, "BY-SA": 1}
 
 # Strong evidence is a structured field or a phrase that is hard to produce by accident;
 # weak evidence is a bare keyword in free text, which a studio release can easily carry.
-STRONG_LIVE_FIELDS = ("is_live", "venue", "location")
+# `location` is deliberately not here: a field recording of a street has a location,
+# which says nothing about live music capture. Only an explicit is_live flag or a named
+# venue counts as structured evidence.
+STRONG_LIVE_FIELDS = ("is_live", "venue")
 STRONG_LIVE_PHRASES = ("recorded live", "live at", "live in", "soundboard", "audience", "taper", "bootleg")
 
 
@@ -347,16 +350,15 @@ def selection_statistics(frozen: list[dict[str, Any]]) -> dict[str, Any]:
 
     licences = Counter(str(r.get("license_type")) for r in frozen)
     identifiers = Counter(r["internet_archive_identifier"] for r in frozen)
-    structured = sum(1 for r in frozen if r["selection"]["live_evidence"]["structured_fields"])
-    phrases = sum(1 for r in frozen if r["selection"]["live_evidence"]["strong_phrases"])
+    # Tiers are mutually exclusive, unlike the underlying predicates: an item can carry
+    # both a structured field and a strong phrase, so counting predicates double-counts.
+    tiers = Counter(confidence_tier(r["selection"]) if "selection" in r else confidence_tier(r) for r in frozen)
     return {
         "items": len(frozen),
         "distinct_identifiers": len(identifiers),
         "max_per_identifier": max(identifiers.values()) if identifiers else 0,
         "licence_distribution": dict(licences.most_common()),
-        "with_structured_live_evidence": structured,
-        "with_strong_live_phrase": phrases,
-        "weak_evidence_only": len(frozen) - structured - phrases,
+        "confidence_tiers": {t: tiers.get(t, 0) for t in CONFIDENCE_TIERS},
     }
 
 
