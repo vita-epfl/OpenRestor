@@ -36,6 +36,20 @@ Fourteen files across five rooms. Per-file credits are in `assets/degradations/v
 
 Nothing in the bundle is non-commercial or no-derivatives, and nothing carries a share-alike obligation, so no clause propagates to the rendered corpus.
 
+### Confirmed By The OpenAIR Maintainers
+
+Damian Murphy of the University of York AudioLab confirmed by email, in October 2026, the terms of the 25 rooms whose web pages were unreachable. **The standard current OpenAIR licence is CC BY-SA 4.0**, and he confirmed it applies to 23 of them:
+
+air-museum, arthur-sykes-rymer-auditorium-university-york, cliffords-tower, forest-scale-model, genesis-6-studio-live-room-drum-set, hendrix-hall, holy-trinity-church, house-of-commons-auralizations, jack-lyons-concert-hall-university-york, koli-national-park-winter, maes-howe, newgrange, r1-nuclear-reactor-hall, ron-cooke-hub-university-york, shrine-and-parish-church-all-saints-north-street, spring-lane-building-university-york, st-andrews-church, st-margarets-church-ncem-5-piece-band-spatial-measurements, st-marys-abbey-reconstruction, st-pauls-cathedral, virtual-membranes, wheldrake-wood, york-minster.
+
+He was able to state this because a member of his team or one of their students made each measurement. Two rooms stay unresolved: **tvisongur-sound-sculpture-iceland-model** and **usina-del-arte-symphony-hall** were measured by people outside his team; contributors had to accept the CC BY-SA terms to publish on OpenAIR, but the entries are old and he would not confirm their provenance. They are therefore treated as unknown.
+
+This resolves the gap recorded earlier and settles the provenance of `ron-cooke-hub-university-york`, the source of the two unidentified files in the retired bundle.
+
+**It does not change the v0.1 bundle.** These 23 rooms are CC BY-SA, and the bundle deliberately admits only Public Domain and CC BY so that no share-alike obligation propagates to the rendered corpus. More decisively, the Diagnostic release is already rendered: changing the RIR set now would invalidate 542,829 paired examples, because which RIR a seed selects depends on the installed bundle. This is information for a future version, not a change to make to this one.
+
+If a later release accepts CC BY-SA, the confirmation widens the usable pool from 22 rooms to roughly 45, and the additions are the musically valuable ones: York Minster, St Paul's Cathedral, the Jack Lyons Concert Hall, Maes Howe, Newgrange, Holy Trinity Church and St Andrew's Church.
+
 ### Rooms Deliberately Excluded
 
 A survey of 75 archived OpenAIR room pages found 22 rooms with permissive terms, of which 19 have stereo or B-format files the renderer can read. The bundle takes only the five Public Domain and CC BY rooms. The 14 remaining permissive rooms are Attribution Share Alike: usable commercially, but share-alike would propagate to the rendered `reverb_real` audio, and nothing else in the benchmark imposes such a clause. They are available to revisit if the release policy ever accepts share-alike.

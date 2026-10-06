@@ -20,10 +20,12 @@ OpenRestore has four evaluation sets. Two are paired against a clean reference a
 | --- | --- | --- | --- | --- |
 | **Diagnostic** | exactly one of 21 synthetic classes | yes | train / validation / test | public |
 | **Blind-Synthetic** | 0 to 3 synthetic, random type, order and intensity | yes | train / validation / test | public |
-| **Blind-Real Public** | none added; real recordings degraded by their own history | **no** | train / validation / test | public |
+| **Blind-Real Public** | none added; real recordings degraded by their own history | **no** | **test only** | public |
 | **Blind-Real Hidden** | none added; real concert captures | **no** | test only | **organizer-only** |
 
-Why both Blind-Real sets exist: the public one is what lets anyone develop, validate and compare locally, and the hidden one is what measures generalisation without the public test being trained on. **The hidden set does not replace the public test.**
+Blind training happens on Blind-Synthetic, which has the splits and the clean targets for it. Both Blind-Real sets are evaluation only: the public one so anyone can test generalisation to real material locally, the hidden one so the leaderboard measures it on material nobody could have trained on. **The hidden set does not replace the public test.**
+
+Current state: Diagnostic is rendered (648/648 shards, 542,829 paired examples, zero failures). Blind-Synthetic is rendering. Both Blind-Real sets are still to be built.
 
 Neither Blind-Real set is paired, so neither can measure fidelity to a clean reference. Their metrics are defined separately, later; nothing in their construction waits on that.
 
@@ -240,6 +242,8 @@ OpenRestore is now effect-first. The active single-effect registry has exactly 2
 
 Goal: measure blind restoration, where the system is not told what went wrong and more than one thing may have.
 
+Implemented and stable; its logic is not to be changed. Chains carry 0 to 3 degradations with continuous intensities, about 8% of items are left clean as a no-op control, and degradation metadata is published for train and validation but withheld at inference on test.
+
 This is a separate dataset with its own train, validation and test splits. It does not replace the Diagnostic track and does not change the 21 canonical classes.
 
 ### Research/audio engineer tasks
@@ -269,60 +273,60 @@ This is a separate dataset with its own train, validation and test splits. It do
 
 ## Phase 2C - Blind-Real Public
 
-Goal: a public track of real recordings degraded by their own history, with train, validation and test splits, so anyone can develop, validate and compare a blind restoration system locally.
+Goal: let a system be evaluated locally on real recordings degraded by their own history.
 
-No clean reference. No degradation label. **No synthetic degradation is ever added**: the whole point is that the degradation is real and uncontrolled.
+**Test only.** No clean reference, no degradation label, and **no synthetic degradation is ever added**. There is no train or validation split: blind training happens on Blind-Synthetic, and this set exists to measure generalisation to real material.
 
-### Scope
+### Why there is no train split
 
-Live and amateur music capture: concerts, audience and taper recordings, soundboard and tape transfers, old festival captures, consumer microphones. Old Montreux Jazz Festival recordings are the reference mental image. Extreme historical material such as cylinder recordings stays out of scope, being too far from the application target.
+The completed 2,320-shard IAMD scan settles it. The permissive, high-confidence live material simply is not there:
 
-### Source
+| | |
+| --- | --- |
+| Segments scanned | 4,246,139 |
+| CC0 + CC BY segments | 579,826 |
+| Distinct permissive identifiers | 18,758 |
+| **Distinct identifiers with high-confidence live metadata** | **131** |
+| Clips at a cap of 2 per identifier | **about 262** |
 
-[IAMD](https://adasp.telecom-paris.fr/resources/2026-08-01-iamd-dataset/) (`Telecom-Paris/iamd_v0`) is used as a **catalogue**, never as audio: its own segments are re-encoded 320 kbps MP3. Each retained candidate is resolved through its `identifier` to the Internet Archive item, and the best available original is downloaded from there.
+131 source items cannot carry a train, validation and test split. **The filter is not to be loosened to inflate the set**: admitting `weak_keyword` would reach 567 identifiers and admitting CC BY-SA as well would reach 972, but the evidence behind those is a bare "live" in free text, which this scan showed carries almost no signal.
 
-The [Internet Archive Live Music Archive](https://archive.org/details/etree) holds 304,969 concert recordings and would be the ideal source, but it has **no machine-readable licence**: a 1,000-item sample found 999 with no `licenseurl` and one BY-NC, and item metadata carries no rights field at all. It therefore cannot pass the licence gate and is not used.
+### Selection policy
 
-### Licence policy
+- Source: high-confidence IAMD candidates, resolved through `identifier` to the Internet Archive item, from which the best available original is downloaded. IAMD's own 320 kbps MP3 segments are never used.
+- Licences: **CC0 and CC BY only** for now. BY-SA is not admitted.
+- Confidence: **`structured` and `strong_phrase` only**. `weak_keyword` is excluded.
+- Cap: at most **2 clips per `identifier`**.
 
-CC0 and CC BY are the priority. CC BY-SA is acceptable only if it is compatible with the release policy, since share-alike would propagate. NC and ND are always excluded.
+### Wording discipline
 
-### Confidence scoring
+The 131 items are **distinct Internet Archive source items with high-confidence live-recording metadata**. They are *not* verified concerts: nothing in the pipeline listened to them or confirmed the event. Release text, dataset cards and papers must use the longer phrasing.
 
-A candidate is scored, not merely matched, on:
+Every item keeps its provenance and its live evidence: the confidence level, and the field or phrase that triggered it.
 
-- **structured evidence** — a populated `venue` or `is_live` field;
-- **strong phrases** — `recorded live`, `soundboard`, `audience`, `taper`, `bootleg`, `live at`;
-- **weak keywords** — a bare `live` in free text;
-- **likely source fidelity** — sample rate, bit depth, channel count, metadata completeness;
-- **licence tier** — CC0 above CC BY above CC BY-SA.
+### Evaluation aggregation
 
-**A weak keyword alone is not sufficient.** A candidate whose only evidence is the word "live" somewhere in free text is excluded, because IAMD's `is_live` column is empty throughout the probe and `venue` is set on only 14 of 703 rows, so bare keywords carry very little signal.
-
-### Split policy
-
-- [ ] Splits are **strictly source-disjoint by Internet Archive identifier**. No identifier, and therefore no concert and no Internet Archive item, may appear in more than one split. Positions within one concert are not independent samples.
-- [ ] Clips per identifier are capped, so a single concert cannot dominate any split.
-- [ ] Target shape: train takes the largest share, validation and public test a few hundred clips each. **Do not force round numbers before the full catalogue is known.** The scan report sizes these.
+Scores aggregate in three stages: **clip, then `identifier`, then dataset.** Without the middle stage a source item contributing two excerpts would count twice as much as one contributing a single excerpt, which would let a handful of items steer the result.
 
 ### Curation pipeline
 
-- [x] 1. Scan metadata only from the IAMD parquet shards; the embedded audio column is never transferred and a failing shard is skipped rather than ending the scan.
+- [x] 1. Scan metadata only from the IAMD parquet shards. **Complete: 2,320/2,320 shards, 4,246,139 rows, zero failures.**
 - [x] 2. Filter permissive licences.
-- [x] 3. Detect live candidates from title, tags, description and collection, matched on word boundaries.
+- [x] 3. Detect live candidates on word boundaries, graded by confidence.
 - [x] 4. Deduplicate by Internet Archive identifier.
 - [x] 5. Cap clips per identifier.
-- [x] 6. Rank candidates automatically by confidence.
-- [x] 7. Freeze the candidate list with per-item provenance.
-- [ ] 8. Assign source-disjoint train/validation/test splits over identifiers.
-- [ ] 9. Resolve each identifier to its Internet Archive original and download the best available file.
-- [ ] 10. Cut fixed excerpts of 10 to 30 seconds and record the exact bounds.
+- [x] 6. Rank candidates automatically.
+- [x] 7. Frozen-list writer with per-item provenance.
+- [ ] 8. Build and freeze the Blind-Real Public manifest from the 131 high-confidence identifiers.
+- [ ] 9. Download the best available Internet Archive original for each.
+- [ ] 10. Cut deterministic excerpts and record the exact bounds.
+- [ ] 11. Attach provenance and confidence metadata to every clip.
+- [ ] 12. Write the evaluation script with clip then identifier then dataset aggregation.
+- [ ] 13. Define the no-reference Blind-Real metrics, after the set exists.
 
-The **full 2,320-shard IAMD scan is required** for this track and is running. It is what turns size targets from guesses into measurements.
+### Not prerequisites
 
-### Scan report
-
-When the scan completes, produce a short report covering: total permissive items; live candidates by confidence level; distinct `identifier` count; distribution by licence; distribution by collection; candidates remaining after the per-identifier cap; and a realistic estimate of achievable train, validation and test sizes.
+Mass human QA listening, MAD or MERT distribution matching, and any new degradation taxonomy are out of scope for this phase.
 
 ### IT/software engineer tasks
 
@@ -331,11 +335,11 @@ When the scan completes, produce a short report covering: total permissive items
 
 ### Shared deliverables
 
-- [x] catalogue scan, licence and confidence filters, deduplication, cap, ranking, and the frozen-list writer
-- [ ] IAMD scan report
-- [ ] source-disjoint train/validation/public-test splits
-- [ ] per-item provenance and attribution records
-- [ ] documented scope statement and known limits
+- [x] catalogue scan, licence and confidence filters, deduplication, cap, ranking, frozen-list writer
+- [x] IAMD scan report
+- [ ] frozen public test manifest over the 131 high-confidence identifiers
+- [ ] downloaded originals and deterministic excerpts
+- [ ] evaluation script with identifier-level aggregation
 
 ## Phase 2D - Blind-Real Hidden
 

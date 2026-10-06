@@ -226,7 +226,7 @@ OpenRestore has four evaluation sets. Two are paired against a clean reference a
 | --- | --- | --- | --- | --- |
 | Diagnostic | exactly one of 21 synthetic classes | yes | train / validation / test | public |
 | Blind-Synthetic | 0 to 3 synthetic, random type, order, intensity | yes | train / validation / test | public |
-| Blind-Real Public | none added; degraded by its own history | **no** | train / validation / test | public |
+| Blind-Real Public | none added; degraded by its own history | **no** | **test only** | public |
 | Blind-Real Hidden | none added; real concert captures | **no** | test only | **organizer-only** |
 
 ### Diagnostic
@@ -246,15 +246,15 @@ A separate dataset with its own train, validation and test splits, built from th
 
 ### Blind-Real Public
 
-Real recordings degraded by their own history, with public train, validation and test splits so anyone can develop and compare locally. **No synthetic degradation is ever added.** There is no clean reference and no degradation label.
+A public **test-only** set of real recordings degraded by their own history, so a system can be checked against real material locally. **No synthetic degradation is ever added**, there is no clean reference and no degradation label.
 
-The target is live and amateur music capture: concerts, audience and taper recordings, soundboard and tape transfers, old festival captures, consumer microphones. Extreme historical material such as cylinder recordings is out of scope.
+There is no train or validation split, and this is a conclusion rather than a convenience. The completed IAMD scan found 4,246,139 segments, of which 579,826 are CC0 or CC BY across 18,758 distinct identifiers, but only **131 identifiers carry high-confidence live metadata** — about 262 clips at a cap of two per identifier. That cannot carry three splits, and the filter is not loosened to inflate it: admitting bare keyword matches would reach 567 identifiers on evidence the scan showed to be almost worthless. Blind training happens on Blind-Synthetic instead.
 
-[IAMD](https://adasp.telecom-paris.fr/resources/2026-08-01-iamd-dataset/) serves as a catalogue, never as audio: candidates are resolved through their Internet Archive `identifier` and the best available original is downloaded from the Archive, because IAMD's own segments are re-encoded 320 kbps MP3. Licence filtering prefers CC0 and CC BY, accepts CC BY-SA only where compatible with the release policy, and always excludes NC and ND.
+Selection keeps **CC0 and CC BY only**, confidence levels **`structured` and `strong_phrase` only**, and at most **two clips per `identifier`**. Candidates are resolved through their Internet Archive identifier and the best available original is downloaded, because IAMD's own segments are re-encoded 320 kbps MP3.
 
-Candidates are scored by confidence rather than merely matched: structured evidence such as a populated `venue` or `is_live` field, then strong phrases like `recorded live` or `soundboard`, then weak keywords, combined with likely source fidelity and licence tier. **A bare keyword alone is not sufficient evidence.**
+These 131 items are **distinct Internet Archive source items with high-confidence live-recording metadata**. They are not verified concerts: nothing in the pipeline listened to them or confirmed the event, and release text should use the longer phrasing. Each clip keeps its provenance and the field or phrase that evidenced it.
 
-Splits are **strictly source-disjoint by Internet Archive identifier**: no identifier, concert or Archive item may cross splits, because positions within one concert are not independent samples. Clips per identifier are capped so no single concert dominates.
+Scores aggregate **clip, then identifier, then dataset**, so a source item contributing two excerpts does not weigh twice as much as one contributing a single excerpt.
 
 ### Blind-Real Hidden
 
