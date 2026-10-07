@@ -298,6 +298,28 @@ The completed 2,320-shard IAMD scan settles it. The permissive, high-confidence 
 - Confidence: **`structured` and `strong_phrase` only**. `weak_keyword` is excluded.
 - Cap: at most **2 clips per `identifier`**.
 
+### Realised set
+
+| | |
+| --- | --- |
+| Clips | **258** of 20 seconds, 86 minutes total |
+| Distinct Internet Archive items | **130**, at most 2 clips each |
+| Confidence | 226 `strong_phrase`, 34 `structured`, no `weak_keyword` |
+| Licences | 256 CC BY, 4 CC0 |
+| Source codecs | 196 MP3, 38 FLAC, 26 PCM |
+
+Two excerpts came off the target of 260 because two recordings are too short to hold two non-overlapping windows, and one excerpt is preferable to two copies of the same one.
+
+**The set is not lossless.** For 98 of the 130 items the uploader's own original is an MP3, 7 of them at 128 kbps. Fetching that original is still right, since IAMD's 320 kbps segment is a re-encode of the same file, but no release text may imply otherwise.
+
+### Processing choices
+
+**No loudness normalisation.** Every other set here is normalised, because there the degradation is applied on top of a controlled clean signal. In this set the degradation *is* the recording's history and level problems are part of it, so normalising would quietly repair one of the things a system is meant to handle. Clips record `normalization: none`.
+
+**Resampled to 44.1 kHz stereo regardless.** That is format canonicalisation, not repair: a system must return audio in the format it received, so inputs have to be uniform. Each clip records its source sample rate, channel count and codec.
+
+**Excerpt windows are disjoint by construction.** Each excerpt of an item is drawn from its own band of the recording. Drawing both independently from the whole recording produced overlapping pairs on 7 of 130 items, one pair a second apart, and an overlapping pair is one excerpt counted twice, which defeats the per-item cap.
+
 ### Wording discipline
 
 The 131 items are **distinct Internet Archive source items with high-confidence live-recording metadata**. They are *not* verified concerts: nothing in the pipeline listened to them or confirmed the event. Release text, dataset cards and papers must use the longer phrasing.
@@ -317,10 +339,10 @@ Scores aggregate in three stages: **clip, then `identifier`, then dataset.** Wit
 - [x] 5. Cap clips per identifier.
 - [x] 6. Rank candidates automatically.
 - [x] 7. Frozen-list writer with per-item provenance.
-- [ ] 8. Build and freeze the Blind-Real Public manifest from the 131 high-confidence identifiers.
-- [ ] 9. Download the best available Internet Archive original for each.
-- [ ] 10. Cut deterministic excerpts and record the exact bounds.
-- [ ] 11. Attach provenance and confidence metadata to every clip.
+- [x] 8. Build and freeze the Blind-Real Public manifest from the high-confidence identifiers. **130 identifiers, 260 candidate clips.**
+- [x] 9. Download the best available Internet Archive original for each. **130/130, 3.8 GB, each verified against the Archive's own SHA-1.**
+- [x] 10. Cut deterministic excerpts and record the exact bounds. **258 excerpts of 20 s, 86 minutes.**
+- [x] 11. Attach provenance and confidence metadata to every clip.
 - [ ] 12. Write the evaluation script with clip then identifier then dataset aggregation.
 - [ ] 13. Define the no-reference Blind-Real metrics, after the set exists.
 

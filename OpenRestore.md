@@ -256,6 +256,10 @@ These 131 items are **distinct Internet Archive source items with high-confidenc
 
 Scores aggregate **clip, then identifier, then dataset**, so a source item contributing two excerpts does not weigh twice as much as one contributing a single excerpt.
 
+The realised set is **258 excerpts of 20 seconds across 130 items**, 86 minutes in total: 226 at `strong_phrase` confidence and 34 at `structured`, 256 CC BY and 4 CC0. Excerpt windows are disjoint within an item by construction, and a recording too short for two non-overlapping windows yields one excerpt rather than two copies of the same one.
+
+Clips are resampled to 44.1 kHz stereo for format uniformity but are **not loudness-normalised**: level problems are part of the recording's history, and normalising would repair one of the things a system is meant to handle. Each clip records its source sample rate, channel count and codec, and **the set is not lossless** — for 98 of the 130 items the uploader's own original is an MP3.
+
 ### Blind-Real Hidden
 
 A separate organizer-only test set, **not sourced from IAMD**, so that training on all of IAMD does not amount to training on this set. Its material is real concert capture from YouTube under a Creative Commons licence or with documented permission.
