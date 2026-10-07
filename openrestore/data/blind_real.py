@@ -213,6 +213,26 @@ def best_original_file(metadata: dict[str, Any]) -> dict[str, Any] | None:
     return candidates[0][3]
 
 
+def ranked_original_files(metadata: dict[str, Any], limit: int = 5) -> list[dict[str, Any]]:
+    """The best original files in preference order, so a broken one can be skipped.
+
+    An Internet Archive item sometimes serves 500 for one file and 200 for its
+    neighbour, and an item should not be lost over that.
+    """
+    preference = [".flac", ".wav", ".aiff", ".aif", ".shn", ".ape", ".m4a", ".ogg", ".mp3"]
+    candidates: list[tuple[int, int, str, dict[str, Any]]] = []
+    for item in metadata.get("files", []):
+        name = str(item.get("name", ""))
+        if item.get("source") not in (None, "original"):
+            continue
+        suffix = next((p for p in preference if name.lower().endswith(p)), None)
+        if suffix is None:
+            continue
+        candidates.append((preference.index(suffix), -int(item.get("size") or 0), name, item))
+    candidates.sort(key=lambda c: c[:3])
+    return [c[3] for c in candidates[:limit]]
+
+
 # --- Selection: deduplicate, cap, rank, freeze -------------------------------------
 
 LICENCE_TIER = {"CC0": 3, "BY": 2, "BY-SA": 1}
@@ -533,10 +553,11 @@ def resolve_originals(
             except Exception as error:  # noqa: BLE001 - one bad item must not end the pass
                 resolved.append({"identifier": identifier, "status": f"metadata-failed: {type(error).__name__}"})
                 continue
-            best = best_original_file(metadata)
-            if best is None:
+            ranked = ranked_original_files(metadata)
+            if not ranked:
                 resolved.append({"identifier": identifier, "status": "no-usable-original"})
                 continue
+            best = ranked[0]
             item = metadata.get("metadata", {})
             resolved.append({
                 "identifier": identifier,
@@ -551,6 +572,12 @@ def resolve_originals(
                 "item_creator": item.get("creator"),
                 "item_date": item.get("date"),
                 "item_collection": item.get("collection"),
+                "fallback_files": [
+                    {"name": f.get("name"), "size_bytes": int(f.get("size") or 0),
+                     "sha1": f.get("sha1"), "format": f.get("format"),
+                     "download_url": original_download_url(identifier, str(f.get("name")))}
+                    for f in ranked[1:]
+                ],
             })
             if progress and (done % 20 == 0 or done == len(identifiers)):
                 print(f"[resolve] {done}/{len(identifiers)}", flush=True)
@@ -574,3 +601,81 @@ def resolve_summary(resolved: list[dict[str, Any]]) -> dict[str, Any]:
         "largest_file_mb": round(sizes[-1] / 1e6, 1) if sizes else 0.0,
         "formats": dict(formats.most_common()),
     }
+
+
+def download_originals(
+    resolved: Iterable[dict[str, Any]],
+    destination: Path,
+    workers: int = 4,
+    retries: int = 3,
+    progress: bool = True,
+) -> list[dict[str, Any]]:
+    """Download each resolved original and verify it against the Archive's own SHA-1.
+
+    The checksum check is the point: a truncated download is otherwise indistinguishable
+    from a short recording. A file already present and matching is left alone, so an
+    interrupted pass resumes.
+    """
+    import hashlib
+    import time
+    import urllib.request
+
+    destination.mkdir(parents=True, exist_ok=True)
+    rows = [r for r in resolved if r.get("status") == "resolved"]
+
+    def sha1(path: Path) -> str:
+        digest = hashlib.sha1()  # noqa: S324 - matching the Archive's own checksum
+        with path.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1 << 20), b""):
+                digest.update(chunk)
+        return digest.hexdigest()
+
+    def fetch(row: dict[str, Any]) -> dict[str, Any]:
+        identifier = str(row["identifier"])
+        suffix = Path(str(row["file_name"])).suffix.lower()
+        target = destination / f"{identifier}{suffix}"
+        expected = row.get("file_sha1")
+        if target.is_file() and (not expected or sha1(target) == expected):
+            return {**row, "local_path": target.name, "download_status": "present"}
+        # The chosen file first, then this item's other originals: a single broken file
+        # should not cost the whole item.
+        options = [{"name": row["file_name"], "download_url": row["download_url"], "sha1": expected,
+                    "format": row.get("file_format"), "size_bytes": row.get("file_size_bytes")}]
+        options += list(row.get("fallback_files") or [])
+        last = ""
+        for position, option in enumerate(options):
+            want = option.get("sha1")
+            suffix = Path(str(option["name"])).suffix.lower()
+            attempt_target = destination / f"{identifier}{suffix}"
+            for attempt in range(1, retries + 1):
+                try:
+                    with urllib.request.urlopen(option["download_url"], timeout=300) as response, attempt_target.open("wb") as out:
+                        while chunk := response.read(1 << 20):
+                            out.write(chunk)
+                    got = sha1(attempt_target)
+                    if want and got != want:
+                        last = f"sha1 mismatch on {option['name']}"
+                        time.sleep(attempt * 3)
+                        continue
+                    return {
+                        **row, "local_path": attempt_target.name, "local_sha1": got,
+                        "used_file_name": option["name"], "used_fallback_rank": position,
+                        "used_file_format": option.get("format"),
+                        "download_status": "downloaded" if position == 0 else f"downloaded-fallback-{position}",
+                    }
+                except Exception as error:  # noqa: BLE001 - retry, then fall back
+                    last = f"{type(error).__name__}: {error} on {option['name']}"
+                    time.sleep(attempt * 3)
+            attempt_target.unlink(missing_ok=True)
+        return {**row, "download_status": f"failed: {last}"}
+
+    out_rows: list[dict[str, Any]] = []
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        futures = [pool.submit(fetch, row) for row in rows]
+        for done, future in enumerate(as_completed(futures), start=1):
+            out_rows.append(future.result())
+            if progress and (done % 10 == 0 or done == len(futures)):
+                failed = sum(1 for r in out_rows if r["download_status"].startswith("failed"))
+                print(f"[download] {done}/{len(futures)}, {failed} failed", flush=True)
+    out_rows.sort(key=lambda r: r["identifier"])
+    return out_rows
