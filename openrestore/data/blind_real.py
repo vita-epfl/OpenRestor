@@ -151,6 +151,24 @@ def filter_candidates(
     return kept
 
 
+def load_rejections(path: Path) -> dict[str, str]:
+    """Read identifiers rejected by listening, as `identifier<TAB>reason` lines.
+
+    Keeping this as data rather than code means a listening pass can be applied, audited
+    and revisited without touching the selection logic.
+    """
+    rejected: dict[str, str] = {}
+    if not path.is_file():
+        return rejected
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        parts = line.split("\t", 1)
+        rejected[parts[0].strip()] = parts[1].strip() if len(parts) > 1 else "rejected on listening"
+    return rejected
+
+
 def catalogue_statistics(rows: Iterable[dict[str, Any]]) -> dict[str, Any]:
     """Summarise a catalogue so the filters can be judged before any audio is fetched."""
     from collections import Counter
@@ -261,11 +279,14 @@ def ranked_original_files(
             continue
         segmented = 0 if (wanted and Path(name).stem in wanted) else 1
         suspect = 1 if looks_non_music_filename(name) else 0
-        candidates.append((segmented, suspect, preference.index(suffix), name, item))
+        candidates.append((suspect, segmented, preference.index(suffix), name, item))
     if not candidates:
-        return None if False else []
-    # IAMD-segmented first, then not obviously non-music, then best format, then the
-    # longest file, then the name: reproducible from the metadata alone.
+        return []
+    # A name that announces an interview or a soundcheck outranks IAMD's own choice,
+    # because IAMD is not a reliable music filter here: for one item it segmented only
+    # the intro and the outro and left the two actual music tracks alone, so preferring
+    # its selection first picked an interview over the music. Then IAMD-segmented, then
+    # best format, then the longest file, then the name.
     candidates.sort(key=lambda c: (c[0], c[1], c[2], -int(c[4].get("size") or 0), c[3]))
     return [c[4] for c in candidates[:limit]]
 
