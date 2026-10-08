@@ -213,14 +213,45 @@ def best_original_file(metadata: dict[str, Any]) -> dict[str, Any] | None:
     return candidates[0][3]
 
 
-def ranked_original_files(metadata: dict[str, Any], limit: int = 5) -> list[dict[str, Any]]:
+# Filenames that announce themselves as something other than a performance. A concert
+# upload often carries an interview, a soundcheck or crowd noise alongside the music.
+NON_MUSIC_NAME_PATTERNS = (
+    "interview", "intro", "outro", "banter", "announce", "soundcheck", "sound check",
+    "tuning", "crowd", "applause", "audience noise", "between", "talk", "speech",
+    "encore break", "stage", "mc ", "intermission",
+)
+
+
+_NON_MUSIC_PATTERN = re.compile(
+    r"(?<![a-z])(?:" + "|".join(re.escape(p) for p in sorted(NON_MUSIC_NAME_PATTERNS, key=len, reverse=True)) + r")(?![a-z])"
+)
+
+
+def looks_non_music_filename(name: str) -> bool:
+    """Flag a filename that announces itself as something other than a performance.
+
+    Matched on word boundaries: a bare substring made "speech" hit a band called
+    secretspeech, the same mistake the live-keyword filter made before it.
+    """
+    return bool(_NON_MUSIC_PATTERN.search(Path(name).stem.lower().replace("_", " ")))
+
+
+def ranked_original_files(
+    metadata: dict[str, Any], limit: int = 5, preferred_stems: Iterable[str] = ()
+) -> list[dict[str, Any]]:
     """The best original files in preference order, so a broken one can be skipped.
 
     An Internet Archive item sometimes serves 500 for one file and 200 for its
     neighbour, and an item should not be lost over that.
+
+    `preferred_stems` are the file stems IAMD itself segmented for this item. They come
+    first, because IAMD's pipeline only segmented what it treated as music: picking the
+    largest file instead once selected a track named "09 Interview", which is exactly
+    what a listener then heard.
     """
     preference = [".flac", ".wav", ".aiff", ".aif", ".shn", ".ape", ".m4a", ".ogg", ".mp3"]
-    candidates: list[tuple[int, int, str, dict[str, Any]]] = []
+    wanted = {str(s) for s in preferred_stems}
+    candidates: list[tuple[int, int, int, str, dict[str, Any]]] = []
     for item in metadata.get("files", []):
         name = str(item.get("name", ""))
         if item.get("source") not in (None, "original"):
@@ -228,9 +259,15 @@ def ranked_original_files(metadata: dict[str, Any], limit: int = 5) -> list[dict
         suffix = next((p for p in preference if name.lower().endswith(p)), None)
         if suffix is None:
             continue
-        candidates.append((preference.index(suffix), -int(item.get("size") or 0), name, item))
-    candidates.sort(key=lambda c: c[:3])
-    return [c[3] for c in candidates[:limit]]
+        segmented = 0 if (wanted and Path(name).stem in wanted) else 1
+        suspect = 1 if looks_non_music_filename(name) else 0
+        candidates.append((segmented, suspect, preference.index(suffix), name, item))
+    if not candidates:
+        return None if False else []
+    # IAMD-segmented first, then not obviously non-music, then best format, then the
+    # longest file, then the name: reproducible from the metadata alone.
+    candidates.sort(key=lambda c: (c[0], c[1], c[2], -int(c[4].get("size") or 0), c[3]))
+    return [c[4] for c in candidates[:limit]]
 
 
 # --- Selection: deduplicate, cap, rank, freeze -------------------------------------
@@ -534,7 +571,10 @@ def original_download_url(identifier: str, filename: str) -> str:
 
 
 def resolve_originals(
-    identifiers: Iterable[str], workers: int = 6, progress: bool = True
+    identifiers: Iterable[str],
+    workers: int = 6,
+    progress: bool = True,
+    segmented_stems: dict[str, Iterable[str]] | None = None,
 ) -> list[dict[str, Any]]:
     """Resolve identifiers to their best original audio file, without downloading it.
 
@@ -543,6 +583,7 @@ def resolve_originals(
     than the choice of item.
     """
     identifiers = list(dict.fromkeys(identifiers))
+    stems = segmented_stems or {}
     resolved: list[dict[str, Any]] = []
     with ThreadPoolExecutor(max_workers=workers) as pool:
         futures = {pool.submit(fetch_item_metadata, i): i for i in identifiers}
@@ -553,7 +594,7 @@ def resolve_originals(
             except Exception as error:  # noqa: BLE001 - one bad item must not end the pass
                 resolved.append({"identifier": identifier, "status": f"metadata-failed: {type(error).__name__}"})
                 continue
-            ranked = ranked_original_files(metadata)
+            ranked = ranked_original_files(metadata, preferred_stems=stems.get(identifier, ()))
             if not ranked:
                 resolved.append({"identifier": identifier, "status": "no-usable-original"})
                 continue
