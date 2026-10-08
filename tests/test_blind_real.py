@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from unittest import TestCase
 
 from openrestore.data.blind_real import (
@@ -190,3 +191,69 @@ class BlindRealSplitTests(TestCase):
         self.assertEqual(
             sizes["train_identifiers"] + sizes["validation_identifiers"] + sizes["test_identifiers"], 60
         )
+
+
+class RejectionTests(TestCase):
+    def test_rejections_apply_per_item_and_per_clip(self) -> None:
+        from openrestore.data.blind_real import is_rejected, load_rejections
+        from tempfile import TemporaryDirectory
+
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "rejected.tsv"
+            path.write_text(
+                "# a comment\n\n"
+                "noisyGig\tharsh noise\n"
+                "blind_real--mixedGig--00\tfirst excerpt is speech\n",
+                encoding="utf-8",
+            )
+            rejections = load_rejections(path)
+            self.assertEqual(len(rejections), 2)
+            # Whole item.
+            self.assertEqual(is_rejected(rejections, "noisyGig"), "harsh noise")
+            self.assertEqual(is_rejected(rejections, "noisyGig", "blind_real--noisyGig--01"), "harsh noise")
+            # One clip of an item whose other clip is fine.
+            self.assertEqual(is_rejected(rejections, "mixedGig", "blind_real--mixedGig--00"), "first excerpt is speech")
+            self.assertIsNone(is_rejected(rejections, "mixedGig", "blind_real--mixedGig--01"))
+            self.assertIsNone(is_rejected(rejections, "goodGig", "blind_real--goodGig--00"))
+
+    def test_a_sheet_collapses_to_item_level_when_every_clip_is_rejected(self) -> None:
+        import csv
+        from tempfile import TemporaryDirectory
+
+        from openrestore.data.blind_real import verdicts_to_rejections
+
+        rows = [
+            # Both clips rejected: collapses to the identifier.
+            {"identifier": "allBad", "clip_id": "blind_real--allBad--00", "verdict": "non", "note": "engine noise"},
+            {"identifier": "allBad", "clip_id": "blind_real--allBad--01", "verdict": "non", "note": "engine noise"},
+            # One clip rejected: stays clip-level.
+            {"identifier": "halfBad", "clip_id": "blind_real--halfBad--00", "verdict": "non", "note": "speech"},
+            {"identifier": "halfBad", "clip_id": "blind_real--halfBad--01", "verdict": "", "note": ""},
+            # Approved spellings are not rejections.
+            {"identifier": "fine", "clip_id": "blind_real--fine--00", "verdict": "ok", "note": ""},
+            {"identifier": "fine", "clip_id": "blind_real--fine--01", "verdict": "", "note": ""},
+        ]
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "verdicts.csv"
+            with path.open("w", newline="", encoding="utf-8") as handle:
+                writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
+                writer.writeheader()
+                writer.writerows(rows)
+            out = verdicts_to_rejections(path)
+
+        self.assertIn("allBad", out)
+        self.assertNotIn("blind_real--allBad--00", out)
+        self.assertIn("blind_real--halfBad--00", out)
+        self.assertNotIn("halfBad", out)
+        self.assertNotIn("blind_real--halfBad--01", out)
+        self.assertFalse(any("fine" in k for k in out))
+
+    def test_field_recording_collections_are_excluded(self) -> None:
+        from openrestore.data.blind_real import filter_candidates, is_non_music_collection
+
+        self.assertTrue(is_non_music_collection("radio-aporee-maps"))
+        self.assertFalse(is_non_music_collection("etree"))
+        # A field recording titled "Audience before a show" trips the live keywords.
+        aporee = _row(license_type="BY", title="Cergy, France - Audience before a show",
+                      collection="radio-aporee-maps")
+        self.assertEqual(filter_candidates([aporee]), [])

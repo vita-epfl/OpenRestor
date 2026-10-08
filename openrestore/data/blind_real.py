@@ -165,10 +165,15 @@ def is_non_music_collection(collection: Any) -> bool:
 
 
 def load_rejections(path: Path) -> dict[str, str]:
-    """Read identifiers rejected by listening, as `identifier<TAB>reason` lines.
+    """Read verdicts rejected by listening, as `key<TAB>reason` lines.
 
-    Keeping this as data rather than code means a listening pass can be applied, audited
-    and revisited without touching the selection logic.
+    A key is either an Internet Archive identifier, rejecting the whole item, or a clip
+    id such as `blind_real--<identifier>--00`, rejecting one excerpt. Both are needed:
+    listening found an item whose first excerpt was not music while its second was fine,
+    which an identifier-only list cannot express.
+
+    Keeping verdicts as data rather than code means a pass can be applied, audited and
+    revisited without touching the selection logic.
     """
     rejected: dict[str, str] = {}
     if not path.is_file():
@@ -180,6 +185,54 @@ def load_rejections(path: Path) -> dict[str, str]:
         parts = line.split("\t", 1)
         rejected[parts[0].strip()] = parts[1].strip() if len(parts) > 1 else "rejected on listening"
     return rejected
+
+
+def is_rejected(rejections: dict[str, str], identifier: str, clip_id: str | None = None) -> str | None:
+    """Return the rejection reason for an item or one of its clips, if any."""
+    if identifier in rejections:
+        return rejections[identifier]
+    if clip_id and clip_id in rejections:
+        return rejections[clip_id]
+    return None
+
+
+def verdicts_to_rejections(csv_path: Path) -> dict[str, str]:
+    """Turn an annotated listening sheet into rejection keys.
+
+    A verdict is a rejection when it is not empty and not an approval, so a sheet only
+    has to carry the rejections. A clip rejected on its own becomes a clip-level key; an
+    item rejected on every clip collapses to one item-level key.
+    """
+    import csv as _csv
+    from collections import defaultdict
+
+    approvals = {"", "ok", "oui", "yes", "keep", "garde"}
+    per_item: dict[str, set[str]] = defaultdict(set)
+    rejected_clips: dict[str, str] = {}
+    totals: dict[str, int] = defaultdict(int)
+    with csv_path.open(encoding="utf-8") as handle:
+        for row in _csv.DictReader(handle):
+            identifier = str(row.get("identifier", "")).strip()
+            clip = str(row.get("clip_id") or row.get("fichier") or "").strip()
+            if not identifier:
+                continue
+            totals[identifier] += 1
+            verdict = str(row.get("verdict", "")).strip().lower()
+            if verdict in approvals:
+                continue
+            reason = str(row.get("note", "")).strip() or "rejected on listening"
+            per_item[identifier].add(clip)
+            rejected_clips[clip or f"{identifier}::unknown"] = reason
+
+    out: dict[str, str] = {}
+    for identifier, clips in per_item.items():
+        if len(clips) >= totals[identifier]:
+            out[identifier] = next(iter(rejected_clips[c] for c in clips if c in rejected_clips), "rejected on listening")
+        else:
+            for clip in clips:
+                if clip in rejected_clips:
+                    out[clip] = rejected_clips[clip]
+    return out
 
 
 def catalogue_statistics(rows: Iterable[dict[str, Any]]) -> dict[str, Any]:

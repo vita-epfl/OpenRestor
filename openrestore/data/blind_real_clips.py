@@ -128,6 +128,7 @@ def extract_clips(
     seed: int = 20260714,
     min_rms: float = 0.005,
     attempts: int = 4,
+    rejections: dict[str, str] | None = None,
     progress: bool = True,
 ) -> list[dict[str, Any]]:
     """Cut the excerpts and build the Blind-Real Public test manifest.
@@ -169,6 +170,9 @@ def extract_clips(
             wanted = max(1, int(room // excerpt_seconds))
         for clip_index in range(wanted):
             item_id = f"blind_real--{identifier}--{clip_index:02d}"
+            if rejections and (identifier in rejections or item_id in rejections):
+                skipped.append(f"{item_id}: rejected on listening")
+                continue
             relative = Path("blind_real_test") / f"{item_id}.wav"
             target = output_root / relative
             accepted = None
