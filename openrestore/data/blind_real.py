@@ -145,10 +145,23 @@ def filter_candidates(
     for row in rows:
         if str(row.get("license_type") or "").strip() not in allowed:
             continue
+        if is_non_music_collection(row.get("collection")):
+            continue
         if require_live and not looks_live(row):
             continue
         kept.append(row)
     return kept
+
+
+# Collections that are field recording or spoken word rather than music. Excluded
+# wholesale: radio aporee is a soundscape project, and its titles trip the live-capture
+# keywords precisely because they describe crowds and venues.
+NON_MUSIC_COLLECTIONS = ("radio-aporee-maps", "radio-aporee", "spokenword", "audio_bookspoetry", "oralliterature")
+
+
+def is_non_music_collection(collection: Any) -> bool:
+    text = str(collection or "").lower()
+    return any(c in text for c in NON_MUSIC_COLLECTIONS)
 
 
 def load_rejections(path: Path) -> dict[str, str]:
@@ -615,7 +628,7 @@ def resolve_originals(
             except Exception as error:  # noqa: BLE001 - one bad item must not end the pass
                 resolved.append({"identifier": identifier, "status": f"metadata-failed: {type(error).__name__}"})
                 continue
-            ranked = ranked_original_files(metadata, preferred_stems=stems.get(identifier, ()))
+            ranked = ranked_original_files(metadata, limit=8, preferred_stems=stems.get(identifier, ()))
             if not ranked:
                 resolved.append({"identifier": identifier, "status": "no-usable-original"})
                 continue
@@ -634,6 +647,14 @@ def resolve_originals(
                 "item_creator": item.get("creator"),
                 "item_date": item.get("date"),
                 "item_collection": item.get("collection"),
+                # Distinct tracks of the same item, so two excerpts can come from two
+                # songs instead of two places in one song, which sound the same.
+                "distinct_tracks": [
+                    {"name": f.get("name"), "size_bytes": int(f.get("size") or 0),
+                     "sha1": f.get("sha1"), "format": f.get("format"),
+                     "download_url": original_download_url(identifier, str(f.get("name")))}
+                    for f in ranked
+                ],
                 "fallback_files": [
                     {"name": f.get("name"), "size_bytes": int(f.get("size") or 0),
                      "sha1": f.get("sha1"), "format": f.get("format"),
@@ -741,3 +762,83 @@ def download_originals(
                 print(f"[download] {done}/{len(futures)}, {failed} failed", flush=True)
     out_rows.sort(key=lambda r: r["identifier"])
     return out_rows
+
+
+def download_distinct_tracks(
+    resolved: Iterable[dict[str, Any]],
+    destination: Path,
+    tracks_per_item: int = 2,
+    workers: int = 4,
+    retries: int = 3,
+    progress: bool = True,
+) -> list[dict[str, Any]]:
+    """Fetch up to N distinct tracks per item, one returned row per track.
+
+    Two excerpts of one song sound alike however far apart they are taken, so the cap of
+    two clips per item only buys variety if the two come from different tracks. This
+    returns a row per track, which the clip extractor then pairs with a clip index.
+    """
+    import hashlib
+    import time
+    import urllib.request
+
+    destination.mkdir(parents=True, exist_ok=True)
+
+    def sha1(path: Path) -> str:
+        digest = hashlib.sha1()  # noqa: S324 - matching the Archive's own checksum
+        with path.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1 << 20), b""):
+                digest.update(chunk)
+        return digest.hexdigest()
+
+    jobs: list[tuple[str, int, dict[str, Any], dict[str, Any]]] = []
+    for row in resolved:
+        if row.get("status") != "resolved":
+            continue
+        tracks = list(row.get("distinct_tracks") or [])
+        if not tracks:
+            tracks = [{"name": row.get("file_name"), "download_url": row.get("download_url"),
+                       "sha1": row.get("file_sha1"), "format": row.get("file_format")}]
+        for index, track in enumerate(tracks[:tracks_per_item]):
+            jobs.append((str(row["identifier"]), index, track, row))
+
+    def fetch(job: tuple[str, int, dict[str, Any], dict[str, Any]]) -> dict[str, Any]:
+        identifier, index, track, row = job
+        suffix = Path(str(track["name"])).suffix.lower()
+        target = destination / f"{identifier}__t{index}{suffix}"
+        expected = track.get("sha1")
+        base = {"identifier": identifier, "track_index": index, "track_name": track["name"],
+                "track_format": track.get("format"), "local_path": target.name,
+                "item_licenseurl": row.get("item_licenseurl"), "item_title": row.get("item_title"),
+                "item_creator": row.get("item_creator"), "item_date": row.get("item_date"),
+                "item_collection": row.get("item_collection")}
+        if target.is_file() and (not expected or sha1(target) == expected):
+            return {**base, "download_status": "present"}
+        last = ""
+        for attempt in range(1, retries + 1):
+            try:
+                with urllib.request.urlopen(track["download_url"], timeout=300) as response, target.open("wb") as out:
+                    while chunk := response.read(1 << 20):
+                        out.write(chunk)
+                got = sha1(target)
+                if expected and got != expected:
+                    last = "sha1 mismatch"
+                    time.sleep(attempt * 3)
+                    continue
+                return {**base, "local_sha1": got, "download_status": "downloaded"}
+            except Exception as error:  # noqa: BLE001 - retry, then report
+                last = f"{type(error).__name__}: {error}"
+                time.sleep(attempt * 3)
+        target.unlink(missing_ok=True)
+        return {**base, "local_path": None, "download_status": f"failed: {last}"}
+
+    rows: list[dict[str, Any]] = []
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        futures = [pool.submit(fetch, job) for job in jobs]
+        for done, future in enumerate(as_completed(futures), start=1):
+            rows.append(future.result())
+            if progress and (done % 25 == 0 or done == len(futures)):
+                failed = sum(1 for r in rows if r["download_status"].startswith("failed"))
+                print(f"[tracks] {done}/{len(futures)}, {failed} failed", flush=True)
+    rows.sort(key=lambda r: (r["identifier"], r["track_index"]))
+    return rows
