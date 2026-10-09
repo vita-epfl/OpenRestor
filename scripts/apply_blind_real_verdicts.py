@@ -1,0 +1,143 @@
+#!/usr/bin/env python3
+"""Apply a Blind-Real QA pass: turn verdicts into rejections and report the outcome.
+
+Takes the CSV the QA page downloads, or the annotated verdicts.csv, and produces the
+lists the curation decision needs: kept, rejected with reason, uncertain, the coarse
+quality distribution, and the final counts.
+
+The two verdict columns stay separate throughout. An item is dropped if *either* its
+audio or its provenance fails, but the reports say which, because the remedies differ:
+bad audio means the item is wrong for the task, while an untrustworthy licence means it
+may be fine audio we are not allowed to ship.
+
+    python scripts/apply_blind_real_verdicts.py --verdicts ~/Downloads/blind_real_verdicts.csv
+    python scripts/apply_blind_real_verdicts.py --verdicts ... --write-rejections
+"""
+
+from __future__ import annotations
+
+import argparse
+import csv
+import json
+from collections import Counter, defaultdict
+from pathlib import Path
+from typing import Any
+
+REPO = Path(__file__).resolve().parents[1]
+APPROVALS = {"keep", "ok", "trustworthy", ""}
+
+
+def read_verdicts(path: Path) -> dict[str, dict[str, str]]:
+    out: dict[str, dict[str, str]] = {}
+    with path.open(encoding="utf-8-sig") as handle:
+        for row in csv.DictReader(handle):
+            clip = (row.get("clip_id") or "").strip()
+            if clip:
+                out[clip] = {k: (v or "").strip() for k, v in row.items()}
+    return out
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--verdicts", type=Path, required=True)
+    parser.add_argument("--manifest", type=Path, default=REPO / "build/blind_real/blind_real_test_manifest.jsonl")
+    parser.add_argument("--rejections", type=Path, default=REPO / "build/blind_real/rejected_identifiers.tsv")
+    parser.add_argument("--report", type=Path, default=REPO / "build/blind_real/qa_report.json")
+    parser.add_argument("--write-rejections", action="store_true",
+                        help="Append the new rejections to the rejection list")
+    args = parser.parse_args()
+
+    manifest = [json.loads(line) for line in args.manifest.open(encoding="utf-8")]
+    by_clip = {row["id"]: row for row in manifest}
+    clips_per_item: dict[str, list[str]] = defaultdict(list)
+    for row in manifest:
+        clips_per_item[row["internet_archive_identifier"]].append(row["id"])
+
+    verdicts = read_verdicts(args.verdicts)
+    unknown = sorted(set(verdicts) - set(by_clip))
+
+    kept, rejected, uncertain = [], [], []
+    reasons, quality = Counter(), Counter()
+    for clip, verdict in verdicts.items():
+        row = by_clip.get(clip)
+        if row is None:
+            continue
+        audio = verdict.get("audio_verdict", "").lower()
+        provenance = verdict.get("provenance_verdict", "").lower()
+        reason = verdict.get("reject_reason") or ""
+        label = verdict.get("quality_label") or ""
+        if label:
+            quality[label] += 1
+        entry = {
+            "clip_id": clip, "identifier": row["internet_archive_identifier"],
+            "audio_verdict": audio or "keep", "provenance_verdict": provenance or "keep",
+            "reject_reason": reason, "quality_label": label,
+            "note": verdict.get("note", ""),
+        }
+        if audio == "uncertain" or provenance == "uncertain":
+            uncertain.append(entry)
+        elif audio == "reject" or provenance == "reject":
+            entry["rejected_on"] = "audio" if audio == "reject" else "provenance"
+            reasons[reason or ("provenance" if provenance == "reject" else "unspecified")] += 1
+            rejected.append(entry)
+        else:
+            kept.append(entry)
+
+    # A verdict on the first clip of an item decides the item, since pass one presents
+    # one clip per source and the rest of the item shares its provenance.
+    rejected_items = {e["identifier"]: e for e in rejected}
+    uncertain_items = {e["identifier"] for e in uncertain}
+    surviving_items = [i for i in sorted(clips_per_item) if i not in rejected_items]
+    surviving_clips = [c for i in surviving_items for c in clips_per_item[i]]
+
+    report = {
+        "verdicts_read": len(verdicts),
+        "unknown_clip_ids": unknown,
+        "pass1_kept": len(kept),
+        "pass1_rejected": len(rejected),
+        "pass1_uncertain": len(uncertain),
+        "rejected_by_reason": dict(reasons.most_common()),
+        "rejected_on": dict(Counter(e["rejected_on"] for e in rejected).most_common()),
+        "quality_distribution": dict(quality.most_common()),
+        "uncertain_identifiers": sorted(uncertain_items),
+        "final_identifiers": len(surviving_items),
+        "final_clips": len(surviving_clips),
+        "kept": kept,
+        "rejected": rejected,
+        "uncertain": uncertain,
+    }
+    args.report.parent.mkdir(parents=True, exist_ok=True)
+    args.report.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    print(f"verdicts read            {len(verdicts)}")
+    if unknown:
+        print(f"  !! {len(unknown)} clip ids not in the manifest, first: {unknown[0]}")
+    print(f"pass 1 keep / reject / uncertain   {len(kept)} / {len(rejected)} / {len(uncertain)}")
+    if reasons:
+        print("rejected by reason:")
+        for reason, count in reasons.most_common():
+            print(f"   {count:>4}  {reason}")
+    if report["rejected_on"]:
+        print(f"rejected on: {report['rejected_on']}")
+    if quality:
+        print("coarse quality (composition only, not ground truth):")
+        for label, count in quality.most_common():
+            print(f"   {count:>4}  {label}")
+    print(f"\nfinal: {len(surviving_items)} identifiers, {len(surviving_clips)} clips")
+    if uncertain_items:
+        print(f"{len(uncertain_items)} identifiers need their second excerpt listened to")
+    print(f"report -> {args.report}")
+
+    if args.write_rejections and rejected:
+        existing = args.rejections.read_text(encoding="utf-8") if args.rejections.is_file() else ""
+        lines = ["\n# --- rejected in the QA listening pass ------------------------------------------\n"]
+        for entry in rejected:
+            why = entry["reject_reason"] or entry["rejected_on"]
+            note = f"; {entry['note']}" if entry["note"] else ""
+            lines.append(f"{entry['identifier']}\t{why} ({entry['rejected_on']}){note}\n")
+        args.rejections.write_text(existing + "".join(lines), encoding="utf-8")
+        print(f"appended {len(rejected)} rejections -> {args.rejections}")
+
+
+if __name__ == "__main__":
+    main()
