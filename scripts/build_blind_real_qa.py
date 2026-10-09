@@ -208,11 +208,12 @@ def page(rows: list[dict[str, Any]], second: dict[str, str]) -> str:
       <select name="r_{n}"><option value="">note the kind, if useful&hellip;</option>{''.join(f'<option>{x}</option>' for x in SORT_NOTES)}</select>
     </fieldset>
     <fieldset>
-      <legend>2. Do you recognise this as a commercially released recording?</legend>
-      <!-- The only provenance question listening can settle; the rest is desk research. -->
-      <label><input type="radio" name="p_{n}" value="keep"> no, don't recognise it</label>
-      <label><input type="radio" name="p_{n}" value="reject"> yes, I recognise it</label>
-      <label><input type="radio" name="p_{n}" value="uncertain"> maybe / unsure</label>
+      <legend>2. Optional &mdash; only if something jumps out</legend>
+      <!-- A checkbox, not a question to answer on every item. Recognising a commercial
+           release is the one provenance judgement listening can make, and in round one
+           it caught Rihanna, Martin Solveig and Michael Jackson that no tool found. But
+           it fires rarely, so it costs nothing when it does not apply. -->
+      <label><input type="checkbox" name="p_{n}" value="reject"> I recognise this as a commercial release</label>
     </fieldset>
     <input type="text" name="n_{n}" placeholder="note (optional)">
     {f'<details><summary>second excerpt of this item &mdash; only if the first is uncertain</summary><audio controls preload="none" src="audio_pass2/{html.escape(follow)}"></audio></details>' if follow else '<p class="muted">no second excerpt for this item</p>'}
@@ -252,7 +253,8 @@ def page(rows: list[dict[str, Any]], second: dict[str, str]) -> str:
   <p><b>This is dataset curation, not a listening study and not a model evaluation.</b> The only question is which items belong in the set.</p>
   <p>One excerpt per source item. A second excerpt is staged under each card but only worth opening when the first leaves you uncertain.</p>
   <p>Bad audio quality is <b>not</b> a reason to reject &mdash; degraded recordings are the point. Reject speech, non-music, commercial releases and unusable audio.</p>
-  <p>The second question is narrow on purpose. Whether an uploader held the rights is not something anyone can hear, so that is a desk check and not yours: what each card shows about the uploader is <b>information</b>, already gathered. The one provenance judgement a listener can make is whether the recording is a commercial release they recognise &mdash; which is exactly how the Rihanna, Michael Jackson and Martin Solveig items were caught.</p>
+  <p>Your answers save themselves as you go, in this browser, keyed by clip. They are tied to this address, so reopening the tunnel on a different port will not show them, and clearing site data loses them &mdash; use <b>Download CSV</b> for a copy that does not depend on any of that.</p>
+  <p>The second box is optional and will rarely apply. Whether an uploader held the rights is not something anyone can hear, so that is a desk check and not yours: what each card shows about the uploader is <b>information</b>, already gathered. Tick the box only if a recording is one you actually recognise as commercially released &mdash; that is how the Rihanna, Martin Solveig and Michael Jackson items were caught, and no tool found them. This pool is mostly obscure netlabel music, so expect it to stay empty.</p>
   <p><b>An AcoustID non-match is not proof the audio is free, and a CC BY tag is not proof the uploader held the rights.</b></p>
 </div>
 <div class="bar">
