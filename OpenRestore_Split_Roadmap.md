@@ -311,7 +311,7 @@ The completed 2,320-shard IAMD scan settles it. The permissive, high-confidence 
 
 Two excerpts came off the target of 260 because two recordings are too short to hold two non-overlapping windows, and one excerpt is preferable to two copies of the same one.
 
-**The set is not lossless.** For 69 of the 85 items the uploader's own original is an MP3, some at 128 kbps. Fetching that original is still right, since IAMD's 320 kbps segment is a re-encode of the same file, but no release text may imply otherwise.
+**The set is not lossless.** For 48 of the 63 items the uploader's own original is an MP3, some at 128 kbps. Fetching that original is still right, since IAMD's 320 kbps segment is a re-encode of the same file, but no release text may imply otherwise.
 
 ### Processing choices
 
@@ -340,9 +340,10 @@ Scores aggregate in three stages: **clip, then `identifier`, then dataset.** Wit
 - [x] 5. Cap clips per identifier.
 - [x] 6. Rank candidates automatically.
 - [x] 7. Frozen-list writer with per-item provenance.
-- [x] 8. Build and freeze the Blind-Real Public manifest from the high-confidence identifiers, reproducibly via `scripts/build_blind_real_public.py`. **After the AcoustID screen, the per-artist cap and the desk rejections: 85 identifiers, 159 clips, 53 minutes, 100% CC BY.**
+- [x] 8. Build and freeze the Blind-Real Public manifest from the high-confidence identifiers, reproducibly via `scripts/build_blind_real_public.py`. **After the AcoustID screen, the per-artist cap, the desk rejections and the listening pass: 63 identifiers, 120 clips, 40 minutes, 100% CC BY.**
+- [x] 11. Listen to every item and curate. **113 presented, 23 rejected on listening, 21 by extension of a unanimous verdict across an act, 63 kept.** 27 of the rejections needed no restoration and are kept outside the scored set in `clean_control_manifest.jsonl`, since Blind-Real on its own then cannot show whether a system damages already-good audio; the paired Diagnostic set is what measures that. Recorded in `build/blind_real/qa_pass1_report.json`.
 - [x] 9. Download the best available Internet Archive original for each. **130/130, 3.8 GB, each verified against the Archive's own SHA-1.**
-- [x] 10. Cut deterministic excerpts and record the exact bounds. **159 excerpts of 20 s, 53 minutes.**
+- [x] 10. Cut deterministic excerpts and record the exact bounds. **120 excerpts of 20 s, 40 minutes.**
 - [x] 11. Attach provenance and confidence metadata to every clip.
 - [ ] 12. Write the evaluation script with clip then identifier then dataset aggregation.
 - [ ] 13. Define the no-reference Blind-Real metrics, after the set exists.
