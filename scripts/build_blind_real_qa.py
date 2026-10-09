@@ -30,11 +30,15 @@ import html
 import json
 import shutil
 import subprocess
+import sys
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
 REPO = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO))
+
+from openrestore.data.blind_real import acoustid_artist_agreement  # noqa: E402
 
 # The sort replaced a keep/reject form. "Too clean" is not a rejection: a recording that
 # needs no restoration cannot measure one, but it is exactly what shows whether a system
@@ -58,7 +62,8 @@ CSV_FIELDS = [
     "license_type", "license_url", "confidence_tier", "live_trigger",
     "source_file", "source_format", "source_codec", "source_sample_rate",
     "excerpt_start_s", "excerpt_end_s", "source_duration_s",
-    "acoustid_score", "acoustid_match", "archive_url", "uploader", "uploader_artist_count",
+    "acoustid_score", "acoustid_match", "acoustid_artist_agreement", "archive_url",
+    "uploader", "uploader_artist_count",
 ]
 
 
@@ -123,6 +128,7 @@ def sheet_row(row: dict[str, Any], screen: dict[str, dict[str, Any]], audio_name
         "acoustid_score": hit.get("score", ""),
         "acoustid_match": f"{match.get('artists')} / {match.get('title')}" if match else "",
         "archive_url": f"https://archive.org/details/{row['internet_archive_identifier']}",
+        "acoustid_artist_agreement": acoustid_artist_agreement(row.get("attribution"), hit),
         "uploader": desk.get("uploader", ""),
         "uploader_artist_count": desk.get("uploader_artist_count", 0),
         "_audio": audio_name,
@@ -156,11 +162,23 @@ def page(rows: list[dict[str, Any]], second: dict[str, str]) -> str:
             uploader = f'{html.escape(str(up))} <span class="muted">&mdash; only {count} artist(s) uploaded, plausibly the artist or their crew</span>'
         else:
             uploader = f'{html.escape(str(up))}'
-        acoustid = (
-            f'<span class="flag">AcoustID {r["acoustid_score"]} &rarr; {html.escape(str(r["acoustid_match"]))}</span>'
-            if r["acoustid_match"] else
-            f'<span class="muted">AcoustID: no match (score {r["acoustid_score"]}) &mdash; not proof of free rights</span>'
-        )
+        # What a match means depends on the pool, so the card says whose release it is
+        # rather than flagging the match itself. For netlabel and self-released music the
+        # artist's own Creative Commons release is catalogued in MusicBrainz like any
+        # other, so a match naming the credited artist is expected and benign.
+        agreement = r.get("acoustid_artist_agreement") or "no_match"
+        if agreement == "same_artist":
+            acoustid = (f'<span class="muted">AcoustID {r["acoustid_score"]} &rarr; '
+                        f'{html.escape(str(r["acoustid_match"]))} &mdash; the credited artist\'s own '
+                        f'catalogued release, which is expected for self-released music</span>')
+        elif agreement == "different_artist":
+            acoustid = (f'<span class="flag">AcoustID {r["acoustid_score"]} &rarr; '
+                        f'{html.escape(str(r["acoustid_match"]))}</span> <span class="muted">&mdash; names a '
+                        f'different artist than the item credits. Often a label or netlabel uploading its '
+                        f'own artist, sometimes not.</span>')
+        else:
+            acoustid = (f'<span class="muted">AcoustID: no match (score {r["acoustid_score"]}) '
+                        f'&mdash; not proof of free rights</span>')
         cards.append(f"""
 <article class="card" data-clip="{html.escape(r['clip_id'])}">
   <header>
@@ -290,8 +308,20 @@ refresh();
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--manifest", type=Path, default=REPO / "build/blind_real/blind_real_test_manifest.jsonl")
-    parser.add_argument("--clips-root", type=Path, default=REPO / "build/blind_real/clips")
-    parser.add_argument("--screen", type=Path, default=REPO / "build/blind_real/acoustid_screen.jsonl")
+    parser.add_argument("--clips-root", type=Path, default=REPO / "build/degradations",
+                        help="Where the manifest audio_path values are rooted, matching "
+                             "build_blind_real_public.py --output-root")
+    parser.add_argument("--screen", type=Path, nargs="+",
+                        default=[REPO / "build/blind_real/acoustid_screen.jsonl"])
+    parser.add_argument("--skip-listened", type=Path, nargs="*", default=(),
+                        help="Earlier pass reports (.json) or manifests (.jsonl); their items "
+                             "are left out so a new pass never spends listening on an item "
+                             "already decided")
+    parser.add_argument("--limit", type=int, default=0,
+                        help="Present at most N items, chosen by stable hash so the pass stays "
+                             "spread across collections rather than biased alphabetically. The "
+                             "rest stay staged for a later pass; an item nobody listened to is "
+                             "never admitted to the set")
     parser.add_argument("--output", type=Path, default=REPO / "build/blind_real/qa_pass1")
     parser.add_argument("--desk", type=Path, default=REPO / "build/blind_real/provenance_desk.json",
                         help="Uploader provenance findings, shown as information on each card")
@@ -300,13 +330,54 @@ def main() -> None:
 
     manifest = [json.loads(line) for line in args.manifest.open(encoding="utf-8")]
     screen: dict[str, dict[str, Any]] = {}
-    if args.screen.is_file():
-        for line in args.screen.open(encoding="utf-8"):
+    for path in args.screen:
+        if not path.is_file():
+            continue
+        for line in path.open(encoding="utf-8"):
             row = json.loads(line)
             # Keep the strongest signal per identifier.
             previous = screen.get(row["identifier"])
             if previous is None or (row.get("score") or 0) > (previous.get("score") or 0):
                 screen[row["identifier"]] = row
+
+
+    already: set[str] = set()
+    for path in args.skip_listened:
+        if not path.is_file():
+            continue
+        # Decided by content, not by file name: a manifest may be called
+        # "manifest.jsonl.pre_artist_cap" and a report may be called anything.
+        text = path.read_text(encoding="utf-8")
+        try:
+            report = json.loads(text)
+        except json.JSONDecodeError:
+            # One JSON object per line: a manifest of what an earlier pass presented,
+            # every item of which was decided.
+            for line in text.splitlines():
+                if line.strip():
+                    row = json.loads(line)
+                    already.add(str(row.get("internet_archive_identifier") or row.get("identifier")))
+            continue
+        for bucket in ("kept", "rejected", "uncertain", "clean_control", "rejected_on_listening"):
+            for entry in report.get(bucket) or []:
+                already.add(str(entry.get("identifier")))
+        already.update(report.get("rejected_by_extension") or {})
+        already.update(report.get("clean_control_identifiers") or [])
+    if already:
+        before = len({row["internet_archive_identifier"] for row in manifest})
+        manifest = [row for row in manifest if row["internet_archive_identifier"] not in already]
+        print(f"{before - len({row['internet_archive_identifier'] for row in manifest})} "
+              f"items left out as already listened to")
+
+    if args.limit:
+        from openrestore.data.core import stable_fraction
+
+        identifiers = sorted({row["internet_archive_identifier"] for row in manifest})
+        if len(identifiers) > args.limit:
+            chosen = set(sorted(identifiers, key=lambda i: stable_fraction(i, 20261009))[: args.limit])
+            held = len(identifiers) - len(chosen)
+            manifest = [row for row in manifest if row["internet_archive_identifier"] in chosen]
+            print(f"presenting {len(chosen)} items, holding {held} staged for a later pass")
 
     desk = json.loads(args.desk.read_text(encoding="utf-8")) if args.desk.is_file() else {}
     first, second = build_rows(manifest, screen)

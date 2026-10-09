@@ -195,7 +195,9 @@ def extract_clips(
                 skipped.append(f"{item_id}: no usable window after {attempts} attempts")
                 continue
             start, quality = accepted
-            evidence = provenance.get("selection", {}).get("live_evidence", {})
+            # Round two drops the live-capture requirement, so this is absent or null
+            # there and the tier is simply "none"; it must not be assumed to be a dict.
+            evidence = (provenance.get("selection") or {}).get("live_evidence") or {}
             rows.append({
                 "id": item_id,
                 "dataset": "blind_real",

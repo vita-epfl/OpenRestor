@@ -44,14 +44,16 @@ def read_jsonl(path: Path) -> list[dict[str, Any]]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--candidates", type=Path, default=BUILD / "public_test_candidates.jsonl")
+    parser.add_argument("--candidates", type=Path, nargs="+",
+                        default=[BUILD / "public_test_candidates.jsonl"])
     # tracks.jsonl, not downloaded.jsonl: the latter holds one file per item, which caps
     # every item at a single excerpt. Two excerpts of one item have to come from two
     # different tracks, since two windows of the same song sound alike however far apart
     # they are cut.
-    parser.add_argument("--downloaded", type=Path, default=BUILD / "tracks.jsonl")
+    parser.add_argument("--downloaded", type=Path, nargs="+", default=[BUILD / "tracks.jsonl"])
     parser.add_argument("--rejections", type=Path, default=BUILD / "rejected_identifiers.tsv")
-    parser.add_argument("--originals", type=Path, default=BUILD / "tracks")
+    parser.add_argument("--originals", type=Path, nargs="+", default=[BUILD / "tracks"],
+                        help="One download root per --downloaded file, in the same order")
     parser.add_argument("--output-root", type=Path, default=REPO / "build/degradations")
     parser.add_argument("--manifest", type=Path, default=BUILD / "blind_real_test_manifest.jsonl")
     parser.add_argument("--cap", type=int, default=3,
@@ -62,8 +64,20 @@ def main() -> None:
                         help="Report what the cap would do without cutting or writing")
     args = parser.parse_args()
 
-    candidates = read_jsonl(args.candidates)
-    downloaded = read_jsonl(args.downloaded)
+    candidates: list[dict[str, Any]] = []
+    for path in args.candidates:
+        candidates += read_jsonl(path)
+    if len(args.originals) != len(args.downloaded):
+        raise SystemExit("--originals needs one download root per --downloaded file")
+    # Each round downloaded into its own root, so paths are rewritten relative to the
+    # repository and the extractor is given a single root. Rounds then merge into one
+    # manifest, which is what the set is: the rounds are a build detail, not a split.
+    downloaded = []
+    for path, root in zip(args.downloaded, args.originals):
+        for row in read_jsonl(path):
+            if row.get("local_path"):
+                row["local_path"] = str((root / str(row["local_path"])).resolve().relative_to(REPO))
+            downloaded.append(row)
     rejections = load_rejections(args.rejections) if args.rejections.is_file() else {}
     tracks_per_item = len({row["identifier"] for row in downloaded if row.get("local_path")})
     print(f"{len(candidates)} candidate rows, {len(downloaded)} downloaded tracks over "
@@ -81,7 +95,7 @@ def main() -> None:
         rows = read_jsonl(args.manifest)
     else:
         rows = extract_clips(
-            downloaded, candidates, args.originals, args.output_root,
+            downloaded, candidates, REPO, args.output_root,
             excerpt_seconds=args.excerpt_seconds,
             clips_per_identifier=args.clips_per_identifier,
             rejections=rejections,

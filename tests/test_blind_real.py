@@ -6,12 +6,14 @@ from pathlib import Path
 from unittest import TestCase
 
 from openrestore.data.blind_real import (
+    acoustid_artist_agreement,
     artist_groups,
     artist_names,
     best_original_file,
     cap_items_per_artist,
     looks_ambient_or_noise,
     primary_collection,
+    require_fpcalc,
     select_diverse_candidates,
     filter_candidates,
     freeze_candidate_list,
@@ -360,3 +362,31 @@ class RoundTwoSelectionTests(TestCase):
     def test_artist_names_reads_a_raw_catalogue_row(self):
         self.assertEqual(artist_names({"artist": "The Old Silver Band"}), ["the old silver band"])
         self.assertEqual(artist_names({"creator": "Capsule Corp."}), ["capsule corp."])
+
+
+class ScreenPreconditionTests(TestCase):
+    def test_a_missing_fingerprinter_raises_instead_of_reporting_a_clean_screen(self):
+        """A missing fpcalc once produced 195 per-item failures and a printed
+        "0 commercial matches", which reads as a screened set. It must fail loudly."""
+        with self.assertRaises(FileNotFoundError):
+            require_fpcalc("definitely-not-installed-fpcalc")
+
+
+class AcoustidMeaningTests(TestCase):
+    """A fingerprint match means different things in different pools."""
+
+    def test_the_artists_own_catalogued_release_is_recognised(self):
+        row = {"matches": [{"artists": ["Photophob"], "title": "Space Anthem Nr. 42"}]}
+        self.assertEqual(acoustid_artist_agreement("Photophob", row), "same_artist")
+
+    def test_a_label_uploading_its_own_artist_is_flagged_as_different(self):
+        row = {"matches": [{"artists": ["Delta Is"]}]}
+        self.assertEqual(acoustid_artist_agreement("Parenthetical Records", row), "different_artist")
+
+    def test_no_match_is_not_evidence_of_anything(self):
+        self.assertEqual(acoustid_artist_agreement("Anyone", {"matches": []}), "no_match")
+        self.assertEqual(acoustid_artist_agreement("Anyone", {}), "no_match")
+
+    def test_punctuation_and_case_do_not_break_agreement(self):
+        row = {"matches": [{"artists": ["yukiga futte uresii"]}]}
+        self.assertEqual(acoustid_artist_agreement("Yukiga Futte Uresii", row), "same_artist")

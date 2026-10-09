@@ -109,8 +109,16 @@ def main() -> None:
     with args.screen.open("w", encoding="utf-8") as handle:
         for row in screened:
             handle.write(json.dumps(row, sort_keys=True) + "\n")
+    done = [row for row in screened if row.get("status") == "ok"]
+    broken = len(screened) - len(done)
     hits = [row for row in screened if row.get("commercial_match")]
-    print(f"\n{len(hits)} of {len(screened)} identifiers match a commercial release", flush=True)
+    print(f"\n{len(done)} of {len(screened)} lookups completed", flush=True)
+    if broken:
+        failures = Counter(str(row.get("status"))[:60] for row in screened if row.get("status") != "ok")
+        print(f"!! {broken} lookups failed, so those identifiers are UNSCREENED:", flush=True)
+        for status, count in failures.most_common(5):
+            print(f"     {count:>4}  {status}", flush=True)
+    print(f"{len(hits)} of {len(done)} screened identifiers match a commercial release", flush=True)
     for row in hits:
         match = (row.get("matches") or [{}])[0]
         print(f"   {row['identifier'][:44]:<46} {row.get('score'):.2f}  "

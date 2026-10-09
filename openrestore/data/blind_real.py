@@ -918,6 +918,25 @@ def download_distinct_tracks(
 ACOUSTID_LOOKUP = "https://api.acoustid.org/v2/lookup"
 
 
+def require_fpcalc(fpcalc: str = "fpcalc") -> str:
+    """Fail before screening rather than after, if the fingerprinter is missing.
+
+    Without this, a missing binary turns into one FileNotFoundError per item, caught by
+    the per-item handler, and the run reports "0 commercial matches" -- a total failure
+    presented as a clean result. A screen that could not run must say so.
+    """
+    import shutil
+
+    found = shutil.which(fpcalc) or (fpcalc if Path(fpcalc).is_file() else None)
+    if not found:
+        raise FileNotFoundError(
+            f"{fpcalc} not found. The AcoustID screen needs Chromaprint's fpcalc; install it "
+            f"and put it on PATH, or pass its path. Without it no copyright screen has run, "
+            f"and an unscreened set must not be treated as screened."
+        )
+    return found
+
+
 def fingerprint_file(path: Path, fpcalc: str = "fpcalc", length: int = 120) -> dict[str, Any]:
     """Compute a Chromaprint fingerprint of an audio file."""
     import subprocess
@@ -968,6 +987,7 @@ def screen_for_commercial_release(
     """
     import time
 
+    fpcalc = require_fpcalc(fpcalc)
     out: list[dict[str, Any]] = []
     for position, (identifier, path) in enumerate(items, start=1):
         row: dict[str, Any] = {"identifier": identifier, "file": path.name}
@@ -1223,3 +1243,27 @@ def select_diverse_candidates(
         if not progressed:
             break
     return selected
+
+
+def acoustid_artist_agreement(credited: Any, screen_row: dict[str, Any]) -> str:
+    """Say whether a fingerprint match names the same artist the item credits.
+
+    What an AcoustID match means depends entirely on the pool. For an audience recording
+    a match is a red flag: it says the audio is the studio release rather than a capture.
+    For netlabel and self-released music a match is expected and benign, because the
+    artist's own Creative Commons release is catalogued in MusicBrainz like any other.
+    Rejecting on the match alone would have deleted 22 legitimate items of round two,
+    among them Photophob, Magrudergrind and Jellica releasing their own work.
+
+    So the signal is agreement, not existence: "same_artist" is the artist's own
+    catalogued release, "different_artist" is worth a look, and neither is a verdict.
+    """
+    if not screen_row.get("matches"):
+        return "no_match"
+    mine = re.sub(r"[^a-z0-9]+", "", str(credited or "").lower())
+    for match in screen_row["matches"]:
+        for name in match.get("artists") or []:
+            theirs = re.sub(r"[^a-z0-9]+", "", str(name or "").lower())
+            if mine and theirs and (mine in theirs or theirs in mine):
+                return "same_artist"
+    return "different_artist"

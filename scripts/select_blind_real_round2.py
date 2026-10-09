@@ -28,6 +28,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from openrestore.data.blind_real import (
     filter_candidates,
+    freeze_candidate_list,
+    live_evidence,
     looks_ambient_or_noise,
     looks_non_music_filename,
     primary_collection,
@@ -50,6 +52,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--catalogue", type=Path, default=BUILD / "iamd_catalogue.jsonl")
     parser.add_argument("--output", type=Path, default=BUILD / "round2_candidates.jsonl")
+    parser.add_argument("--frozen", type=Path, default=BUILD / "round2_frozen.jsonl",
+                        help="The same selection in the frozen item shape the clip extractor reads")
     parser.add_argument("--target", type=int, default=200, help="Identifiers to select")
     parser.add_argument("--clips-per-identifier", type=int, default=2)
     parser.add_argument("--cap-per-artist", type=int, default=3)
@@ -115,10 +119,24 @@ def main() -> None:
         print(f"   {n:>4}  {collection}")
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
+    ordered = sorted(selected, key=lambda r: (str(r["identifier"]), str(r.get("key"))))
     with args.output.open("w", encoding="utf-8") as handle:
-        for row in sorted(selected, key=lambda r: (str(r["identifier"]), str(r.get("key")))):
+        for row in ordered:
             handle.write(json.dumps(row, sort_keys=True) + "\n")
-    print(f"\ncandidates -> {args.output}")
+
+    # Live evidence is still recorded, now as a description rather than a filter: some of
+    # these items will be live and some will not, and the manifest should say which
+    # without that deciding anything. Round-two ids start after round one's so the two
+    # rounds can be concatenated without collision.
+    frozen = freeze_candidate_list([{**row, "live_evidence": live_evidence(row)} for row in ordered])
+    for row, source in zip(frozen, ordered):
+        row["selection"]["round"] = 2
+        row["selection"]["live_required"] = False
+        row["selection"]["primary_collection"] = source.get("primary_collection")
+    with args.frozen.open("w", encoding="utf-8") as handle:
+        for row in frozen:
+            handle.write(json.dumps(row, sort_keys=True) + "\n")
+    print(f"\ncandidates -> {args.output}\nfrozen     -> {args.frozen}")
 
 
 if __name__ == "__main__":
