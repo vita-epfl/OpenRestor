@@ -44,7 +44,7 @@ CSV_FIELDS = [
     "license_type", "license_url", "confidence_tier", "live_trigger",
     "source_file", "source_format", "source_codec", "source_sample_rate",
     "excerpt_start_s", "excerpt_end_s", "source_duration_s",
-    "acoustid_score", "acoustid_match", "archive_url",
+    "acoustid_score", "acoustid_match", "archive_url", "uploader", "uploader_artist_count",
 ]
 
 
@@ -87,7 +87,9 @@ def _text(value: Any) -> str:
     return str(value)
 
 
-def sheet_row(row: dict[str, Any], screen: dict[str, dict[str, Any]], audio_name: str) -> dict[str, Any]:
+def sheet_row(row: dict[str, Any], screen: dict[str, dict[str, Any]], audio_name: str,
+              desk: dict[str, Any] | None = None) -> dict[str, Any]:
+    desk = desk or {}
     artists = _text(row.get("attribution"))
     hit = screen.get(row["internet_archive_identifier"], {})
     match = (hit.get("matches") or [{}])[0] if hit.get("commercial_match") else {}
@@ -107,6 +109,8 @@ def sheet_row(row: dict[str, Any], screen: dict[str, dict[str, Any]], audio_name
         "acoustid_score": hit.get("score", ""),
         "acoustid_match": f"{match.get('artists')} / {match.get('title')}" if match else "",
         "archive_url": f"https://archive.org/details/{row['internet_archive_identifier']}",
+        "uploader": desk.get("uploader", ""),
+        "uploader_artist_count": desk.get("uploader_artist_count", 0),
         "_audio": audio_name,
     }
 
@@ -115,6 +119,29 @@ def page(rows: list[dict[str, Any]], second: dict[str, str]) -> str:
     cards = []
     for n, r in enumerate(rows, start=1):
         follow = second.get(r["identifier"])
+        up = r.get("uploader") or "unknown"
+        count = r.get("uploader_artist_count") or 0
+        # A high artist count means bulk uploading, which cuts both ways. For a mirror of
+        # a Creative Commons platform it is the strongest provenance in the set, because
+        # the licence is the artist's own and the platform's terms require them to hold
+        # the rights; the raw count alone would have mislabelled those items as the
+        # weakest. So the collection decides the reading, not the count.
+        if "jamendo" in str(r.get("collection") or "").lower():
+            uploader = (f'{html.escape(str(up))} <span class="muted">&mdash; bulk mirror of the Jamendo '
+                        f'Creative Commons catalogue ({count} artists). The licence is the artist\'s own, '
+                        f'set on Jamendo, and the album page is recorded in the item metadata: '
+                        f'strong provenance.</span>')
+        elif count > 200:
+            uploader = (f'<span class="flag">{html.escape(str(up))}</span> <span class="muted">&mdash; has '
+                        f'deposited {count} different artists, so this is a bulk uploader rather than a '
+                        f'performer. Not disqualifying on its own, but the CC BY tag here is the '
+                        f'uploader\'s claim, not the artist\'s.</span>')
+        elif count > 20:
+            uploader = f'{html.escape(str(up))} <span class="muted">&mdash; {count} different artists uploaded</span>'
+        elif count:
+            uploader = f'{html.escape(str(up))} <span class="muted">&mdash; only {count} artist(s) uploaded, plausibly the artist or their crew</span>'
+        else:
+            uploader = f'{html.escape(str(up))}'
         acoustid = (
             f'<span class="flag">AcoustID {r["acoustid_score"]} &rarr; {html.escape(str(r["acoustid_match"]))}</span>'
             if r["acoustid_match"] else
@@ -136,6 +163,7 @@ def page(rows: list[dict[str, Any]], second: dict[str, str]) -> str:
     <dt>source file</dt><dd>{html.escape(r['source_file'])} <span class="muted">({html.escape(str(r['source_codec']))}, {html.escape(str(r['source_sample_rate']))} Hz)</span></dd>
     <dt>excerpt</dt><dd>{r['excerpt_start_s']}s &ndash; {r['excerpt_end_s']}s of {r['source_duration_s']}s</dd>
     <dt>fingerprint</dt><dd>{acoustid}</dd>
+    <dt>uploader</dt><dd>{uploader}</dd>
   </dl>
   <div class="qa">
     <fieldset>
@@ -147,10 +175,10 @@ def page(rows: list[dict[str, Any]], second: dict[str, str]) -> str:
       <select name="q_{n}"><option value="">coarse quality (optional)&hellip;</option>{''.join(f'<option>{x}</option>' for x in QUALITY_LABELS)}</select>
     </fieldset>
     <fieldset>
-      <legend>2. Provenance QA &mdash; is the licence trustworthy enough to distribute?</legend>
-      <label><input type="radio" name="p_{n}" value="keep"> trustworthy</label>
-      <label><input type="radio" name="p_{n}" value="reject"> not trustworthy</label>
-      <label><input type="radio" name="p_{n}" value="uncertain"> uncertain</label>
+      <legend>2. Do you recognise this as a commercially released recording?</legend>
+      <label><input type="radio" name="p_{n}" value="keep"> no, don't recognise it</label>
+      <label><input type="radio" name="p_{n}" value="reject"> yes, I recognise it</label>
+      <label><input type="radio" name="p_{n}" value="uncertain"> maybe / unsure</label>
     </fieldset>
     <input type="text" name="n_{n}" placeholder="note (optional)">
     {f'<details><summary>second excerpt of this item &mdash; only if the first is uncertain</summary><audio controls preload="none" src="audio_pass2/{html.escape(follow)}"></audio></details>' if follow else '<p class="muted">no second excerpt for this item</p>'}
@@ -190,7 +218,8 @@ def page(rows: list[dict[str, Any]], second: dict[str, str]) -> str:
   <p><b>This is dataset curation, not a listening study and not a model evaluation.</b> The only question is which items belong in the set.</p>
   <p>One excerpt per source item. A second excerpt is staged under each card but only worth opening when the first leaves you uncertain.</p>
   <p>Bad audio quality is <b>not</b> a reason to reject &mdash; degraded recordings are the point. Reject speech, non-music, commercial releases and unusable audio.</p>
-  <p>The two fieldsets are deliberately separate: a perfect live recording can have an untrustworthy licence. <b>An AcoustID non-match is not proof the audio is free, and a CC BY tag is not proof the uploader held the rights.</b></p>
+  <p>The second question is narrow on purpose. Whether an uploader held the rights is not something anyone can hear, so that is a desk check and not yours: what each card shows about the uploader is <b>information</b>, already gathered. The one provenance judgement a listener can make is whether the recording is a commercial release they recognise &mdash; which is exactly how the Rihanna, Michael Jackson and Martin Solveig items were caught.</p>
+  <p><b>An AcoustID non-match is not proof the audio is free, and a CC BY tag is not proof the uploader held the rights.</b></p>
 </div>
 <div class="bar">
   <button id="save">Download verdicts CSV</button>
@@ -248,6 +277,8 @@ def main() -> None:
     parser.add_argument("--clips-root", type=Path, default=REPO / "build/blind_real/clips")
     parser.add_argument("--screen", type=Path, default=REPO / "build/blind_real/acoustid_screen.jsonl")
     parser.add_argument("--output", type=Path, default=REPO / "build/blind_real/qa_pass1")
+    parser.add_argument("--desk", type=Path, default=REPO / "build/blind_real/provenance_desk.json",
+                        help="Uploader provenance findings, shown as information on each card")
     parser.add_argument("--flac", action="store_true", help="Encode the staged audio as FLAC")
     args = parser.parse_args()
 
@@ -261,6 +292,7 @@ def main() -> None:
             if previous is None or (row.get("score") or 0) > (previous.get("score") or 0):
                 screen[row["identifier"]] = row
 
+    desk = json.loads(args.desk.read_text(encoding="utf-8")) if args.desk.is_file() else {}
     first, second = build_rows(manifest, screen)
     if args.output.exists():
         shutil.rmtree(args.output)
@@ -271,7 +303,9 @@ def main() -> None:
     for row in first:
         name = f"{row['id']}.wav"
         shutil.copy2(args.clips_root / row["audio_path"], args.output / "audio" / name)
-        sheet.append(sheet_row(row, screen, name))
+        item_desk = dict(desk.get("items", {}).get(row["internet_archive_identifier"], {}))
+        item_desk["uploader_artist_count"] = desk.get("uploader_artist_counts", {}).get(item_desk.get("uploader"), 0)
+        sheet.append(sheet_row(row, screen, name, item_desk))
     for identifier, row in second.items():
         name = f"{row['id']}.wav"
         shutil.copy2(args.clips_root / row["audio_path"], args.output / "audio_pass2" / name)

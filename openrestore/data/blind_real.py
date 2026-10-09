@@ -997,3 +997,121 @@ def screen_for_commercial_release(
             hits = sum(1 for r in out if r.get("commercial_match"))
             print(f"[acoustid] {position}/{len(items)}, {hits} commercial matches", flush=True)
     return out
+
+
+# Diversity cap ---------------------------------------------------------------------
+#
+# Source-disjointness by Internet Archive identifier is not enough. One artist can hold
+# many identifiers: before this cap, "Ambient Samurai - Ichiro NAKAGAWA" held 14 of 113
+# items, 13% of the clips, and Daniel Romano held 8 more under three different spellings
+# of the credit. A test set where one recording setup is 13% of the score rewards a system
+# for suiting that one microphone, which is not what the benchmark claims to measure.
+
+_CREDIT_SPLIT = re.compile(r"[;,/]| & | and | feat\.? | with ", re.IGNORECASE)
+
+
+def artist_names(row: dict[str, Any]) -> list[str]:
+    """Split a credit string into normalised individual names.
+
+    Archive credits are free text: "Daniel Romano's Outfit; Carson McHone" and
+    "Carson McHone; Daniel Romano's Outfit" are the same two acts in either order.
+    """
+    raw = str(row.get("attribution") or row.get("item_creator") or "").strip()
+    names = [part.strip().strip("-").lower() for part in _CREDIT_SPLIT.split(raw)]
+    return sorted({name for name in names if len(name) > 2})
+
+
+def artist_groups(rows: Iterable[dict[str, Any]]) -> dict[str, str]:
+    """Group identifiers that share any credited name, returning identifier -> group key.
+
+    Grouping on the whole credit string would leave the three Daniel Romano spellings as
+    three separate acts, so items are joined whenever they share a single name. The group
+    key is the name credited on the most items in the group, which names the group after
+    its main act rather than after whichever collaborator sorts first.
+    """
+    by_identifier: dict[str, list[str]] = {}
+    for row in rows:
+        identifier = str(row.get("internet_archive_identifier") or row.get("identifier"))
+        by_identifier.setdefault(identifier, [])
+        for name in artist_names(row):
+            if name not in by_identifier[identifier]:
+                by_identifier[identifier].append(name)
+
+    parent: dict[str, str] = {}
+
+    def find(key: str) -> str:
+        parent.setdefault(key, key)
+        while parent[key] != key:
+            parent[key] = parent[parent[key]]
+            key = parent[key]
+        return key
+
+    def union(left: str, right: str) -> None:
+        a, b = find(left), find(right)
+        if a != b:
+            parent[max(a, b)] = min(a, b)
+
+    for identifier, names in by_identifier.items():
+        union(f"id:{identifier}", f"id:{identifier}")
+        for name in names:
+            union(f"id:{identifier}", f"name:{name}")
+
+    frequency: dict[str, int] = {}
+    for names in by_identifier.values():
+        for name in names:
+            frequency[name] = frequency.get(name, 0) + 1
+
+    groups: dict[str, str] = {}
+    for identifier in by_identifier:
+        root = find(f"id:{identifier}")
+        members = sorted(k[5:] for k in parent if k.startswith("name:") and find(k) == root)
+        groups[identifier] = (
+            min(members, key=lambda n: (-frequency[n], n)) if members else f"unknown:{identifier}"
+        )
+    return groups
+
+
+def cap_items_per_artist(
+    rows: list[dict[str, Any]], cap: int = 3
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Keep at most ``cap`` identifiers per artist group, and report what was dropped.
+
+    Within a group, identifiers that yielded more clips are kept first: they carry more
+    usable material. Ties break on the identifier so the choice is reproducible.
+    """
+    clips_per_identifier: dict[str, int] = {}
+    first_row: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        identifier = str(row["internet_archive_identifier"])
+        clips_per_identifier[identifier] = clips_per_identifier.get(identifier, 0) + 1
+        first_row.setdefault(identifier, row)
+
+    groups = artist_groups(first_row.values())
+    members: dict[str, list[str]] = {}
+    for identifier, group in groups.items():
+        members.setdefault(group, []).append(identifier)
+
+    keep: set[str] = set()
+    dropped: list[dict[str, Any]] = []
+    for group in sorted(members):
+        ordered = sorted(members[group], key=lambda i: (-clips_per_identifier[i], i))
+        keep.update(ordered[:cap])
+        for identifier in ordered[cap:]:
+            dropped.append({"identifier": identifier, "artist_group": group,
+                            "clips": clips_per_identifier[identifier]})
+
+    kept_rows = [row for row in rows if str(row["internet_archive_identifier"]) in keep]
+    report = {
+        "cap_per_artist": cap,
+        "artist_groups": len(members),
+        "identifiers_before": len(clips_per_identifier),
+        "identifiers_after": len(keep),
+        "clips_before": len(rows),
+        "clips_after": len(kept_rows),
+        "dropped": sorted(dropped, key=lambda d: (d["artist_group"], d["identifier"])),
+        "largest_groups": sorted(
+            ({"artist_group": g, "identifiers": len(m)} for g, m in members.items()),
+            key=lambda d: (-d["identifiers"], d["artist_group"]),
+        )[:5],
+    }
+    return kept_rows, report

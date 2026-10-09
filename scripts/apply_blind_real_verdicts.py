@@ -7,8 +7,13 @@ quality distribution, and the final counts.
 
 The two verdict columns stay separate throughout. An item is dropped if *either* its
 audio or its provenance fails, but the reports say which, because the remedies differ:
-bad audio means the item is wrong for the task, while an untrustworthy licence means it
-may be fine audio we are not allowed to ship.
+bad audio means the item is wrong for the task, while a recognised commercial release
+means it may be fine audio we are not allowed to ship.
+
+The provenance column records one narrow judgement only -- "I recognise this as a
+commercial release" -- because that is the only provenance question listening can settle.
+Whether an uploader held the rights is desk research, carried alongside each verdict in
+the uploader columns and kept for audit; it is never inferred from a listener's answer.
 
     python scripts/apply_blind_real_verdicts.py --verdicts ~/Downloads/blind_real_verdicts.csv
     python scripts/apply_blind_real_verdicts.py --verdicts ... --write-rejections
@@ -24,7 +29,9 @@ from pathlib import Path
 from typing import Any
 
 REPO = Path(__file__).resolve().parents[1]
-APPROVALS = {"keep", "ok", "trustworthy", ""}
+# "reject" on the provenance column means the listener recognised a commercial release,
+# so it maps to that reason rather than a vague "provenance" bucket.
+PROVENANCE_REJECT_REASON = "commercial_release"
 
 
 def read_verdicts(path: Path) -> dict[str, dict[str, str]]:
@@ -73,12 +80,17 @@ def main() -> None:
             "audio_verdict": audio or "keep", "provenance_verdict": provenance or "keep",
             "reject_reason": reason, "quality_label": label,
             "note": verdict.get("note", ""),
+            "uploader": verdict.get("uploader", ""),
+            "uploader_artist_count": verdict.get("uploader_artist_count", ""),
         }
         if audio == "uncertain" or provenance == "uncertain":
             uncertain.append(entry)
         elif audio == "reject" or provenance == "reject":
             entry["rejected_on"] = "audio" if audio == "reject" else "provenance"
-            reasons[reason or ("provenance" if provenance == "reject" else "unspecified")] += 1
+            if audio == "reject":
+                reasons[reason or "unspecified"] += 1
+            else:
+                reasons[PROVENANCE_REJECT_REASON] += 1
             rejected.append(entry)
         else:
             kept.append(entry)
@@ -132,7 +144,8 @@ def main() -> None:
         existing = args.rejections.read_text(encoding="utf-8") if args.rejections.is_file() else ""
         lines = ["\n# --- rejected in the QA listening pass ------------------------------------------\n"]
         for entry in rejected:
-            why = entry["reject_reason"] or entry["rejected_on"]
+            why = entry["reject_reason"] or (
+                PROVENANCE_REJECT_REASON if entry["rejected_on"] == "provenance" else "unspecified")
             note = f"; {entry['note']}" if entry["note"] else ""
             lines.append(f"{entry['identifier']}\t{why} ({entry['rejected_on']}){note}\n")
         args.rejections.write_text(existing + "".join(lines), encoding="utf-8")

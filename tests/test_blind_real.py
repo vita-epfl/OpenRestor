@@ -6,7 +6,9 @@ from pathlib import Path
 from unittest import TestCase
 
 from openrestore.data.blind_real import (
+    artist_groups,
     best_original_file,
+    cap_items_per_artist,
     filter_candidates,
     freeze_candidate_list,
     live_evidence,
@@ -257,3 +259,54 @@ class RejectionTests(TestCase):
         aporee = _row(license_type="BY", title="Cergy, France - Audience before a show",
                       collection="radio-aporee-maps")
         self.assertEqual(filter_candidates([aporee]), [])
+
+
+class ArtistDiversityTests(TestCase):
+    """Source-disjointness by identifier does not stop one act dominating the set."""
+
+    def test_items_sharing_any_credited_name_form_one_act(self):
+        rows = [
+            {"internet_archive_identifier": "a", "attribution": "Daniel Romano's Outfit; Carson McHone"},
+            {"internet_archive_identifier": "b", "attribution": "Carson McHone"},
+            {"internet_archive_identifier": "c", "attribution": "Daniel Romano's Outfit; Daniel Romano"},
+            {"internet_archive_identifier": "d", "attribution": "Capsule Corp."},
+            {"internet_archive_identifier": "e", "attribution": "Daniel Romano's Outfit"},
+        ]
+        groups = artist_groups(rows)
+        self.assertEqual(groups["a"], groups["b"])
+        self.assertEqual(groups["a"], groups["c"])
+        self.assertEqual(groups["a"], groups["e"])
+        self.assertNotEqual(groups["a"], groups["d"])
+        # Named after the act credited most often, not whichever name sorts first.
+        self.assertEqual(groups["a"], "daniel romano's outfit")
+
+    def test_cap_keeps_the_clip_richest_items_of_an_act(self):
+        rows = (
+            [{"internet_archive_identifier": "many", "attribution": "The Old Silver Band", "id": f"many-{i}"}
+             for i in range(2)]
+            + [{"internet_archive_identifier": f"solo{i}", "attribution": "The Old Silver Band", "id": f"solo{i}-0"}
+               for i in range(3)]
+            + [{"internet_archive_identifier": "other", "attribution": "Capsule Corp.", "id": "other-0"}]
+        )
+        kept, report = cap_items_per_artist(rows, cap=2)
+        kept_ids = {row["internet_archive_identifier"] for row in kept}
+        self.assertIn("many", kept_ids)
+        self.assertIn("other", kept_ids)
+        self.assertEqual(report["identifiers_after"], 3)
+        self.assertEqual(len(report["dropped"]), 2)
+
+    def test_cap_does_not_depend_on_row_order(self):
+        rows = [{"internet_archive_identifier": f"i{i}", "attribution": "The Same Band", "id": f"i{i}-0"}
+                for i in range(6)]
+        first, _ = cap_items_per_artist(rows, cap=3)
+        second, _ = cap_items_per_artist(list(reversed(rows)), cap=3)
+        self.assertEqual(
+            {row["internet_archive_identifier"] for row in first},
+            {row["internet_archive_identifier"] for row in second},
+        )
+
+    def test_an_unattributed_item_is_never_merged_with_another(self):
+        rows = [{"internet_archive_identifier": "x", "attribution": ""},
+                {"internet_archive_identifier": "y", "attribution": None}]
+        groups = artist_groups(rows)
+        self.assertNotEqual(groups["x"], groups["y"])

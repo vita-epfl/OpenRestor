@@ -296,7 +296,8 @@ The completed 2,320-shard IAMD scan settles it. The permissive, high-confidence 
 - Source: high-confidence IAMD candidates, resolved through `identifier` to the Internet Archive item, from which the best available original is downloaded. IAMD's own 320 kbps MP3 segments are never used.
 - Licences: **CC0 and CC BY only** for now. BY-SA is not admitted.
 - Confidence: **`structured` and `strong_phrase` only**. `weak_keyword` is excluded.
-- Cap: at most **2 clips per `identifier`**.
+- Cap: at most **2 clips per `identifier`**, and at most **3 identifiers per artist group**. Identifiers are grouped whenever they share any credited name, because source-disjointness by identifier does not stop one act dominating: before the cap, Daniel Romano's Outfit held 14 of 113 items across three spellings of the credit, and Ambient Samurai 14 more.
+- Two excerpts of one item come from **two different tracks**. Two windows of one song sound alike however far apart they are cut, so the variety has to come from the track, not the offset.
 
 ### Realised set
 
@@ -310,7 +311,7 @@ The completed 2,320-shard IAMD scan settles it. The permissive, high-confidence 
 
 Two excerpts came off the target of 260 because two recordings are too short to hold two non-overlapping windows, and one excerpt is preferable to two copies of the same one.
 
-**The set is not lossless.** For 98 of the 130 items the uploader's own original is an MP3, 7 of them at 128 kbps. Fetching that original is still right, since IAMD's 320 kbps segment is a re-encode of the same file, but no release text may imply otherwise.
+**The set is not lossless.** For 69 of the 85 items the uploader's own original is an MP3, some at 128 kbps. Fetching that original is still right, since IAMD's 320 kbps segment is a re-encode of the same file, but no release text may imply otherwise.
 
 ### Processing choices
 
@@ -318,11 +319,11 @@ Two excerpts came off the target of 260 because two recordings are too short to 
 
 **Resampled to 44.1 kHz stereo regardless.** That is format canonicalisation, not repair: a system must return audio in the format it received, so inputs have to be uniform. Each clip records its source sample rate, channel count and codec.
 
-**Excerpt windows are disjoint by construction.** Each excerpt of an item is drawn from its own band of the recording. Drawing both independently from the whole recording produced overlapping pairs on 7 of 130 items, one pair a second apart, and an overlapping pair is one excerpt counted twice, which defeats the per-item cap.
+**Excerpts of one item come from different tracks.** Drawing both windows independently from one recording produced overlapping pairs, one of them a second apart; drawing them from disjoint bands of the same track fixed the overlap but not the real problem, which was two excerpts of the same song. They now come from two different tracks of the item, and an item offering only one usable track yields one excerpt.
 
 ### Wording discipline
 
-The 131 items are **distinct Internet Archive source items with high-confidence live-recording metadata**. They are *not* verified concerts: nothing in the pipeline listened to them or confirmed the event. Release text, dataset cards and papers must use the longer phrasing.
+The retained items are **distinct Internet Archive source items with high-confidence live-recording metadata**. They are *not* verified concerts: nothing in the pipeline listened to them or confirmed the event. Release text, dataset cards and papers must use the longer phrasing.
 
 Every item keeps its provenance and its live evidence: the confidence level, and the field or phrase that triggered it.
 
@@ -339,9 +340,9 @@ Scores aggregate in three stages: **clip, then `identifier`, then dataset.** Wit
 - [x] 5. Cap clips per identifier.
 - [x] 6. Rank candidates automatically.
 - [x] 7. Frozen-list writer with per-item provenance.
-- [x] 8. Build and freeze the Blind-Real Public manifest from the high-confidence identifiers. **130 identifiers, 260 candidate clips.**
+- [x] 8. Build and freeze the Blind-Real Public manifest from the high-confidence identifiers, reproducibly via `scripts/build_blind_real_public.py`. **After the AcoustID screen, the per-artist cap and the desk rejections: 85 identifiers, 159 clips, 53 minutes, 100% CC BY.**
 - [x] 9. Download the best available Internet Archive original for each. **130/130, 3.8 GB, each verified against the Archive's own SHA-1.**
-- [x] 10. Cut deterministic excerpts and record the exact bounds. **258 excerpts of 20 s, 86 minutes.**
+- [x] 10. Cut deterministic excerpts and record the exact bounds. **159 excerpts of 20 s, 53 minutes.**
 - [x] 11. Attach provenance and confidence metadata to every clip.
 - [ ] 12. Write the evaluation script with clip then identifier then dataset aggregation.
 - [ ] 13. Define the no-reference Blind-Real metrics, after the set exists.
