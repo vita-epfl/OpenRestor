@@ -147,6 +147,8 @@ def filter_candidates(
             continue
         if is_non_music_collection(row.get("collection")):
             continue
+        if has_doubtful_licence_collection(row.get("collection")):
+            continue
         if require_live and not looks_live(row):
             continue
         kept.append(row)
@@ -159,9 +161,23 @@ def filter_candidates(
 NON_MUSIC_COLLECTIONS = ("radio-aporee-maps", "radio-aporee", "spokenword", "audio_bookspoetry", "oralliterature")
 
 
+# Collections whose Creative Commons declarations are not credible. This is a licence
+# problem, not a content one: the audio is music, but it is commercially released music
+# uploaded under a claim the uploader does not hold. Fingerprinting matched 6 of the 8
+# hifidelity_potpourri items in one pass to released recordings by Metallica, Green Day,
+# Guns N' Roses, Vulfpeck and the Emerson String Quartet, so the whole collection goes
+# rather than only the items AcoustID happened to know.
+DOUBTFUL_LICENCE_COLLECTIONS = ("hifidelity_potpourri", "hifidelity")
+
+
 def is_non_music_collection(collection: Any) -> bool:
     text = str(collection or "").lower()
     return any(c in text for c in NON_MUSIC_COLLECTIONS)
+
+
+def has_doubtful_licence_collection(collection: Any) -> bool:
+    text = str(collection or "").lower()
+    return any(c in text for c in DOUBTFUL_LICENCE_COLLECTIONS)
 
 
 def load_rejections(path: Path) -> dict[str, str]:
@@ -895,3 +911,89 @@ def download_distinct_tracks(
                 print(f"[tracks] {done}/{len(futures)}, {failed} failed", flush=True)
     rows.sort(key=lambda r: (r["identifier"], r["track_index"]))
     return rows
+
+
+# --- Licence screening by audio fingerprint -----------------------------------------
+
+ACOUSTID_LOOKUP = "https://api.acoustid.org/v2/lookup"
+
+
+def fingerprint_file(path: Path, fpcalc: str = "fpcalc", length: int = 120) -> dict[str, Any]:
+    """Compute a Chromaprint fingerprint of an audio file."""
+    import subprocess
+
+    result = subprocess.run(
+        [fpcalc, "-json", "-length", str(length), str(path)],
+        capture_output=True, text=True, check=True,
+    )
+    return json.loads(result.stdout)
+
+
+def acoustid_lookup(fingerprint: str, duration: int, api_key: str, timeout: float = 30.0) -> dict[str, Any]:
+    """Ask AcoustID what commercially released recording this audio matches.
+
+    This is the screen the declared licence cannot provide. An Internet Archive
+    uploader can mark a file CC BY without holding those rights, and metadata gives no
+    sign of it: the item that prompted this screen declares CC BY 3.0, carries no
+    MusicBrainz id, and is a DJ mix of commercial tracks. A fingerprint looks at the
+    signal instead of the claim.
+    """
+    import urllib.parse
+    import urllib.request
+
+    body = urllib.parse.urlencode({
+        "client": api_key, "format": "json", "duration": str(int(duration)),
+        "fingerprint": fingerprint, "meta": "recordings releasegroups",
+    }).encode()
+    request = urllib.request.Request(ACOUSTID_LOOKUP, data=body,
+                                     headers={"User-Agent": "OpenRestore-benchmark/0.1"})
+    with urllib.request.urlopen(request, timeout=timeout) as response:
+        return json.load(response)
+
+
+def screen_for_commercial_release(
+    items: list[tuple[str, Path]],
+    api_key: str,
+    fpcalc: str = "fpcalc",
+    min_score: float = 0.85,
+    pause_seconds: float = 0.4,
+    progress: bool = True,
+) -> list[dict[str, Any]]:
+    """Fingerprint each file and report any commercially released match.
+
+    A match is evidence that the audio is a known released recording, which makes a
+    Creative Commons declaration on an Internet Archive upload doubtful. It is evidence
+    rather than proof: a band's own live recording of its own song can match its studio
+    release, so a hit is a reason to look, not an automatic rejection.
+    """
+    import time
+
+    out: list[dict[str, Any]] = []
+    for position, (identifier, path) in enumerate(items, start=1):
+        row: dict[str, Any] = {"identifier": identifier, "file": path.name}
+        try:
+            printed = fingerprint_file(path, fpcalc)
+            answer = acoustid_lookup(printed["fingerprint"], printed["duration"], api_key)
+            if answer.get("status") != "ok":
+                row["status"] = f"lookup-error: {str(answer.get('error'))[:80]}"
+            else:
+                results = answer.get("results") or []
+                best = max(results, key=lambda r: r.get("score", 0.0)) if results else None
+                row["status"] = "ok"
+                row["score"] = best.get("score") if best else 0.0
+                recordings = (best or {}).get("recordings") or []
+                row["matches"] = [
+                    {"title": rec.get("title"),
+                     "artists": [a.get("name") for a in (rec.get("artists") or [])],
+                     "release_groups": [g.get("title") for g in (rec.get("releasegroups") or [])][:3]}
+                    for rec in recordings[:3]
+                ]
+                row["commercial_match"] = bool(recordings) and (row["score"] or 0) >= min_score
+        except Exception as error:  # noqa: BLE001 - one failure must not end the screen
+            row["status"] = f"failed: {type(error).__name__}: {error}"
+        out.append(row)
+        time.sleep(pause_seconds)
+        if progress and (position % 25 == 0 or position == len(items)):
+            hits = sum(1 for r in out if r.get("commercial_match"))
+            print(f"[acoustid] {position}/{len(items)}, {hits} commercial matches", flush=True)
+    return out

@@ -137,7 +137,15 @@ def extract_clips(
     the clean segmentation does: in a concert recording a quiet window is usually a gap
     between songs, not music.
     """
-    local = {str(r["identifier"]): r for r in downloaded if r.get("local_path")}
+    # Accept either one row per item, or one row per (item, track) so that clip i of an
+    # item comes from its track i. Two excerpts of one song sound alike however far
+    # apart they are cut, so variety has to come from using different tracks.
+    per_track: dict[str, dict[int, dict[str, Any]]] = {}
+    for record in downloaded:
+        if not record.get("local_path"):
+            continue
+        per_track.setdefault(str(record["identifier"]), {})[int(record.get("track_index", 0))] = record
+    local = {identifier: tracks[min(tracks)] for identifier, tracks in per_track.items()}
     by_identifier: dict[str, list[dict[str, Any]]] = {}
     for row in candidates:
         by_identifier.setdefault(str(row["internet_archive_identifier"]), []).append(row)
@@ -149,26 +157,24 @@ def extract_clips(
         if record is None:
             skipped.append(f"{identifier}: not downloaded")
             continue
-        source = originals_root / str(record["local_path"])
-        try:
-            duration = probe_duration(source)
-            source_format = probe_format(source)
-        except (subprocess.CalledProcessError, ValueError) as error:
-            skipped.append(f"{identifier}: unreadable ({type(error).__name__})")
-            continue
-        if duration < excerpt_seconds:
-            skipped.append(f"{identifier}: shorter than the excerpt ({duration:.1f}s)")
-            continue
 
         provenance = by_identifier[identifier][0]
-        wanted = min(clips_per_identifier, len(by_identifier[identifier]))
-        # Two excerpts only make sense if two disjoint windows fit inside the margins.
-        # Otherwise emit one: a second copy of the same window would be a duplicate
-        # dressed up as a second sample.
-        room = duration - 2 * EDGE_MARGIN_SECONDS
-        if room < wanted * excerpt_seconds:
-            wanted = max(1, int(room // excerpt_seconds))
+        tracks = per_track[identifier]
+        wanted = min(clips_per_identifier, len(by_identifier[identifier]), len(tracks))
         for clip_index in range(wanted):
+            track = tracks[sorted(tracks)[clip_index]]
+            record = track
+            source = originals_root / str(track["local_path"])
+            try:
+                duration = probe_duration(source)
+                source_format = probe_format(source)
+            except (subprocess.CalledProcessError, ValueError) as error:
+                skipped.append(f"{identifier} track {clip_index}: unreadable ({type(error).__name__})")
+                continue
+            if duration < excerpt_seconds:
+                skipped.append(f"{identifier} track {clip_index}: shorter than the excerpt ({duration:.1f}s)")
+                continue
+            room = duration - 2 * EDGE_MARGIN_SECONDS
             item_id = f"blind_real--{identifier}--{clip_index:02d}"
             if rejections and (identifier in rejections or item_id in rejections):
                 skipped.append(f"{item_id}: rejected on listening")
@@ -177,7 +183,7 @@ def extract_clips(
             target = output_root / relative
             accepted = None
             for attempt in range(attempts):
-                start = clip_start(identifier, clip_index, duration, excerpt_seconds, seed, attempt, wanted)
+                start = clip_start(f"{identifier}:t{clip_index}", 0, duration, excerpt_seconds, seed, attempt, 1)
                 cut_excerpt(source, target, start, excerpt_seconds)
                 quality = clip_quality(target)
                 if (abs(quality["duration_seconds"] - excerpt_seconds) <= 0.05
@@ -204,8 +210,9 @@ def extract_clips(
                 "channels": 2,
                 "normalization": "none",
                 "quality": quality,
-                "source_file": record.get("used_file_name") or record.get("file_name"),
-                "source_format": record.get("used_file_format") or record.get("file_format"),
+                "source_file": track.get("track_name") or record.get("file_name"),
+                "source_format": track.get("track_format") or record.get("file_format"),
+                "source_track_index": int(track.get("track_index", 0)),
                 "source_duration_seconds": duration,
                 **source_format,
                 "license_type": provenance.get("license_type"),
