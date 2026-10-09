@@ -7,8 +7,12 @@ from unittest import TestCase
 
 from openrestore.data.blind_real import (
     artist_groups,
+    artist_names,
     best_original_file,
     cap_items_per_artist,
+    looks_ambient_or_noise,
+    primary_collection,
+    select_diverse_candidates,
     filter_candidates,
     freeze_candidate_list,
     live_evidence,
@@ -310,3 +314,49 @@ class ArtistDiversityTests(TestCase):
                 {"internet_archive_identifier": "y", "attribution": None}]
         groups = artist_groups(rows)
         self.assertNotEqual(groups["x"], groups["y"])
+
+
+class RoundTwoSelectionTests(TestCase):
+    """Selecting without the live proxy: exclude the predictable, spread the rest."""
+
+    def test_ambient_and_noise_tags_are_recognised(self):
+        self.assertTrue(looks_ambient_or_noise({"tags": "ambient; chillout; electronic"}))
+        self.assertTrue(looks_ambient_or_noise({"tags": "holzkopf noise kaunas"}))
+        self.assertTrue(looks_ambient_or_noise({"genre": "Dark Ambient"}))
+        self.assertTrue(looks_ambient_or_noise({"tags": "ambeint; electricguitar"}), "a real typo in the data")
+        self.assertFalse(looks_ambient_or_noise({"tags": "blues; live; guitar"}))
+        # Word boundaries: these words contain the patterns but are not about noise.
+        self.assertFalse(looks_ambient_or_noise({"title": "Noisettes at the Forum"}))
+        self.assertFalse(looks_ambient_or_noise({"tags": "ambiental"}))
+
+    def test_primary_collection_skips_the_generic_buckets(self):
+        self.assertEqual(primary_collection({"collection": "community; netlabels"}), "netlabels")
+        self.assertEqual(primary_collection({"collection": "opensource_audio; community"}), "opensource_audio")
+        self.assertEqual(primary_collection({"collection": ""}), "unknown")
+
+    def test_selection_spreads_across_collections(self):
+        rows = ([{"identifier": f"big{i}", "collection": "netlabels", "artist": f"Band {i}"} for i in range(50)]
+                + [{"identifier": f"small{i}", "collection": "cratediggers", "artist": f"Act {i}"} for i in range(5)])
+        picked = select_diverse_candidates(rows, target=10, cap_per_identifier=1)
+        collections = {row["primary_collection"] for row in picked}
+        self.assertEqual(collections, {"netlabels", "cratediggers"},
+                         "a large bucket must not fill the list on its own")
+
+    def test_selection_respects_the_artist_cap_and_excludes_known_items(self):
+        rows = [{"identifier": f"i{i}", "collection": "netlabels", "artist": "One Band"} for i in range(10)]
+        rows += [{"identifier": "already", "collection": "netlabels", "artist": "Other Band"}]
+        picked = select_diverse_candidates(rows, target=10, cap_per_identifier=1, cap_per_artist=3,
+                                           exclude_identifiers=["already"])
+        self.assertEqual(len(picked), 3, "one artist cannot exceed the cap")
+        self.assertNotIn("already", {row["identifier"] for row in picked})
+
+    def test_selection_is_reproducible(self):
+        rows = [{"identifier": f"i{i}", "collection": "netlabels", "artist": f"Band {i}"} for i in range(40)]
+        first = [row["identifier"] for row in select_diverse_candidates(rows, target=8, cap_per_identifier=1)]
+        second = [row["identifier"] for row in select_diverse_candidates(list(reversed(rows)), target=8,
+                                                                        cap_per_identifier=1)]
+        self.assertEqual(first, second)
+
+    def test_artist_names_reads_a_raw_catalogue_row(self):
+        self.assertEqual(artist_names({"artist": "The Old Silver Band"}), ["the old silver band"])
+        self.assertEqual(artist_names({"creator": "Capsule Corp."}), ["capsule corp."])

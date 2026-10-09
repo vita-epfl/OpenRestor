@@ -1016,7 +1016,10 @@ def artist_names(row: dict[str, Any]) -> list[str]:
     Archive credits are free text: "Daniel Romano's Outfit; Carson McHone" and
     "Carson McHone; Daniel Romano's Outfit" are the same two acts in either order.
     """
-    raw = str(row.get("attribution") or row.get("item_creator") or "").strip()
+    # Covers both shapes a row can have here: a built manifest row carries "attribution",
+    # a downloaded row "item_creator", and a raw catalogue row "artist" or "creator".
+    raw = str(row.get("attribution") or row.get("item_creator")
+              or row.get("artist") or row.get("creator") or "").strip()
     names = [part.strip().strip("-").lower() for part in _CREDIT_SPLIT.split(raw)]
     return sorted({name for name in names if len(name) > 2})
 
@@ -1115,3 +1118,108 @@ def cap_items_per_artist(
         )[:5],
     }
     return kept_rows, report
+
+
+# Round two: selecting without the live proxy ----------------------------------------
+#
+# "Live" was never the requirement. The requirement is that the degradation came from the
+# recording's own history, and live capture was a proxy for it -- one that cost 98% of the
+# permissive pool (131 identifiers kept out of 9,759 music items) and still let through 27
+# recordings a listener judged to need no restoration at all.
+#
+# Nothing automatic replaces it. The format fields that would show band limiting are
+# empty: sample_rate is filled on 7 of 12,405 permissive items, bitrate on 12, channels on
+# none. Measurement on the audio does not work either -- the no-reference descriptors were
+# tested against a listener's own keep/too-clean verdicts and separated them at chance
+# (AUC 0.35 to 0.56, with the noise floor pointing the wrong way, because "clean" to an
+# ear means well captured and well mixed rather than quiet).
+#
+# So listening stays the arbiter, and selection's job is only to spend that listening
+# well: exclude what is reliably predictable, and spread the rest.
+
+# Tags and genres of music whose own aesthetic is noise, drone or texture. On the judged
+# items this caught 94% of the recordings a listener rejected as noise rather than music,
+# against 13% of the ones kept. It is deliberately a lossy filter: with a pool 75 times
+# larger than the set needs, precision is worth more than recall.
+_AMBIENT_NOISE_PATTERN = re.compile(
+    r"\b(noise|ambient|ambeint|drone|dark\s?ambient|experimental|field.?recording|"
+    r"soundscape|sound.?art|musique.?concrete|harsh|improvis\w*|improv)\b",
+    re.IGNORECASE,
+)
+_AMBIENT_TEXT_FIELDS = ("genre", "tags", "title", "album", "notes", "audio_type")
+
+# Buckets so broad they say nothing about the material, so they must not drive the
+# round-robin: nearly every Internet Archive audio upload lands in several of them.
+GENERIC_COLLECTIONS = ("community", "opensource_audio", "ourmedia", "audio_music",
+                       "audio", "folksoundomy", "iarchive", "additional_collections")
+
+
+def looks_ambient_or_noise(row: dict[str, Any]) -> bool:
+    text = " ".join(str(row.get(field) or "") for field in _AMBIENT_TEXT_FIELDS)
+    return bool(_AMBIENT_NOISE_PATTERN.search(text))
+
+
+def primary_collection(row: dict[str, Any]) -> str:
+    """The most specific collection an item belongs to, for spreading the selection."""
+    parts = [c.strip().lower() for c in re.split(r"[;,]\s*", str(row.get("collection") or "")) if c.strip()]
+    specific = [c for c in parts if c not in GENERIC_COLLECTIONS]
+    return (specific or parts or ["unknown"])[0]
+
+
+def select_diverse_candidates(
+    rows: Iterable[dict[str, Any]],
+    target: int,
+    cap_per_identifier: int = 2,
+    cap_per_artist: int = 3,
+    exclude_identifiers: Iterable[str] = (),
+    seed: int = 20261009,
+) -> list[dict[str, Any]]:
+    """Pick items spread across collections and artists, with no quality ranking.
+
+    There is deliberately no ranking by estimated fidelity here. The metadata that
+    ``rank_candidates`` scores is absent on this pool, and ranking by it would only
+    reward items that happen to be well described. Collections are visited round-robin
+    so one large bucket cannot fill the list, and the order within a collection is a
+    stable hash, so the choice is reproducible without being correlated with anything.
+    """
+    from .core import stable_fraction
+
+    excluded = {str(i) for i in exclude_identifiers}
+    by_identifier: dict[str, list[dict[str, Any]]] = {}
+    for row in rows:
+        identifier = str(row.get("identifier"))
+        if identifier in excluded:
+            continue
+        by_identifier.setdefault(identifier, []).append(row)
+
+    buckets: dict[str, list[str]] = {}
+    for identifier, group in by_identifier.items():
+        buckets.setdefault(primary_collection(group[0]), []).append(identifier)
+    for collection in buckets:
+        buckets[collection].sort(key=lambda i: (stable_fraction(i, seed), i))
+
+    artists: dict[str, int] = {}
+    selected: list[dict[str, Any]] = []
+    order = sorted(buckets, key=lambda c: (-len(buckets[c]), c))
+    cursor = {c: 0 for c in order}
+    while len(selected) < target:
+        progressed = False
+        for collection in order:
+            if len(selected) >= target:
+                break
+            while cursor[collection] < len(buckets[collection]):
+                identifier = buckets[collection][cursor[collection]]
+                cursor[collection] += 1
+                progressed = True
+                group = by_identifier[identifier]
+                names = artist_names(group[0]) or [f"unknown:{identifier}"]
+                if any(artists.get(name, 0) >= cap_per_artist for name in names):
+                    continue
+                for name in names:
+                    artists[name] = artists.get(name, 0) + 1
+                for row in group[:cap_per_identifier]:
+                    selected.append({**row, "primary_collection": collection})
+                break
+        if not progressed:
+            break
+    return selected

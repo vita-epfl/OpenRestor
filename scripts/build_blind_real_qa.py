@@ -8,10 +8,16 @@ First pass is one clip per Internet Archive identifier. The second clip of an it
 staged but not presented, because asking for both doubles the listening for no gain on
 items whose first clip settles the matter; it is there for items marked uncertain.
 
-Audio QA and provenance QA are kept strictly apart. A clip can be a perfect live
-recording whose licence is not trustworthy, and the two verdicts must not be collapsed:
-an AcoustID non-match is not proof the audio is free, and a CC BY tag on Internet
-Archive is not proof the uploader held the rights.
+The audio question is a three-way sort rather than keep or reject. A recording that
+needs no restoration cannot measure one, but it is exactly what shows whether a system
+damages audio that was already fine, so it leaves the scored set for the clean control
+set instead of the bin.
+
+The provenance question is deliberately narrow: whether the listener recognises a
+commercial release. Whether an uploader held the rights is not audible, so it is desk
+research, presented on each card as information. An AcoustID non-match is not proof the
+audio is free, and a CC BY tag on Internet Archive is not proof the uploader held the
+rights.
 
     python scripts/build_blind_real_qa.py
 """
@@ -30,15 +36,23 @@ from typing import Any
 
 REPO = Path(__file__).resolve().parents[1]
 
-REJECT_REASONS = [
-    "not_live", "commercial_release", "dj_mix_or_compilation",
-    "non_music_or_speech_dominant", "not_degraded_enough", "unusable_audio", "uncertain",
+# The sort replaced a keep/reject form. "Too clean" is not a rejection: a recording that
+# needs no restoration cannot measure one, but it is exactly what shows whether a system
+# damages audio that was already fine, so it goes to the clean control set instead of the
+# bin. Three buckets also decide faster per item than keep/reject plus a reason, and they
+# are what the two manifests need.
+SORT_VERDICTS = ["degraded", "clean", "not_music", "unusable", "uncertain"]
+
+# Optional, and only to describe what was heard. These are not degradation ground truth:
+# nothing here is measured, and the set publishes no degradation label.
+SORT_NOTES = [
+    "speech_dominant", "noise_or_texture", "dj_mix_or_compilation",
+    "distorted", "noisy", "muffled_or_band_limited", "unstable_level", "other",
 ]
-QUALITY_LABELS = ["clean_live", "moderately_degraded", "strongly_degraded"]
 
 CSV_FIELDS = [
     # Decisions, to be filled in.
-    "audio_verdict", "reject_reason", "quality_label", "provenance_verdict", "note",
+    "audio_verdict", "sort_note", "provenance_verdict", "note",
     # Identity and provenance, kept for audit.
     "clip_id", "identifier", "clip_index", "title", "artist", "collection",
     "license_type", "license_url", "confidence_tier", "live_trigger",
@@ -94,7 +108,7 @@ def sheet_row(row: dict[str, Any], screen: dict[str, dict[str, Any]], audio_name
     hit = screen.get(row["internet_archive_identifier"], {})
     match = (hit.get("matches") or [{}])[0] if hit.get("commercial_match") else {}
     return {
-        "audio_verdict": "", "reject_reason": "", "quality_label": "",
+        "audio_verdict": "", "sort_note": "",
         "provenance_verdict": "", "note": "",
         "clip_id": row["id"], "identifier": row["internet_archive_identifier"],
         "clip_index": row["clip_index"], "title": _text(row.get("title")),
@@ -167,15 +181,17 @@ def page(rows: list[dict[str, Any]], second: dict[str, str]) -> str:
   </dl>
   <div class="qa">
     <fieldset>
-      <legend>1. Audio QA &mdash; real live capture? degraded enough? usable?</legend>
-      <label><input type="radio" name="a_{n}" value="keep"> keep</label>
-      <label><input type="radio" name="a_{n}" value="reject"> reject</label>
+      <legend>1. Sort it &mdash; music that needs restoration, music that does not, or not music</legend>
+      <label><input type="radio" name="a_{n}" value="degraded"> degraded music</label>
+      <label><input type="radio" name="a_{n}" value="clean"> clean music</label>
+      <label><input type="radio" name="a_{n}" value="not_music"> not music</label>
+      <label><input type="radio" name="a_{n}" value="unusable"> unusable</label>
       <label><input type="radio" name="a_{n}" value="uncertain"> uncertain</label>
-      <select name="r_{n}"><option value="">reject reason&hellip;</option>{''.join(f'<option>{x}</option>' for x in REJECT_REASONS)}</select>
-      <select name="q_{n}"><option value="">coarse quality (optional)&hellip;</option>{''.join(f'<option>{x}</option>' for x in QUALITY_LABELS)}</select>
+      <select name="r_{n}"><option value="">note the kind, if useful&hellip;</option>{''.join(f'<option>{x}</option>' for x in SORT_NOTES)}</select>
     </fieldset>
     <fieldset>
       <legend>2. Do you recognise this as a commercially released recording?</legend>
+      <!-- The only provenance question listening can settle; the rest is desk research. -->
       <label><input type="radio" name="p_{n}" value="keep"> no, don't recognise it</label>
       <label><input type="radio" name="p_{n}" value="reject"> yes, I recognise it</label>
       <label><input type="radio" name="p_{n}" value="uncertain"> maybe / unsure</label>
@@ -235,7 +251,7 @@ function state() {{
   for (let i = 1; i <= N; i++) {{
     const get = (p) => {{ const el = document.querySelector(`[name="${{p}}_${{i}}"]:checked`) || document.querySelector(`[name="${{p}}_${{i}}"]`); return el ? el.value : ''; }};
     const radio = (p) => {{ const el = document.querySelector(`[name="${{p}}_${{i}}"]:checked`); return el ? el.value : ''; }};
-    out[CLIPS[i-1]] = {{ audio_verdict: radio('a'), reject_reason: get('r'), quality_label: get('q'), provenance_verdict: radio('p'), note: get('n') }};
+    out[CLIPS[i-1]] = {{ audio_verdict: radio('a'), sort_note: get('r'), provenance_verdict: radio('p'), note: get('n') }};
   }}
   return out;
 }}
@@ -251,17 +267,17 @@ try {{
     const v = saved[clip]; if (!v) return; const i = idx + 1;
     if (v.audio_verdict) {{ const el = document.querySelector(`[name="a_${{i}}"][value="${{v.audio_verdict}}"]`); if (el) el.checked = true; }}
     if (v.provenance_verdict) {{ const el = document.querySelector(`[name="p_${{i}}"][value="${{v.provenance_verdict}}"]`); if (el) el.checked = true; }}
-    ['r','q','n'].forEach((p, k) => {{ const el = document.querySelector(`[name="${{p}}_${{i}}"]`); if (el) el.value = [v.reject_reason, v.quality_label, v.note][k] || ''; }});
+    ['r','n'].forEach((p, k) => {{ const el = document.querySelector(`[name="${{p}}_${{i}}"]`); if (el) el.value = [v.sort_note, v.note][k] || ''; }});
   }});
 }} catch (e) {{}}
 document.addEventListener('change', refresh);
 document.addEventListener('input', refresh);
 document.getElementById('save').addEventListener('click', () => {{
   const s = state();
-  const head = ['clip_id','audio_verdict','reject_reason','quality_label','provenance_verdict','note'];
+  const head = ['clip_id','audio_verdict','sort_note','provenance_verdict','note'];
   const esc = (v) => `"${{String(v == null ? '' : v).replace(/"/g, '""')}}"`;
   const lines = [head.join(',')];
-  CLIPS.forEach(clip => {{ const v = s[clip] || {{}}; lines.push([clip, v.audio_verdict, v.reject_reason, v.quality_label, v.provenance_verdict, v.note].map(esc).join(',')); }});
+  CLIPS.forEach(clip => {{ const v = s[clip] || {{}}; lines.push([clip, v.audio_verdict, v.sort_note, v.provenance_verdict, v.note].map(esc).join(',')); }});
   const blob = new Blob([lines.join('\\n')], {{type: 'text/csv'}});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob); a.download = 'blind_real_verdicts.csv';

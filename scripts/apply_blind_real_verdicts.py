@@ -33,6 +33,18 @@ REPO = Path(__file__).resolve().parents[1]
 # so it maps to that reason rather than a vague "provenance" bucket.
 PROVENANCE_REJECT_REASON = "commercial_release"
 
+# The listening form sorts three ways instead of keeping or rejecting. "clean" is not a
+# rejection: such an item leaves the scored set but enters the clean control set, because
+# a recording that needs no restoration is what shows whether a system damages audio that
+# was already fine. The legacy keep/reject vocabulary is still read so the first pass,
+# which used it, stays reproducible from its own CSV.
+SORT_TO_OUTCOME = {
+    "degraded": "scored", "keep": "scored",
+    "clean": "clean_control", "not_degraded_enough": "clean_control",
+    "not_music": "rejected", "unusable": "rejected", "reject": "rejected",
+    "uncertain": "uncertain", "": "scored",
+}
+
 
 def read_verdicts(path: Path) -> dict[str, dict[str, str]]:
     out: dict[str, dict[str, str]] = {}
@@ -63,7 +75,7 @@ def main() -> None:
     verdicts = read_verdicts(args.verdicts)
     unknown = sorted(set(verdicts) - set(by_clip))
 
-    kept, rejected, uncertain = [], [], []
+    kept, rejected, uncertain, clean_control = [], [], [], []
     reasons, quality = Counter(), Counter()
     for clip, verdict in verdicts.items():
         row = by_clip.get(clip)
@@ -71,33 +83,40 @@ def main() -> None:
             continue
         audio = verdict.get("audio_verdict", "").lower()
         provenance = verdict.get("provenance_verdict", "").lower()
-        reason = verdict.get("reject_reason") or ""
-        label = verdict.get("quality_label") or ""
-        if label:
-            quality[label] += 1
+        note = verdict.get("sort_note") or verdict.get("reject_reason") or ""
+        outcome = SORT_TO_OUTCOME.get(audio, "uncertain")
+        if note:
+            quality[note] += 1
         entry = {
             "clip_id": clip, "identifier": row["internet_archive_identifier"],
-            "audio_verdict": audio or "keep", "provenance_verdict": provenance or "keep",
-            "reject_reason": reason, "quality_label": label,
+            "audio_verdict": audio or "degraded", "provenance_verdict": provenance or "keep",
+            "sort_note": note, "outcome": outcome,
             "note": verdict.get("note", ""),
             "uploader": verdict.get("uploader", ""),
             "uploader_artist_count": verdict.get("uploader_artist_count", ""),
         }
-        if audio == "uncertain" or provenance == "uncertain":
+        # A recognised commercial release overrides the sort: it cannot be distributed
+        # whichever bucket it would otherwise have landed in.
+        if provenance == "reject":
+            entry["outcome"] = outcome = "rejected"
+            entry["rejected_on"] = "provenance"
+            reasons[PROVENANCE_REJECT_REASON] += 1
+        elif outcome == "rejected":
+            entry["rejected_on"] = "audio"
+            reasons[note or audio or "unspecified"] += 1
+        if outcome == "uncertain" or provenance == "uncertain":
             uncertain.append(entry)
-        elif audio == "reject" or provenance == "reject":
-            entry["rejected_on"] = "audio" if audio == "reject" else "provenance"
-            if audio == "reject":
-                reasons[reason or "unspecified"] += 1
-            else:
-                reasons[PROVENANCE_REJECT_REASON] += 1
+        elif outcome == "rejected":
             rejected.append(entry)
+        elif outcome == "clean_control":
+            clean_control.append(entry)
         else:
             kept.append(entry)
 
     # A verdict on the first clip of an item decides the item, since pass one presents
     # one clip per source and the rest of the item shares its provenance.
     rejected_items = {e["identifier"]: e for e in rejected}
+    rejected_items.update({e["identifier"]: e for e in clean_control})
     uncertain_items = {e["identifier"] for e in uncertain}
     surviving_items = [i for i in sorted(clips_per_item) if i not in rejected_items]
     surviving_clips = [c for i in surviving_items for c in clips_per_item[i]]
@@ -108,6 +127,9 @@ def main() -> None:
         "pass1_kept": len(kept),
         "pass1_rejected": len(rejected),
         "pass1_uncertain": len(uncertain),
+        "pass1_clean_control": len(clean_control),
+        "clean_control": clean_control,
+        "clean_control_identifiers": sorted({e["identifier"] for e in clean_control}),
         "rejected_by_reason": dict(reasons.most_common()),
         "rejected_on": dict(Counter(e["rejected_on"] for e in rejected).most_common()),
         "quality_distribution": dict(quality.most_common()),
@@ -124,7 +146,8 @@ def main() -> None:
     print(f"verdicts read            {len(verdicts)}")
     if unknown:
         print(f"  !! {len(unknown)} clip ids not in the manifest, first: {unknown[0]}")
-    print(f"pass 1 keep / reject / uncertain   {len(kept)} / {len(rejected)} / {len(uncertain)}")
+    print(f"sorted: {len(kept)} degraded / {len(clean_control)} clean control / "
+          f"{len(rejected)} rejected / {len(uncertain)} uncertain")
     if reasons:
         print("rejected by reason:")
         for reason, count in reasons.most_common():
@@ -132,7 +155,7 @@ def main() -> None:
     if report["rejected_on"]:
         print(f"rejected on: {report['rejected_on']}")
     if quality:
-        print("coarse quality (composition only, not ground truth):")
+        print("what was heard (descriptive only, never a degradation label):")
         for label, count in quality.most_common():
             print(f"   {count:>4}  {label}")
     print(f"\nfinal: {len(surviving_items)} identifiers, {len(surviving_clips)} clips")
