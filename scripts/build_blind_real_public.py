@@ -92,13 +92,23 @@ def main() -> None:
     if args.dry_run and args.manifest.is_file():
         # The cap is the only rule that needs the whole set, so it can be previewed
         # against the existing manifest without re-cutting a single excerpt.
-        rows = read_jsonl(args.manifest)
+        rows = all_rows = read_jsonl(args.manifest)
     else:
         rows = extract_clips(
             downloaded, candidates, REPO, args.output_root,
             excerpt_seconds=args.excerpt_seconds,
             clips_per_identifier=args.clips_per_identifier,
             rejections=rejections,
+        )
+        # Cut the clean controls too: they are excluded from the scored set, not from the
+        # build, and a manifest entry with no audio behind it would be useless.
+        clean_only = {key: reason for key, reason in rejections.items()
+                      if not str(reason).startswith(("clean_control", "not_degraded_enough"))}
+        all_rows = extract_clips(
+            downloaded, candidates, REPO, args.output_root,
+            excerpt_seconds=args.excerpt_seconds,
+            clips_per_identifier=args.clips_per_identifier,
+            rejections=clean_only, progress=False,
         )
 
     report: dict[str, Any] = {}
@@ -117,6 +127,24 @@ def main() -> None:
     if args.dry_run:
         print("\ndry run: nothing written")
         return
+
+    # Items marked as clean controls are excluded from the scored set but written to
+    # their own manifest, because a set with no clean material cannot show whether a
+    # system damages audio that was already fine.
+    clean_keys = {key for key, reason in rejections.items()
+                  if str(reason).startswith(("clean_control", "not_degraded_enough"))}
+    if clean_keys and not args.dry_run:
+        controls = [row for row in all_rows
+                    if str(row["internet_archive_identifier"]) in clean_keys or str(row["id"]) in clean_keys]
+        for row in controls:
+            row["blind_real_role"] = "clean_control_not_scored"
+            row["excluded_reason"] = rejections.get(str(row["internet_archive_identifier"])) \
+                or rejections.get(str(row["id"]))
+        with (BUILD / "clean_control_manifest.jsonl").open("w", encoding="utf-8") as handle:
+            for row in sorted(controls, key=lambda r: str(r["id"])):
+                handle.write(json.dumps(row, sort_keys=True) + "\n")
+        print(f"clean controls: {len({r['internet_archive_identifier'] for r in controls})} items, "
+              f"{len(controls)} clips -> {BUILD / 'clean_control_manifest.jsonl'}")
 
     args.manifest.parent.mkdir(parents=True, exist_ok=True)
     with args.manifest.open("w", encoding="utf-8") as handle:

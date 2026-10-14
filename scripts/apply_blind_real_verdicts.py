@@ -38,6 +38,10 @@ PROVENANCE_REJECT_REASON = "commercial_release"
 # a recording that needs no restoration is what shows whether a system damages audio that
 # was already fine. The legacy keep/reject vocabulary is still read so the first pass,
 # which used it, stays reproducible from its own CSV.
+# The marker the build looks for to route an item to the clean control manifest rather
+# than discard it. It must stay in sync with build_blind_real_public.py.
+CLEAN_CONTROL_REASON = "clean_control"
+
 SORT_TO_OUTCOME = {
     "degraded": "scored", "keep": "scored",
     "clean": "clean_control", "not_degraded_enough": "clean_control",
@@ -163,16 +167,27 @@ def main() -> None:
         print(f"{len(uncertain_items)} identifiers need their second excerpt listened to")
     print(f"report -> {args.report}")
 
-    if args.write_rejections and rejected:
+    if args.write_rejections and (rejected or clean_control):
         existing = args.rejections.read_text(encoding="utf-8") if args.rejections.is_file() else ""
-        lines = ["\n# --- rejected in the QA listening pass ------------------------------------------\n"]
+        lines = ["\n# --- QA listening pass -----------------------------------------------------------\n"]
         for entry in rejected:
-            why = entry["reject_reason"] or (
-                PROVENANCE_REJECT_REASON if entry["rejected_on"] == "provenance" else "unspecified")
+            why = entry["sort_note"] or (
+                PROVENANCE_REJECT_REASON if entry.get("rejected_on") == "provenance"
+                else entry["audio_verdict"] or "unspecified")
             note = f"; {entry['note']}" if entry["note"] else ""
-            lines.append(f"{entry['identifier']}\t{why} ({entry['rejected_on']}){note}\n")
+            lines.append(f"{entry['identifier']}\t{why} ({entry.get('rejected_on', 'audio')}){note}\n")
+        if clean_control:
+            # Clean items leave the scored set but are not rejected: the reason is marked
+            # so the build can route them to the clean control manifest instead of
+            # dropping them. Without this they stayed in the scored set, because nothing
+            # was ever written for them.
+            lines.append("\n# Needed no restoration: excluded from the scored set, kept as clean controls.\n")
+            for entry in clean_control:
+                note = f"; {entry['note']}" if entry["note"] else ""
+                lines.append(f"{entry['identifier']}\t{CLEAN_CONTROL_REASON}{note}\n")
         args.rejections.write_text(existing + "".join(lines), encoding="utf-8")
-        print(f"appended {len(rejected)} rejections -> {args.rejections}")
+        print(f"appended {len(rejected)} rejections and {len(clean_control)} clean controls "
+              f"-> {args.rejections}")
 
 
 if __name__ == "__main__":
