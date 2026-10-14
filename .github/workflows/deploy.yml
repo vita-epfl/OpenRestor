@@ -33,10 +33,10 @@ jobs:
         with:
           python-version: "3.11"
       - run: uv sync --group doc
-      - run: uv run sphinx-build -b html code-docs _site
+      - run: uv run zensical build
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: _site
+          path: code-docs/site
       - uses: actions/deploy-pages@v4
         id: deployment

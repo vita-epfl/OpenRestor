@@ -12,4 +12,4 @@ tmp
 .ruff_cache/
 .pytest_cache/
 dist/
-code-docs/_build/
+code-docs/site/

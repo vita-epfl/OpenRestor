@@ -2,10 +2,5 @@
 
 Welcome to the OpenRestore code documentation.
 
-```{toctree}
-:maxdepth: 2
-:caption: Contents
-
-usage
-api/modules
-```
+Use the navigation to browse the usage guide and the automatically
+generated API reference.

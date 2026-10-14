@@ -1,0 +1,22 @@
+site_name = "OpenRestor"
+site_author = "EPFL ENAC IT4R"
+site_description = "OpenRestor code documentation"
+
+docs_dir = "code-docs"
+site_dir = "code-docs/site" 
+
+nav = [
+    "index.md",
+    "usage.md",
+    { "API Reference" = "api/modules/" },   # api-autonav
+]
+
+[plugins.mkdocstrings]
+[plugins.mkdocstrings.handlers.python.options]
+docstring_style = "google"
+
+[plugins.api-autonav]
+modules = ["openrestor"]
+api_root_uri = "api/modules"
+nav_section_title = "API Reference"
+exclude_private = true

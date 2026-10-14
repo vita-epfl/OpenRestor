@@ -1,4 +1,4 @@
-.PHONY: install lint format test docs clean
+.PHONY: install lint format test docs docs-serve clean
 
 install:
 	uv sync
@@ -18,7 +18,10 @@ test:
 	uv run pytest tests -q
 
 docs:
-	uv run sphinx-build -b html code-docs code-docs/_build/html
+	uv run zensical build
+
+docs-serve:
+	uv run zensical serve
 
 clean:
-	rm -rf code-docs/_build dist .mypy_cache .ruff_cache .pytest_cache
+	rm -rf code-docs/site/ dist .mypy_cache .ruff_cache .pytest_cache
