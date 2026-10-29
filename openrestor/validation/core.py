@@ -1,4 +1,4 @@
-"""JSON Schema validation helpers for versioned OpenRestore artifacts."""
+"""JSON Schema validation helpers for versioned OpenRestor artifacts."""
 
 from __future__ import annotations
 
@@ -38,3 +38,22 @@ def validate_file(kind: str, path: Path) -> int:
     if errors:
         raise ValueError("\n".join(errors))
     return len(read_documents(path))
+
+
+def validate_clean_manifest(path: Path) -> int:
+    """Validate common-manifest rows and their cross-row identity invariants."""
+    count = validate_file("clean_manifest", path)
+    documents = read_documents(path)
+    seen: set[str] = set()
+    errors: list[str] = []
+    for index, row in enumerate(documents, start=1):
+        key = str(row["source_key"])
+        expected = f"{row['dataset']}:{row['source_id']}"
+        if key != expected:
+            errors.append(f"document {index}, source_key: expected {expected!r}, got {key!r}")
+        if key in seen:
+            errors.append(f"document {index}, source_key: duplicate {key!r}")
+        seen.add(key)
+    if errors:
+        raise ValueError("\n".join(errors))
+    return count

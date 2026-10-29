@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OpenRestor common clean-corpus manifest row",
+  "type": "object",
+  "required": ["dataset", "source_id", "source_key", "audio_path", "metadata", "rights"],
+  "properties": {
+    "dataset": {"type": "string", "minLength": 1},
+    "source_id": {"type": "string", "minLength": 1},
+    "source_key": {"type": "string", "minLength": 3},
+    "audio_path": {"type": ["string", "null"]},
+    "metadata": {"type": "object"},
+    "rights": {"type": "object"},
+    "source_sha256": {"type": ["string", "null"]},
+    "sample_rate": {"type": ["integer", "null"], "minimum": 1},
+    "channels": {"type": ["integer", "null"], "minimum": 1},
+    "duration_seconds": {"type": ["number", "null"], "minimum": 0},
+    "original_format": {
+      "anyOf": [
+        {"type": ["string", "null"]},
+        {"type": "array", "items": {"type": "string", "minLength": 1}}
+      ]
+    },
+    "split": {"type": ["string", "null"]},
+    "license_source": {"type": ["string", "null"]},
+    "lossless_status": {"type": ["string", "null"]},
+    "technical_candidate": {"type": ["boolean", "null"]},
+    "provenance_candidate": {"type": ["boolean", "null"]},
+    "redistributable_candidate": {"type": ["boolean", "null"]},
+    "indexed_audio_path": {"type": ["string", "null"]},
+    "original_extension": {"type": ["string", "null"]},
+    "features": {"type": ["object", "null"]},
+    "segments": {"type": ["array", "null"]},
+    "segment_decisions": {"type": ["array", "null"]},
+    "source_decision": {"type": ["string", "null"]},
+    "curation_decision": {"type": ["string", "null"]},
+    "pipeline_decision": {"type": ["string", "null"]},
+    "pipeline_reasons": {"type": ["array", "null"]},
+    "clean_score": {"type": ["number", "null"]},
+    "annotations": {"type": ["array", "null"]},
+    "annotation_history": {"type": ["array", "null"]},
+    "curation": {"type": ["object", "null"]}
+  },
+  "additionalProperties": true
+}

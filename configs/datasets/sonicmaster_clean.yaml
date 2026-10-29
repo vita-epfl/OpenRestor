@@ -1,6 +1,6 @@
 dataset: sonicmaster_clean
 version: local-clean-originals
-source_root: /mnt/ssd2/datasets/OpenRestoreDataset/SonicMasterDataset/clean
+source_root: /mnt/ssd2/datasets/OpenRestorDataset/SonicMasterDataset/clean
 role: main-track-training-and-public-evaluation
 fixed_split: unassigned
 license: verify against the SonicMaster release before redistribution

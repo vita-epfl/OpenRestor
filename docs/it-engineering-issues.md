@@ -1,9 +1,9 @@
-_Keep this file in sync with `OpenRestore_Split_Roadmap.md`._
+_Keep this file in sync with `OpenRestor_Split_Roadmap.md`._
 
 
 # IT / Software Engineering GitHub Issues
 
-Issue list derived from the IT/software-engineer tasks in `OpenRestore_Split_Roadmap.md`.
+Issue list derived from the IT/software-engineer tasks in `OpenRestor_Split_Roadmap.md`.
 
 Labels are limited to:
 
@@ -216,7 +216,7 @@ Labels are limited to:
 
 - **Publish release artifact bundle to static project website**
   - Labels: `task`
-  - Description: Host downloadable release artifacts on the OpenRestore project website.
+  - Description: Host downloadable release artifacts on the OpenRestor project website.
   - Acceptance: Release files are downloadable from a stable URL.
 
 - **Store hidden evaluation artifacts in internal private storage**

@@ -297,8 +297,8 @@ class PerceptualMetricTests(TestCase):
 
 
 @skipUnless(
-    os.environ.get("OPENRESTORE_PERCEPTUAL_INTEGRATION") == "1",
-    "set OPENRESTORE_PERCEPTUAL_INTEGRATION=1 after running setup-perceptual",
+    os.environ.get("OPENRESTOR_PERCEPTUAL_INTEGRATION") == "1",
+    "set OPENRESTOR_PERCEPTUAL_INTEGRATION=1 after running setup-perceptual",
 )
 class RealPerceptualIntegrationTests(TestCase):
     def test_real_backends_encode_audio(self) -> None:
@@ -309,7 +309,7 @@ class RealPerceptualIntegrationTests(TestCase):
         from openrestor.metrics.perceptual import LearnedBackends
 
         cache = Path(
-            os.environ.get("OPENRESTORE_PERCEPTUAL_CACHE", "~/.cache/openrestor/perceptual-v0_1")
+            os.environ.get("OPENRESTOR_PERCEPTUAL_CACHE", "~/.cache/openrestor/perceptual-v0_1")
         ).expanduser()
         backend = LearnedBackends(cache, "cuda")
         audio = _audio()

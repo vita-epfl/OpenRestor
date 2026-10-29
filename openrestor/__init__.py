@@ -1,1 +1,1 @@
-"""OpenRestore benchmark tooling."""
+"""OpenRestor benchmark tooling."""

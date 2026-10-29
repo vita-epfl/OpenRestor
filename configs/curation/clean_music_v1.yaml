@@ -1,0 +1,16 @@
+# Acoustic/content policy only. Rights and source provenance are separate.
+# All nondecisive signals send a source to manual_review.
+auto_accept_score: 0.78
+min_segment_pq: 6.6
+min_segment_pc: 4.5
+min_segment_cu: 6.0
+min_ast_music: 0.42
+max_ast_speech: 0.30
+min_clap_music_margin: 0.015
+max_clipped_ratio: 0.005
+min_bandwidth_hz_at_44100: 11000
+silence_rms_dbfs: -45
+silence_ratio: 0.98
+strong_nonmusic_ast_music: 0.25
+strong_nonmusic_ast_speech: 0.50
+strong_nonmusic_clap_margin: 0.025

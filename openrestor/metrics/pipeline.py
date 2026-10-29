@@ -12,7 +12,6 @@ import numpy as np
 import soundfile as sf
 
 from openrestor.degradations.core import load_yaml, read_jsonl, sha256_file, write_jsonl
-
 from .core import METRIC_DIRECTIONS, aae_metrics, category_for_row, effect_name, pairwise_metrics
 
 
@@ -238,8 +237,7 @@ def score(
     _score_failures(output_dir, failures)
     if failures:
         raise ValueError(
-            f"Scoring rejected {len(failures)} manifest/audio failures; see "
-            f"{output_dir / 'failures.json'}"
+            f"Scoring rejected {len(failures)} manifest/audio failures; see {output_dir / 'failures.json'}"
         )
     write_jsonl(output_dir / "per_item_scores.jsonl", item_rows)
     write_jsonl(
@@ -305,12 +303,11 @@ def _report(config: dict[str, Any], rows: list[dict[str, Any]], output_dir: Path
 
 def _write_markdown(report: dict[str, Any], path: Path) -> None:
     lines = [
-        "# OpenRestore Metric Report",
+        "# OpenRestor Metric Report",
         "",
         "This report is diagnostic only. It defines no leaderboard aggregate or rank.",
         "",
-        "Lower is better for distances/errors; higher is better for SNR, SI-SDR, SI-SNR, and SSIM. "
-        "`improvement` is always positive when restoration improves over degraded audio.",
+        "Lower is better for distances/errors; higher is better for SNR, SI-SDR, SI-SNR, and SSIM. `improvement` is always positive when restoration improves over degraded audio.",
         "",
         f"Scored items: {report['items']['scored']}",
         "",
@@ -322,37 +319,24 @@ def _write_markdown(report: dict[str, Any], path: Path) -> None:
     for category, data in report["by_category"].items():
         metrics = data["metrics"]
         lines.append(
-            f"| {category} | {data['items']} | {metrics['l1']['restored']:.6f} | "
-            f"{metrics['snr_db']['restored']:.3f} | {metrics['lsd_db']['restored']:.3f} | "
-            f"{metrics['aae']['reduction']:.3f} |"
+            f"| {category} | {data['items']} | {metrics['l1']['restored']:.6f} | {metrics['snr_db']['restored']:.3f} | {metrics['lsd_db']['restored']:.3f} | {metrics['aae']['reduction']:.3f} |"
         )
     reverb_categories = {"reverb", "distant_mic_capture", "reverb_room"}
     reverb_rows = [
-        (category, data)
-        for category, data in report["by_category"].items()
+        (category, data) for category, data in report["by_category"].items()
         if category in reverb_categories
     ]
     if reverb_rows:
-        lines.extend(
-            [
-                "",
-                "## Reverb And Distant-Capture Diagnostics",
-                "",
-                "`rt60_s`, `drr_db`, and `late_tail_db` are residual "
-                "clean-to-evaluated transfer diagnostics; they are most meaningful "
-                "for room-response degradations.",
-                "",
-                "| Category | Items | RT60 restored (s) | DRR "
-                "restored (dB) | Late tail restored (dB) |",
-                "| --- | ---: | ---: | ---: | ---: |",
-            ]
-        )
+        lines.extend([
+            "", "## Reverb And Distant-Capture Diagnostics", "",
+            "`rt60_s`, `drr_db`, and `late_tail_db` are residual clean-to-evaluated transfer diagnostics; they are most meaningful for room-response degradations.",
+            "", "| Category | Items | RT60 restored (s) | DRR restored (dB) | Late tail restored (dB) |",
+            "| --- | ---: | ---: | ---: | ---: |",
+        ])
         for category, data in reverb_rows:
             metrics = data["metrics"]
             lines.append(
-                f"| {category} | {data['items']} | {metrics['rt60_s']['restored']:.3f} "
-                f"| {metrics['drr_db']['restored']:.3f} | "
-                f"{metrics['late_tail_db']['restored']:.3f} |"
+                f"| {category} | {data['items']} | {metrics['rt60_s']['restored']:.3f} | {metrics['drr_db']['restored']:.3f} | {metrics['late_tail_db']['restored']:.3f} |"
             )
     lines.extend(
         ["", "## Effect Summary", "", "| Effect | Items | AAE reduction |", "| --- | ---: | ---: |"]
@@ -362,8 +346,7 @@ def _write_markdown(report: dict[str, Any], path: Path) -> None:
     lines.extend(
         [
             "",
-            "Learned embedding, distributional, and aesthetic metrics are deferred "
-            "to the optional GPU metric pack.",
+            "Learned embedding, distributional, and aesthetic metrics are deferred to the optional GPU metric pack.",
         ]
     )
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -371,10 +354,10 @@ def _write_markdown(report: dict[str, Any], path: Path) -> None:
 
 def no_restoration(
     degraded_manifest: Path, degraded_root: Path, output_root: Path, output_manifest: Path
-) -> list[dict[str, Any]]:
+) -> list[dict[str, str]]:
     rows = read_jsonl(degraded_manifest)
     output_manifest.parent.mkdir(parents=True, exist_ok=True)
-    result: list[dict[str, Any]] = []
+    result: list[dict[str, str]] = []
     for row in rows:
         source = _resolve(degraded_root, row["degraded_path"])
         target = output_root / f"{row['id']}.wav"

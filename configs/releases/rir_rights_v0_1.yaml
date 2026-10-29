@@ -1,0 +1,30 @@
+# Per-room source evidence for the 14 Git-tracked OpenAIR RIRs. This is not a
+# project-wide licence. Exact files/hashes come from docs/degradation_assets_v0_1.sha256.
+reviewed_at: '2026-10-16'
+reviewer: OpenRestor v0.1 OpenAIR provenance audit
+rooms:
+  - pattern: '*1st_baptist_nashville_*.wav'
+    license_label: Public Domain
+    license_url: null  # OpenAIR states Public Domain; this is not a CC licence grant.
+    attribution: 'OpenAIR; Adam Townsell (credit supplied for provenance)'
+    evidence_url: https://web.archive.org/web/20190101000000id_/http://www.openairlib.net/auralizationdb/content/1st-baptist-nashville
+  - pattern: '*hoffmann_lime_kiln_ir_p*.wav'
+    license_label: Public Domain
+    license_url: null
+    attribution: 'OpenAIR, Audiolab, University of York; Jack Smith, Juan García, Hashim Riaz and Pau Rosell (provenance credit)'
+    evidence_url: https://web.archive.org/web/20190101000000id_/http://www.openairlib.net/auralizationdb/content/hoffmann-lime-kiln-langcliffeuk
+  - pattern: '*ir_church_saint-laurentius_molenbeek_bekkevoort_belgium.wav'
+    license_label: Public Domain
+    license_url: null
+    attribution: 'OpenAIR, Audiolab, University of York (provenance credit)'
+    evidence_url: https://web.archive.org/web/20190101000000id_/http://www.openairlib.net/auralizationdb/content/saint-lawrence-church-molenbeek-wersbeek-belgium
+  - pattern: '*st_georges_*.wav'
+    license_label: Public Domain
+    license_url: null
+    attribution: 'OpenAIR; Adam Townsell (credit supplied for provenance)'
+    evidence_url: https://web.archive.org/web/20190101000000id_/http://www.openairlib.net/auralizationdb/content/st-georges-episcopal-church
+  - pattern: '*spokane_womans_club_ir.wav'
+    license_label: CC BY 3.0
+    license_url: https://creativecommons.org/licenses/by/3.0/
+    attribution: 'www.openairlib.net and James Cadwallader; OpenRestor uses the RIR to render reverberated audio'
+    evidence_url: https://web.archive.org/web/20180621143045id_/http://www.openairlib.net/auralizationdb/content/spokane-womans-club

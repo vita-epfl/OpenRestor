@@ -1,23 +1,23 @@
-# OpenRestore
+# OpenRestor
 
-OpenRestore is an open, reproducible benchmark for musical audio restoration. It curates high-quality clean audio, generates controlled single degradations, evaluates restoration systems with reconstruction and perceptual metrics, and publishes datasets, baselines, reports, and a public leaderboard.
+OpenRestor is an open, reproducible benchmark for musical audio restoration. It curates high-quality clean audio, generates controlled single degradations, evaluates restoration systems with reconstruction and perceptual metrics, and publishes datasets, baselines, reports, and a public leaderboard.
 
 Internal application link: [CHORD-VITA application](https://docs.google.com/document/d/1jHbahFTKmkAgQGIGbRLSNHwxb-EY-tgN)
 
 ## Executive Summary
 
-Musical audio restoration research is fragmented across denoising, dereverberation, declipping, bandwidth extension, codec repair, remastering, and general audio cleanup. OpenRestore will provide a shared benchmark for comparing restoration systems on complete musical audio clips, using deterministic degradations, high-quality source material, reproducible evaluation, and transparent metadata.
+Musical audio restoration research is fragmented across denoising, dereverberation, declipping, bandwidth extension, codec repair, remastering, and general audio cleanup. OpenRestor will provide a shared benchmark for comparing restoration systems on complete musical audio clips, using deterministic degradations, high-quality source material, reproducible evaluation, and transparent metadata.
 
 The benchmark should stay focused: one degraded mixed musical signal in, one restored signal out. Participants submit runnable containers, not restored evaluation audio. Organizers run those containers on a hidden evaluation split and publish scores on a leaderboard with an approved-training-pool main track and a separate external-data track.
 
 ## What We Are Building
 
-OpenRestore is a benchmark, not a single model. The main training source should be the clean original audio from SonicMaster Dataset only. Validation and the in-distribution public test use held-out SonicMaster clean audio. SDD (Song Describer Dataset) and MUSDB18-HQ mixture audio form separate public transfer/local-evaluation sets, while the official hidden evaluation set comes from a separate secret custom dataset that is not publicly released. Sound datasets can support degradations, but they are not benchmark music sources. It consists of:
+OpenRestor is a benchmark, not a single model. The main training source should be the clean original audio from SonicMaster Dataset only. Validation and the in-distribution public test use held-out SonicMaster clean audio. SDD (Song Describer Dataset) and MUSDB18-HQ mixture audio form optional local-only transfer-evaluation sets for users who lawfully hold the upstream data, while the official hidden evaluation set comes from a separate secret custom dataset that is not publicly released. Sound datasets can support degradations, but they are not benchmark music sources. It consists of:
 
-- A SonicMaster-clean training source, held-out SonicMaster validation and public-test sources, plus separate SDD and MUSDB18-HQ mixture public transfer/local-evaluation sources.
+- A SonicMaster-clean training source, held-out SonicMaster validation and public-test sources, plus optional local-only SDD and MUSDB18-HQ mixture transfer evaluations.
 - A deterministic degradation pipeline that creates paired clean/degraded examples and releases the approved degraded counterparts, manifests, and checksums for public development splits where redistribution permits.
 - A JSONL manifest format close to the current restoration pipeline schema.
-- Public train, validation, in-distribution test, and transfer/local-evaluation splits for development and diagnostics, including the OpenRestore-rendered degraded inputs needed for reproducible local evaluation where redistribution permits.
+- Public train, validation and in-distribution test splits where redistribution permits, plus local-only transfer-evaluation splits that each user generates from lawfully held sources.
 - A hidden organizer-only evaluation split for official leaderboard scoring.
 - A container-based submission workflow.
 - Public, model-agnostic validation and scoring code covering reconstruction, perceptual quality, embedding similarity, distributional quality, and degradation-specific AAE diagnostics, distributed through versioned repository and release artifacts. Any inference pipeline participates through manifests and canonical WAV files.
@@ -28,7 +28,7 @@ OpenRestore is a benchmark, not a single model. The main training source should 
 
 ### Task
 
-OpenRestore should focus on clip-level musical audio restoration across any musical domain:
+OpenRestor should focus on clip-level musical audio restoration across any musical domain:
 
 - Input: one degraded musical audio clip, usually a full mixed signal rather than separated stems.
 - Output: one restored audio clip with the same duration, sample rate, and channel count.
@@ -40,32 +40,33 @@ OpenRestore should focus on clip-level musical audio restoration across any musi
 ### Key Decisions
 
 - Build a single-clip musical restoration benchmark: one degraded mixed signal in, one restored signal out.
-- Use SonicMaster clean originals only for training; use held-out SonicMaster clean audio for validation and the in-distribution public test; and use SDD and MUSDB18-HQ mixture audio as separately reported public transfer/local-evaluation sets.
+- Use SonicMaster clean originals only for training; use held-out SonicMaster clean audio for validation and the in-distribution public test; and use SDD and MUSDB18-HQ mixture audio only as separately reported local transfer evaluations.
 - Keep the official evaluation split hidden and organizer-only, using a separate secret custom dataset curated under the same documented source policy; avoid surprise-domain evaluation.
 - Use container-first submissions: participants submit inference code plus weights, and organizers run restoration on the hidden evaluation split.
-- Make the main leaderboard use only the approved OpenRestore training source: SonicMaster clean originals; keep a separate external-data track for anything else.
+- Make the main leaderboard use only the approved OpenRestor training source: SonicMaster clean originals; keep a separate external-data track for anything else.
 - Treat AudioMD as an optional XML preservation export, not as the native JSON metadata format.
 - Keep required metrics focused on one-to-one reconstruction and perceptual quality, with experimental metrics in optional reports.
-- Keep all degradations open-source, reproducible, and fully specified in metadata.
+- Keep all degradations inspectable under their approved release terms, reproducible, and fully specified in metadata.
 - Prioritize a small SonicMaster-adjacent primitive degradation set over a broad inherited list of lab-style effects or real-world profiles.
 
 ## Dataset Strategy
 
-OpenRestore should prioritize high-quality music datasets over broad pools of uneven audio. The benchmark item is always a paired example: a clean 30-second music clip and one or more degraded 30-second versions generated from it. Sound-effect datasets should not define the benchmark source distribution.
+OpenRestor should prioritize high-quality music datasets over broad pools of uneven audio for its paired sets. Their items have a clean 30-second music clip and one or more OpenRestor-generated degraded versions. Blind-Real Public is the separate unpaired exception: its 20-second inputs are selected from naturally degraded Internet Archive recordings found through the Internet Archive Music Dataset (IAMD) catalogue. Sound-effect datasets should not define the benchmark source distribution.
 
-Dataset reality check: most music audio systems are trained on private scraped, licensed, or internal music collections that are not reproducible as public benchmark sources. Stable Audio is one of the few visible cases that trains and evaluates against a small set of higher-quality curated datasets. OpenRestore should use SonicMaster clean originals as the only default training source because it provides the most useful public scale for v1. The important difference is that OpenRestore creates paired clean/degraded examples from the selected source audio, so the benchmark can evaluate restoration directly instead of relying on naturally degraded recordings with unknown clean references.
+Dataset reality check: most music audio systems are trained on private scraped, licensed, or internal music collections that are not reproducible as public benchmark sources. Stable Audio is one of the few visible cases that trains and evaluates against a small set of higher-quality curated datasets. OpenRestor should use SonicMaster clean originals as the only default training source because it provides the most useful public scale for v1. The important difference is that OpenRestor creates paired clean/degraded examples from the selected source audio, so the benchmark can evaluate restoration directly instead of relying on naturally degraded recordings with unknown clean references.
 
-Stable Audio 3 evaluates instrumental music on the Song Describer Dataset (SDD). OpenRestore should use SDD as a public transfer/local-evaluation source because it provides curated music recordings with human-written captions and 120-second source tracks from which deterministic 30-second windows can be derived. MUSDB18-HQ mixture audio should also be used as a separate public transfer/local-evaluation source for real mixed-music robustness checks.
+Stable Audio 3 evaluates instrumental music on the Song Describer Dataset (SDD). OpenRestor uses SDD as an optional local transfer-evaluation source because it provides curated music recordings with human-written captions and 120-second source tracks from which deterministic 30-second windows can be derived. MUSDB18-HQ mixture audio is likewise a local-only robustness check; neither dataset's audio is redistributed.
 
 ### Benchmark Datasets
 
 | Role | Decision | Rationale |
 | --- | --- | --- |
-| Training pool | Use only the clean original audio from SonicMaster Dataset as the default approved training source, if it passes license and quality checks. Do not use SonicMaster's degraded pairs as benchmark or leaderboard data. | SonicMaster clean originals provide the main public training scale for v1, while OpenRestore generates its own real-world degradations on top. Excluding SonicMaster's degraded pairs prevents the benchmark from inheriting their degradation design. |
+| Training pool | Use only the clean original audio from SonicMaster Dataset as the default approved training source, if it passes license and quality checks. Do not use SonicMaster's degraded pairs as benchmark or leaderboard data. | SonicMaster clean originals provide the main public training scale for v1, while OpenRestor generates its own real-world degradations on top. Excluding SonicMaster's degraded pairs prevents the benchmark from inheriting their degradation design. |
 | Validation split | Use SonicMaster's supplied validation split. | This imposed upstream split is the model-selection set; do not resample or merge it with transfer datasets. |
-| Public in-distribution test | Use SonicMaster's supplied test split. | This is the primary public main-track test. It is the given SonicMaster test set, not an OpenRestore source-separated re-split. |
-| Public transfer/local evaluation | Use SDD and MUSDB18-HQ mixture audio in separate `transfer` manifests. Do not use either for main-track training. | These robustness diagnostics test different curated and mixed-music source distributions. Report them by dataset; do not merge them into the primary main-track result. |
-| Hidden evaluation split | Use a separate secret custom dataset that is not publicly released. | A private organizer-only evaluation set prevents leakage of official leaderboard audio while the public SonicMaster train, validation, and in-distribution test splits plus separate transfer/local-evaluation sets remain reproducible from documented sources. |
+| Public in-distribution test | Use SonicMaster's supplied test split. | This is the primary public main-track test. It is the given SonicMaster test set, not an OpenRestor source-separated re-split. |
+| Blind-Real Public test | Select CC0 or CC BY Internet Archive originals through the IAMD metadata catalogue, screen provenance and curate by listening. No clean reference or synthetic degradation is added. | Separately tests restoration on real recording defects; its unpaired scores are not comparable to paired reference metrics. See [Blind-Real Public](#blind-real-public). |
+| Optional local transfer evaluation | Use SDD and MUSDB18-HQ mixture audio in separate `transfer` manifests only when the user lawfully holds the sources. Do not redistribute or use either for main-track training. | These robustness diagnostics test different curated and mixed-music source distributions. Report them by dataset; do not merge them into the primary main-track result. |
+| Hidden evaluation split | Use a separate secret custom dataset that is not publicly released. | A private organizer-only evaluation set prevents leakage of official leaderboard audio while public artifacts remain reproducible where rights permit and optional local transfer sets can be rebuilt by lawful source holders. |
 
 ### Degradation Material Sources
 
@@ -73,14 +74,14 @@ Stable Audio 3 evaluates instrumental music on the Song Describer Dataset (SDD).
 | --- | --- | --- |
 | Organic degradation material | Use sound datasets only as source material for degradation layers, not as clean benchmark audio. | BBC Sound Effects, Freesound, FSD50K, and MUSAN can provide ambience, noise, interference, or environmental beds for organic degradation chains that are mixed into clean music clips. |
 
-The OpenRestore main-track training source is SonicMaster clean originals only. Use the frozen original SonicMaster source assignment (23,500 train, 500 validation, 1,000 test); never resample these memberships. Generate clean 30-second music clips and degraded 30-second versions within each supplied split. SDD and MUSDB18-HQ mixture audio instead use separate public `transfer` manifests for local robustness evaluation; they are not model-selection validation data. Official leaderboard scoring uses a separate secret custom evaluation dataset that is not publicly released. SonicMaster's degraded pairs are not reused as benchmark or leaderboard data, and MUSDB18-HQ stems are not used as benchmark items in the main track. Degradation-source datasets are used only to synthesize degraded audio and are not part of the clean benchmark distribution. Any other training source belongs in the separate external-data track unless we explicitly revise the benchmark contract.
+The OpenRestor main-track training source is SonicMaster clean originals only. Use the frozen original SonicMaster source assignment (23,500 train, 500 validation, 1,000 test); never resample these memberships. Generate clean 30-second music clips and degraded 30-second versions within each supplied split. SDD and MUSDB18-HQ mixture audio instead use separate local-only `transfer` manifests for optional robustness evaluation; they are not model-selection validation data or public artifacts. Official leaderboard scoring uses a separate rights-cleared secret custom evaluation dataset that is not publicly released. SonicMaster's degraded pairs are not reused as benchmark or leaderboard data, and MUSDB18-HQ stems are not used as benchmark items in the main track. Degradation-source datasets are used only to synthesize degraded audio and are not part of the clean benchmark distribution. Any other training source belongs in the separate external-data track unless we explicitly revise the benchmark contract.
 
 ### Source Policy
 
 - Do not make the benchmark a grab bag of every available audio dataset.
 - Use SonicMaster clean originals as the only default main-track training source unless a specific license or quality audit blocks that role.
 - Use a separate secret custom dataset for the organizer-only hidden evaluation split.
-- Use the supplied SonicMaster validation and test sets for in-distribution validation and public testing; do not re-split them. Use SDD and MUSDB18-HQ mixture audio only in separately reported public transfer/local evaluation and testing. Do not train main-track models on SDD or MUSDB18-HQ.
+- Use the supplied SonicMaster validation and test sets for in-distribution validation and public testing; do not re-split them. Use SDD and MUSDB18-HQ mixture audio only in separately reported local transfer evaluation and testing. Do not train main-track models on SDD or MUSDB18-HQ.
 - Do not reuse SonicMaster's degraded set as benchmark or leaderboard data.
 - Use sound datasets only for degradation material, not as benchmark source music.
 - Put any training source outside the approved pool in the external-data track.
@@ -95,16 +96,16 @@ The OpenRestore main-track training source is SonicMaster clean originals only. 
 
 ### License And Quality Audit
 
-Every candidate source should pass a documented audit before it enters either the public benchmark source pool, the approved training pool, or the degradation-material pool. The audit should produce a versioned decision record with dataset name, version, access URL, review date, reviewer, intended role in OpenRestore, and final status: `accepted`, `accepted with filtering`, `internal-only`, or `rejected`.
+Every candidate source should pass a documented audit before it enters either the public benchmark source pool, the approved training pool, or the degradation-material pool. The audit should produce a versioned decision record with dataset name, version, access URL, review date, reviewer, intended role in OpenRestor, and final status: `accepted`, `accepted with filtering`, `internal-only`, or `rejected`.
 
 #### License Audit
 
 - Record the exact governing terms: dataset card, repository license, source-site terms, per-track terms, and any separate attribution requirements.
-- Verify whether OpenRestore may download, transform, store, redistribute, and publicly mirror the audio, metadata, and derived degraded versions.
+- Verify whether OpenRestor may download, transform, store, redistribute, and publicly mirror the audio, metadata, and derived degraded versions.
 - Distinguish clearly between rights for internal organizer use, public benchmark release, and participant redistribution. A dataset may be acceptable for internal hidden evaluation yet not for public hosting.
 - Check whether commercial use, model training, sublicensing, or public competition use is restricted.
 - Check whether attribution must be preserved per item, per collection, or in a dataset-level notice.
-- Reject sources with ambiguous provenance, contradictory license signals, or terms that cannot support the dataset's intended OpenRestore role.
+- Reject sources with ambiguous provenance, contradictory license signals, or terms that cannot support the dataset's intended OpenRestor role.
 - If only part of a dataset is usable, mark it `accepted with filtering` and define the exact inclusion rule in code and metadata.
 
 #### Quality Audit
@@ -112,10 +113,10 @@ Every candidate source should pass a documented audit before it enters either th
 - Confirm that the source audio is real recorded music for benchmark/training roles, not synthesized, MIDI-rendered, or obviously AI-generated audio unless a later track explicitly allows that material.
 - Check technical format: sample rate, bandwidth, codec history, mono/stereo layout, clipping, truncation, corrupted files, and gross metadata errors.
 - Screen for audible defects in the clean source: watermarks, heavy codec artifacts, severe background noise, intrusive room coloration, distortion, dropouts, or non-musical contamination that would make the source unsuitable as clean reference audio.
-- For mixed-music sources, verify task fit: the audio should behave like a real full mix. For MUSDB18-HQ, only the `mixture` track can be used, and only for public transfer/local evaluation unless the benchmark contract is revised; stems are excluded from the main track.
+- For mixed-music sources, verify task fit: the audio should behave like a real full mix. For MUSDB18-HQ, only the `mixture` track can be used, and only for local academic transfer evaluation unless the benchmark contract is revised; stems are excluded from the main track.
 - For SonicMaster, verify that only the clean original audio is ingested into the approved training, validation, and public test splits; its degraded pairs must remain excluded from benchmark and leaderboard data.
 - Run a small structured listening review on sampled items from each candidate dataset and document common failure modes and estimated reject rates.
-- Run lightweight automated checks where possible: duration bounds, silence ratio, clipped-sample ratio, loudness distribution, channel consistency, checksum validity, and duplicate or near-duplicate detection against existing OpenRestore sources.
+- Run lightweight automated checks where possible: duration bounds, silence ratio, clipped-sample ratio, loudness distribution, channel consistency, checksum validity, and duplicate or near-duplicate detection against existing OpenRestor sources.
 - If a dataset passes only after filtering, freeze the filtering rules in code so future releases reproduce the same inclusion logic.
 
 #### Audit Outcome Rules
@@ -123,7 +124,7 @@ Every candidate source should pass a documented audit before it enters either th
 - `accepted`: the dataset can be used for its declared role without additional content filtering beyond routine preprocessing.
 - `accepted with filtering`: the dataset is usable only after explicit item-level or subset-level exclusions that are recorded in code and manifests.
 - `internal-only`: the dataset may be used for organizer-side hidden evaluation or internal experiments, but not redistributed in the public benchmark release.
-- `rejected`: the dataset is excluded because its license, provenance, audio quality, or task fit is incompatible with OpenRestore.
+- `rejected`: the dataset is excluded because its license, provenance, audio quality, or task fit is incompatible with OpenRestor.
 
 ## Data Model
 
@@ -136,11 +137,11 @@ Recommended storage:
 - Public mirror: dataset card, metadata, public train/validation/in-distribution-test/transfer-evaluation assets, and an export format that supports reproducible local development.
 - Archival release: manifests, metadata, checksums, degradation configs, evaluation scripts, and redistributable audio covered by the selected release terms.
 
-Do not call the project sidecar "AudioMD JSON". [AudioMD](https://www.loc.gov/standards/amdvmd/) is a Library of Congress XML technical metadata schema. OpenRestore should define its own JSON item metadata and optionally provide an AudioMD-compatible XML export for preservation partners.
+Do not call the project sidecar "AudioMD JSON". [AudioMD](https://www.loc.gov/standards/amdvmd/) is a Library of Congress XML technical metadata schema. OpenRestor should define its own JSON item metadata and optionally provide an AudioMD-compatible XML export for preservation partners.
 
 ### Recommended JSONL Row
 
-OpenRestore should keep the row close to the current restoration pipeline format. Every row represents one degraded 30-second example derived from one clean 30-second music segment. This makes training, evaluation, prompt conditioning, and degradation-specific reporting straightforward.
+OpenRestor should keep the row close to the current restoration pipeline format. Every row represents one degraded 30-second example derived from one clean 30-second music segment. This makes training, evaluation, prompt conditioning, and degradation-specific reporting straightforward.
 
 ```json
 {
@@ -218,24 +219,153 @@ For public releases, avoid machine-specific absolute paths such as `/work/vita/.
 
 `degradation_tracking` is also the bridge to metric reporting: each non-empty family determines which degradation-specific metrics and AAE measurements should be computed for that item.
 
+## Benchmark Tracks
+
+OpenRestor plans four evaluation sets. Three are paired against a clean reference and one is
+not; the intended public audio sets are not yet cleared for upload. The 21 canonical
+degradation classes below belong to Diagnostic; Blind-Synthetic and Official Hidden reuse
+them in secret combinations, while Blind-Real Public uses no added degradation.
+
+| Set | Degradations per item | Clean reference | Splits | Availability |
+| --- | --- | --- | --- | --- |
+| Diagnostic | exactly one of 21 synthetic classes | yes | train / validation / test | private; zero audio in initial release |
+| Blind-Synthetic | 0 to 3 synthetic, random type, order, intensity | yes | train / validation / test | private; zero audio in initial release |
+| Blind-Real Public | none added; degraded by its own history | **no** | **test only** | candidate; provenance approval pending |
+| Official Hidden | secret OpenRestor degradations on contract-cleared concert masters | yes, organizer-only | evaluation only | **organizer-only; access agreement pending** |
+
+**Where each set stands, 2026-10-19.**
+
+| Set | State | Size |
+| --- | --- | --- |
+| Diagnostic | rendered, validates end to end | 542,829 paired examples, 648 shards, 2.3 TB + 124 GB clean |
+| Blind-Synthetic | rendered | 25,849 examples, 7.95% left clean, 128 GB |
+| Blind-Real Public | internal pack built; uploader provenance review pending | 113 scored items, 210 clips, 70 min, plus 172 clean controls |
+| Official Hidden | Montreux Jazz Festival candidate; rights approval pending | — |
+
+No synthetic audio is currently cleared for publication. SonicMaster is 96.7% of each
+synthetic corpus, but its completed Jamendo audit found only 856 current CC BY records and
+8,856 IDs not returned. Written clarification may establish broader rights; otherwise a much
+smaller per-track subset must be repackaged. Blind-Real Public is packaged with CC0/CC BY
+labels and attribution, but uploader rights still need provenance sign-off. See
+*Publication and licences* below.
+
+### Diagnostic
+
+Exactly one degradation per example, paired clean and degraded. This is the interpretable core: because one example has one cause, a failure is attributable to a specific degradation rather than to an unidentifiable mixture. Intensities are drawn from each class's `strong_random` range, with no discrete mild/medium/severe levels, and every sampled parameter and seed is recorded deterministically.
+
+### Blind-Synthetic
+
+A separate dataset with its own train, validation and test splits, built from the same canonical classes applied in combination.
+
+- A random number of degradations per item, 0 to 3, genuinely variable rather than always three.
+- Random types, random application order, continuous random intensities.
+- Clean targets remain available, so evaluation stays quantitative.
+- Degradation metadata is published for train and validation, so classifiers, routers and blind models can be trained on it, and is withheld at inference on test.
+- The test split includes a small percentage of clean, undegraded items, to measure whether a system over-restores audio that needs nothing.
+- A small compatibility matrix rejects absurd or redundant combinations rather than enumerating recipes.
+
+### Blind-Real Public
+
+A public **test-only** set of real recordings degraded by their own history, so a system can be checked against real material locally. **No synthetic degradation is ever added**, there is no clean reference and no degradation label.
+
+There is no train or validation split, and this is a conclusion rather than a convenience. The completed IAMD scan found 4,246,139 segments, of which 579,826 are CC0 or CC BY across 18,758 distinct identifiers, but only **131 identifiers carry high-confidence live metadata** — about 262 clips at a cap of two per identifier. That cannot carry three splits, and the filter is not loosened to inflate it: admitting bare keyword matches would reach 567 identifiers on evidence the scan showed to be almost worthless. Screening and curation then settled it at 113 items drawn from two selection rounds, which is still far short of three splits. Blind training happens on Blind-Synthetic instead.
+
+Selection keeps **CC0 and CC BY only**, at most **two clips per `identifier`**, and at most **three identifiers per artist**.
+
+Round one additionally required confidence levels `structured` or `strong_phrase`, that is high-confidence live-capture metadata. **Round two dropped that requirement**, because "live" was only ever a proxy for "degraded by its own history": it cost 98% of the permissive pool — 131 identifiers out of 9,759 eligible music items — and still admitted 27 recordings a listener judged to need no restoration. Nothing automatic replaces it, which round two accepts rather than papers over. The format fields that would show band limiting are empty (`sample_rate` is filled on 7 of 12,405 permissive items, `channels` on none), and the no-reference descriptors separate a listener's own keep and too-clean verdicts at chance: AUC 0.35 to 0.56, with the noise floor pointing the wrong way, because "clean" to an ear means well captured and well mixed rather than quiet. Listening is therefore the arbiter, and selection only spends it well: it drops what is reliably predictable — non-music collections, uncredible licences, and the ambient and noise aesthetic, a genre and tag pattern that catches 94% of the items rejected as noise against 13% of those kept — and spreads the rest round-robin across collections and artists with no fidelity ranking.
+
+One consequence is visible in the data: round two brought source sample rates of 8, 11, 12, 22 and 24 kHz, which round one contained none of. Candidates are resolved through their Internet Archive identifier and the best available original is downloaded, because IAMD's own segments are re-encoded 320 kbps MP3.
+
+The retained items are **distinct Internet Archive source items with high-confidence live-recording metadata**. They are not verified concerts: nothing in the pipeline listened to them or confirmed the event, and release text should use the longer phrasing. Each clip keeps its provenance and the field or phrase that evidenced it.
+
+Scores aggregate **clip, then identifier, then dataset**, so a source item contributing two excerpts does not weigh twice as much as one contributing a single excerpt.
+
+Source-disjointness by `identifier` is necessary but not sufficient, because one act can hold many identifiers. Before the per-artist cap, Daniel Romano's Outfit held 14 of 113 items under three spellings of the credit, two of them the same concert uploaded twice, and Ambient Samurai held 14 more: one microphone would have been 13% of the score. Identifiers are therefore grouped whenever they share any credited name, and **at most three identifiers per artist group** are kept, the clip-richest first. This cost 23 items and is worth it: a test set that is 13% one recording setup measures that setup.
+
+**Every item was listened to, and the build refuses to ship one that was not.** Candidates are downloaded in bounded rounds, and twice a leftover batch entered the set simply because nothing had rejected it — 45 items on the second occasion. Being left over is not evidence of quality, so silence is not a verdict: the build checks every scored item against the recorded verdict files and the manifests earlier passes presented, and fails rather than quietly shipping unheard audio. Items staged for a later pass are held out by name.
+
+Across two passes the listener sorted 263 items three ways. The yields differ sharply and say something about the live proxy: round one, which required live metadata, kept 56% of what it presented, while round two, selected without it, found only 34% degraded enough to score — but 41% clean, which is why those became a resource rather than a loss.
+
+**Round one's pass in detail.** A curation pass over all 113 items rejected 23 of them, and a verdict that was unanimous across an act was extended to the rest of that act, for 21 more: 17 items plus 10 extended needed no restoration at all (`not_degraded_enough`), and 6 plus 11 extended were noise, ambient texture or speech rather than music. The extension matters because the per-artist cap otherwise promotes an unheard item of the same act in place of each rejection — `cmh2022-05-19` is the same concert as the rejected `DRO2022-05-19`. The pass was curation only: no coarse quality label was collected, and none is published.
+
+Rejecting the recordings that needed no restoration is deliberate: a benchmark input that is already clean cannot measure restoration. The cost is that Blind-Real alone cannot show whether a system damages audio that was already fine — the paired Diagnostic set is what measures over-processing. Those 27 items are therefore kept in `clean_control_manifest.jsonl`, outside the scored set, rather than discarded.
+
+Five further items were rejected on desk research rather than by listening: DJ mash-ups whose own credit field names the commercial rights holders (Guetta, Katy Perry, the Beatles, Usher, Kaskade). A mash-up of commercial masters is not the uploader's to license, and audio fingerprinting cannot catch these because a mash-up matches neither source release.
+
+The realised set is **210 excerpts of 20 seconds across 113 items**, 70 minutes in total, across 104 artist groups: 208 CC BY and 2 CC0. Round one contributed 63 items at `strong_phrase` or `structured` live confidence; round two contributed 50 more, most of which carry no live evidence at all, which is the point of dropping that requirement. Two excerpts of one item come from **two different tracks**, not two windows of one track: two windows of the same song sound alike however far apart they are cut, so a per-track draw is what actually buys variety. A recording offering only one usable track yields one excerpt rather than two near-duplicates.
+
+The set is built by `scripts/build_blind_real_public.py` from the frozen candidate list, the per-track downloads and the rejection list. It used to be assembled by hand, which left the one set in the benchmark that cannot be regenerated from a seed as the only one with no recorded recipe; the script reproduces the previous manifest field-for-field and then applies the two set-wide rules above.
+
+Clips are resampled to 44.1 kHz stereo for format uniformity but are **not loudness-normalised**: level problems are part of the recording's history, and normalising would repair one of the things a system is meant to handle. Each clip records its source sample rate, channel count and codec, and **the set is not lossless** — for 48 of the 63 items the uploader's own original is an MP3.
+
+**What provenance screening can and cannot establish.** Audio fingerprinting against AcoustID removed every clip matching a commercial release, and the set is 100% CC BY. Neither is proof the uploader held the rights: a non-match only means no fingerprint was found, and an Internet Archive licence tag is the uploader's assertion. What is recorded instead, per item and kept for audit, is who deposited it and how many distinct artists that account has deposited across IAMD. That number has to be read in context rather than as a score: the account behind the Jamendo mirror has deposited 4,534 artists, which makes it the **strongest** provenance in the set, since the licence there is the artist's own and the album page is in the item metadata — while a comparable count on a general account means the CC BY tag is a bulk uploader's claim over other people's masters.
+
+### Official Hidden Paired Evaluation
+
+A separate organizer-only test set, **not sourced from IAMD or another public training corpus**. The preferred source is rights-cleared high-quality concert masters supplied directly by a partner such as the Montreux Jazz Festival, then degraded privately with frozen OpenRestor recipes. Public streaming copies are not scraped.
+
+Its audio is never published, and neither are its source identities, concert/track names,
+timestamps or degradation recipes. A complete internal manifest records the agreement
+reference, rights status, content hash, excerpt bounds and degradation provenance.
+Participants never receive the files: they submit a container and the organizers run it
+server-side. Clean masters and references stay outside the participant container.
+
+It measures restoration on genuinely unseen recordings with paired metrics and protects the
+official score from contamination and gaming. **It does not replace Blind-Real Public**,
+which remains the no-reference check on naturally degraded material.
+
+### Publication and licences
+
+Publishing a rendered corpus means redistributing its source audio in modified form, so each
+source's licence governs its own examples. **Both sides of a pair are derivatives**: the clean
+side is a 30-second excerpt with loudness normalisation applied, milder than the degraded side
+but a derivative all the same. A NoDerivatives term therefore bars both.
+
+| source | examples (Diagnostic / Blind-Synthetic) | terms, reviewed 2026-10-16 | published |
+| --- | --- | --- | --- |
+| SonicMaster clean | 525,000 / 25,000 | collection labelled CC BY 2.0; current Jamendo audit found only 856 CC BY IDs | **no, pending clarification** |
+| Song Describer | 14,805 / 705 | per track: 209 of 705 NoDerivatives, 301 NonCommercial, 195 unrestricted | no |
+| MUSDB18-HQ | 3,024 / 144 | academic use only; mixed CC BY-NC-SA; 100 tracks of unclear provenance | no |
+
+Song Describer was the surprise: its dataset page claims CC BY-SA 4.0 and its paper calls the
+recordings "permissively licensed", but the per-track table shows 72% carry NonCommercial or
+NoDerivatives. Dataset-level labels cannot be trusted to describe the audio.
+
+Nothing edits the frozen releases to achieve this, because each records a SHA-256 of its own
+config. The private per-media rights register under `build/rights/` records exact licence
+claims, evidence and review by `source_id`; `scripts/build_publication_subset.py` generates
+commercially compatible and academic non-commercial profiles from it. Any future approved
+subset is written into fresh, source-filtered shards with new indexes and hashes. The
+initial candidate contains **zero synthetic audio**. SonicMaster remains withheld pending
+independent source-specific evidence or written clarification; SDD and MUSDB remain local.
+
+Blind-Real is a 210-clip scored set plus 172 clean controls, with CC BY/CC0 uploader labels
+and per-clip attribution. It is an **internal candidate**, not yet public: uploader tags do
+not prove rights ownership, and the packager now requires provenance approval for every
+clip. No DASH upload occurs until media review and EPFL/laboratory/TTO sign-off. The
+degradation tools let users reproduce effects on their own audio, not rebuild private data.
+
+### What Blind-Real cannot measure
+
+Neither Blind-Real set is paired, so neither can measure fidelity to a clean reference. Their metrics are defined separately, later. Mass human QA listening, distribution matching with MAD or MERT, and listening studies are secondary analyses, not prerequisites for building these datasets.
+
+## Degradation Pipeline
 ## Degradation Pipeline
 
 ### Degradation Taxonomy
 
-OpenRestore v0.1 is effect-first: every single-degradation recipe names the audible degradation directly. The high-level group is retained only for organization, filtering, and reporting. Each effect samples deterministic random parameters from the ARIEL implementation; `ariel_random` is not a three-level preset.
+OpenRestor v0.1 is effect-first: every single-degradation recipe names the audible degradation directly. The high-level group is retained only for organization, filtering, and reporting. Each effect samples deterministic random parameters from the ARIEL implementation; `ariel_random` is not a three-level preset.
 
 #### Canonical v0.1 Degradation Set
 
-The benchmark exposes exactly these 24 classes. Legacy SonicMaster/ARIEL names remain callable only for reproducing historical manifests; they are not active recipe IDs.
+The benchmark exposes exactly these 21 classes. Legacy SonicMaster/ARIEL names remain callable only for reproducing historical manifests; they are not active recipe IDs.
 
 | ID | Description |
 | --- | --- |
 | `spectral_eq` | Randomized strong spectral coloration: multi-band EQ, shelves, broad tilt, low-mid emphasis, or midrange notch. |
-| `mic` | Measured microphone transfer-function coloration using the approved Poliphone IR bundle. |
+| `smartphone_capture` | Close-range handset capture: lost low end, a resonant upper midrange, automatic gain control, preamp overdrive, and a capsule/codec bandwidth ceiling. Asset-free and reproducible from code alone. Distinct from `distant_mic_capture`, which models the room while leaving the microphone ideal. |
 | `lowpass` | Strong low-pass bandwidth loss, including the SonicMaster-style clarity cutoff. |
 | `highpass` | Strong low-frequency loss with a randomized high-pass cutoff. |
-| `telephone_band` | Telephone-style 300–3400 Hz band-pass filtering. |
-| `low_sample_rate` | Downsample/reconstruct degradation at 6–12 kHz. |
 | `compression` | Strong compression or transient-softening (the former `punch` mode). |
 | `clipping` | Hard overload clipping with lost peak detail. |
 | `saturation_overdrive` | Nonlinear soft, hard, or asymmetric overdrive. |
@@ -247,14 +377,13 @@ The benchmark exposes exactly these 24 classes. Legacy SonicMaster/ARIEL names r
 | `dropouts_glitches` | Deterministic silence, attenuation, repeat, or noise bursts. |
 | `codec` | Lossy MP3 transcoding at 24–48 kbps. |
 | `neural_codec` | Deterministic low-rate latent-quantization codec proxy; implementation is explicitly model-free until an approved neural codec asset is supplied. |
-| `transcode_chain` | Two-stage lossy AAC/MP3 or MP3/Opus transcoding. |
 | `stereo_collapse` | Left/right collapse to a mono-compatible stereo signal. |
 | `channel_damage` | Asymmetric one-channel bandwidth loss, attenuation, delay, polarity inversion, dropout, noise, or distortion. |
 | `pitch_speed_instability` | Deterministic wow/flutter time-warp instability. |
 
 #### Asset Requirements
 
-The `mic` effect needs ARIEL-compatible microphone transfer functions in `parameters.mic_ir_dir`. The `reverb_real` effect needs compatible RIR WAV files in `parameters.real_rir_dir`. The remaining 24 effects run without external assets. Simulated room effects use the local `pyroomacoustics` dependency.
+The `reverb_real` effect needs compatible RIR WAV files in `parameters.real_rir_dir`: 14 OpenAIR recordings from five rooms, all Public Domain or CC BY, with no non-commercial or share-alike condition. The remaining 20 effects run without external assets. Simulated room effects use the local `pyroomacoustics` dependency.
 
 #### Recipe Inventory
 
@@ -266,27 +395,38 @@ Do not use mild, medium, and strong as separate recipe IDs. Intensity remains ra
 
 ### Splits
 
+Diagnostic and Blind-Synthetic tracks:
+
 - `train`: public clean and degraded pairs for model development.
 - `validation`: public clean and degraded pairs for local debugging and ablations.
-- `test`: public clean and degraded pairs for reproducible diagnostic reports before official submission.
+- `test`: public clean and degraded pairs for reproducible diagnostic reports before official submission. For Blind-Synthetic, degradation metadata is withheld here and a small percentage of items are clean.
 - `evaluation`: hidden clean and degraded pairs used only by the organizers for official leaderboard scoring. Participants do not receive the audio or item list before evaluation.
+
+Blind-Real Public track, all without a clean reference or degradation label, and all source-disjoint by Internet Archive identifier:
+
+- `blind_real_train`, `blind_real_validation`, `blind_real_test`.
+
+Official Hidden paired evaluation:
+
+- `evaluation`: organizer-only clean/degraded pairs. Never distributed; source identities,
+  item lists, timestamps, clean references and degradation metadata are not published.
 
 ### Leaderboard Policy
 
-OpenRestore should be container-first and organizer-evaluated. Participants should not submit restored audio for the official leaderboard. They submit a runnable OCI/Docker container; the organizers run it on the hidden evaluation split, generate the restored audio, compute the metrics, and publish the result.
+OpenRestor should be container-first and organizer-evaluated. Participants should not submit restored audio for the official leaderboard. They submit a runnable OCI/Docker container; the organizers run it on the hidden evaluation split, generate the restored audio, compute the metrics, and publish the result.
 
-The main leaderboard should use only the approved OpenRestore training source: SonicMaster clean originals. Models must not train on validation, test, or evaluation audio, including SDD or MUSDB18-HQ transfer-evaluation audio. Submissions trained with any other datasets should be allowed only in a clearly separated `external-data` track.
+The main leaderboard should use only the approved OpenRestor training source: SonicMaster clean originals. Models must not train on validation, test, or evaluation audio, including SDD or MUSDB18-HQ transfer-evaluation audio. Submissions trained with any other datasets should be allowed only in a clearly separated `external-data` track.
 
-The hidden evaluation split should prevent training on the exact benchmark clips, but it should not be a surprise-domain test. Prefer a secret custom dataset made of high-quality open-licensed or project-recorded music that follows the same documented curation rules as the public benchmark. Secret clips are fair; secret domains are likely to create an unfair distribution shift.
+The hidden evaluation split should prevent training on the exact benchmark recordings, but it should not be a surprise-domain test. Prefer a secret custom dataset made of rights-cleared high-quality masters supplied directly by recording partners or produced for the project, following the same documented curation rules as the public benchmark. Secret clips are fair; secret domains are likely to create an unfair distribution shift.
 
-Public train/validation/in-distribution-test/transfer-evaluation scores can be shown as diagnostics, but official ranking should come from the hidden evaluation split.
+Public train/validation/in-distribution-test scores and local-only transfer diagnostics can be shown separately, but official ranking should come from the hidden evaluation split.
 
 ### Local User Workflow
 
 1. Download the public versioned dataset release and metadata.
 2. Train a model using the approved main-track training source: SonicMaster clean originals only. Declare any other training data, including SDD or MUSDB18-HQ, for the separate external-data track.
 3. Tune and debug on `validation`, then optionally run a final public diagnostic check on `test`.
-4. Run the OpenRestore CLI locally on public validation examples to produce a development `scores.json`.
+4. Run the OpenRestor CLI locally on public validation examples to produce a development `scores.json`.
 5. Submit an OCI/Docker container containing the inference code and either bundled weights or a declared weight-download mechanism that works when the organizers run the container.
 
 ### Organizer Evaluation
@@ -300,7 +440,7 @@ Public train/validation/in-distribution-test/transfer-evaluation scores can be s
 
 ## Metrics
 
-OpenRestore should report metrics in separate families rather than collapse everything into one opaque score. The official leaderboard can still define a primary aggregate, but every submission should expose the underlying metric table by degradation family, severity, source subset, and clip duration.
+OpenRestor should report metrics in separate families rather than collapse everything into one opaque score. The official leaderboard can still define a primary aggregate, but every submission should expose the underlying metric table by degradation family, severity, source subset, and clip duration.
 
 ### Required Metrics
 
@@ -322,7 +462,7 @@ FAD variants should be explicit:
 
 ### Degradation-Specific Diagnostics And AAE
 
-AAE means `Average Absolute Error`, following the SonicMaster paper. The idea is to measure, for a degradation family, how far the restored audio remains from the clean reference in a targeted diagnostic space. Because OpenRestore generates degradations with known families and parameters, AAE can be reported only where the diagnostic descriptor is meaningful and validated.
+AAE means `Average Absolute Error`, following the SonicMaster paper. The idea is to measure, for a degradation family, how far the restored audio remains from the clean reference in a targeted diagnostic space. Because OpenRestor generates degradations with known families and parameters, AAE can be reported only where the diagnostic descriptor is meaningful and validated.
 
 For a degradation family `d`, define a descriptor `D_d(audio)` that returns a measurable artifact-related vector or scalar. Then report:
 
@@ -347,7 +487,19 @@ Initial AAE descriptors:
 | Stereo / spatial | Inter-channel correlation, mid/side energy ratio, channel balance, phase coherence | Distance between restored and clean stereo descriptors. |
 | Codec / transmission | Band energy discontinuities, pre-echo proxy, modulation artifacts, codec-classifier confidence if validated | Residual codec-artifact descriptor error. Treat as experimental until the estimator is robust. |
 
-SonicMaster reports degradation-specific behavior with AAE for its degradation groups instead of relying only on a single global score. OpenRestore should follow that principle, but keep the implementation transparent: each AAE descriptor must be open-source, versioned, tested on controlled degradations, and reported separately from perceptual metrics.
+SonicMaster reports degradation-specific behavior with AAE for its degradation groups instead of relying only on a single global score. OpenRestor should follow that principle, but keep the implementation transparent: each AAE descriptor must be available under approved release terms, versioned, tested on controlled degradations, and reported separately from perceptual metrics.
+
+### Metrics Per Track
+
+Three of the four evaluation sets have a clean reference, while Blind-Real Public does not,
+so one protocol cannot serve all sets.
+
+| Track | Protocol |
+| --- | --- |
+| Diagnostic | Full paired reconstruction metrics plus AAE reported per degradation class, since the class is known. |
+| Blind-Synthetic | The same paired metrics, with AAE reported over the ordered degradation chain rather than one class. Adds an over-restoration measure on the clean test items, where the correct behaviour is to change nothing. |
+| Blind-Real Public | No clean reference exists, so no similarity-to-clean metric is possible. Input-to-output similarity must not be a primary metric either, because it penalises legitimate correction. Use several complementary no-reference and perceptual metrics, and document the limits of each. The exact set is defined separately, later. |
+| Official Hidden | Full paired metrics computed server-side after running a submitted container. Only approved aggregate scores are published; audio, item identities, outputs and per-item scores remain private. |
 
 ### Optional Metrics
 
@@ -357,25 +509,25 @@ SonicMaster reports degradation-specific behavior with AAE for its degradation g
 
 ## Baselines
 
-Baselines are reference restoration systems that the OpenRestore team runs and publishes. They are not the final goal of the project. They make the leaderboard understandable by showing what happens when we do nothing, what simple audio processing can already fix, and what a small learned model can achieve.
+Baselines are reference restoration systems that the OpenRestor team runs and publishes. They are not the final goal of the project. They make the leaderboard understandable by showing what happens when we do nothing, what simple audio processing can already fix, and what a small learned model can achieve.
 
-OpenRestore should publish each baseline as runnable code or a runnable container, with its restored outputs and scores. This lets participants check that their local evaluation setup matches the official one.
+OpenRestor should publish each baseline as runnable code or a runnable container, with its restored outputs and scores. This lets participants check that their local evaluation setup matches the official one.
 
 | Baseline | What It Does | Why We Need It |
 | --- | --- | --- |
 | No-restoration baseline | Copies the degraded input directly to the output. No model, no processing. | This is the minimum reference point. A useful restoration model should improve over the degraded input, not make it worse. |
 | Simple DSP baseline | Applies a few transparent signal-processing methods, for example denoising, declipping, basic EQ correction, simple dereverberation, or bandwidth repair when the degradation family is known. | This shows what can be fixed without machine learning. If a neural model cannot beat simple DSP on a degradation, that is important to know. |
-| Small learned baseline | Trains a compact open model only on the public OpenRestore training split. | This gives a realistic first neural reference without relying on massive external datasets. It helps participants understand the expected difficulty of the benchmark. |
+| Small learned baseline | Trains a compact open model only on the public OpenRestor training split. | This gives a realistic first neural reference without relying on massive external datasets. It helps participants understand the expected difficulty of the benchmark. |
 
-Later, OpenRestore can add stronger reference models aligned with current generative-audio research: audio-to-audio diffusion and Schrodinger-bridge restorers such as A2SB, latent diffusion or diffusion-transformer audio models, flow-matching or rectified-flow audio models, foundation audio models with inpainting or audio-to-audio conditioning, and specialist generative restorers for declipping, dereverberation, bandwidth extension, and codec artifact reduction. These should be added only when their licenses, training data, task assumptions, and inference requirements are clear.
+Later, OpenRestor can add stronger reference models aligned with current generative-audio research: audio-to-audio diffusion and Schrodinger-bridge restorers such as A2SB, latent diffusion or diffusion-transformer audio models, flow-matching or rectified-flow audio models, foundation audio models with inpainting or audio-to-audio conditioning, and specialist generative restorers for declipping, dereverberation, bandwidth extension, and codec artifact reduction. These should be added only when their licenses, training data, task assumptions, and inference requirements are clear.
 
-Publish baseline scores for public train/validation/in-distribution-test/transfer-evaluation diagnostics and for the hidden evaluation split. In the leaderboard, these baselines should appear as fixed reference rows, not as competing teams.
+Publish baseline scores for public train/validation/in-distribution-test diagnostics, separately labelled local transfer diagnostics, and the hidden evaluation split. In the leaderboard, these baselines should appear as fixed reference rows, not as competing teams.
 
 ## Submission Manifest
 
 A submission manifest is the instruction sheet for a submitted model container. It tells the organizers what the model is, who submitted it, how to run it, where the weights are, and what data was used for training.
 
-This matters because OpenRestore should not ask participants to restore the hidden evaluation audio themselves. Participants submit a runnable OCI/Docker container. The organizers run that container on the hidden evaluation split, generate the restored audio, compute the metrics, and publish the score.
+This matters because OpenRestor should not ask participants to restore the hidden evaluation audio themselves. Participants submit a runnable OCI/Docker container. The organizers run that container on the hidden evaluation split, generate the restored audio, compute the metrics, and publish the score.
 
 The manifest should be a small YAML or JSON file submitted with the container:
 
@@ -395,7 +547,7 @@ weights:
   uri: https://example.org/model-weights.ckpt
   sha256: ...
 training_data:
-  - OpenRestore train <release>
+  - OpenRestor train <release>
   - external data, declared with licenses if entering the external-data track
 inference_command: >
   python -m openrestor_infer --input /input --metadata /input/index.jsonl --output /output
@@ -453,7 +605,7 @@ The repository should separate public benchmark code from generated data. Audio 
 ```text
 openrestor/
   README.md
-  OpenRestore.md
+  OpenRestor.md
   pyproject.toml
 
   configs/
@@ -578,7 +730,7 @@ weights/
 
 ## Release And Sustainability Plan
 
-OpenRestore should use a lightweight release process that is easy to maintain. The goal is not to build a complex archival infrastructure; the goal is to make each public release reproducible, citable, and easy to download.
+OpenRestor should use a lightweight release process that is easy to maintain. The goal is not to build a complex archival infrastructure; the goal is to make each public release reproducible, citable, and easy to download.
 
 Core release layers:
 
@@ -616,7 +768,7 @@ Keep optional infrastructure optional. RenkuLab, DaSCH, or other preservation pl
 
 - Implement ingestion of SonicMaster clean originals as the only default training source if its license and quality checks pass. Do not ingest SonicMaster's degraded set as benchmark or leaderboard data.
 - Split SonicMaster clean originals by source recording into public train, validation, and public test subsets.
-- Implement SDD and MUSDB18-HQ mixture ingestion for public transfer/local evaluation only, and do not use MUSDB18-HQ stems as benchmark items in the main track.
+- Implement SDD and MUSDB18-HQ mixture ingestion for local-only transfer evaluation, and do not use MUSDB18-HQ stems as benchmark items in the main track.
 - Define and curate a separate secret custom evaluation dataset for organizer-only scoring.
 - Implement optional sound-dataset ingestion only for organic degradation material such as ambience, noise, or interference.
 - Segment long music sources into deterministic 30-second windows while preserving links to the original source recording.
@@ -628,10 +780,36 @@ Keep optional infrastructure optional. RenkuLab, DaSCH, or other preservation pl
 ### 3. Implement Degradations And Tracking
 
 - Implement the v0.1 canonical degradation classes in `configs/degradations/single/v0_1.yaml`; keep legacy primitive names only as compatibility aliases.
-- Keep the final first-release inventory at exactly 24 classes: spectral EQ, microphone, four bandwidth modes, compression, clipping, saturation, four reverb modes, distant capture, noise/hum/clicks, dropouts/glitches, codec families, stereo damage, and pitch/speed instability.
+- Keep the Diagnostic inventory at exactly 21 classes: spectral EQ, smartphone capture, low/high-pass filtering, compression, clipping, saturation, four reverb modes, distant capture, noise/hum/clicks, dropouts/glitches, codec families, stereo damage, and pitch/speed instability. `volume` stays removed, and `telephone_band` and `transcode_chain` must not be reintroduced as classes.
 - Store compact per-item metadata in `degradation_tracking` and keep full recipe/config files versioned with the release.
-- Use one explicitly selected degradation per output in v0.1. Do not sample effect choices or combine effects; sample only the selected effects parameters.
+- Use one explicitly selected degradation per output in the Diagnostic track. Do not sample effect choices or combine effects there; sample only the selected effect's parameters.
 - Validate each degradation on a small fixed fixture set so outputs are reproducible across releases.
+
+The benchmark build now has four distinct workstreams, in dependency order.
+
+#### A. Finalize and generate the Diagnostic benchmark
+
+- Freeze the 21-class registry and its parameter ranges after listening review.
+- Render the paired clean/degraded release for every public split, plus the organizer-only hidden split.
+
+#### B. Generate the Blind-Synthetic dataset
+
+- Implement compound sampling: 0 to 3 degradations per item, random types, order and intensities, with the full ordered chain recorded per item.
+- Add the pairwise compatibility matrix that rejects absurd or redundant combinations.
+- Build train, validation and test splits from the same frozen source assignment, with no leakage between them or into the Diagnostic track.
+- Reserve a small percentage of clean items in test, and withhold degradation metadata at inference on test while publishing it for train and validation.
+
+#### C. Build the Blind-Real test set
+
+- Use IAMD as a discovery catalogue over Internet Archive Creative Commons audio, filtering by licence (CC0 and CC BY preferred, CC BY-SA only if compatible, NC avoided) and by metadata indicating live, concert, audience, tape or soundboard capture.
+- Resolve each candidate to its Internet Archive identifier and fetch the best available original audio; do not use IAMD's own 320 kbps MP3 segments.
+- Curate roughly 300 to 500 fixed excerpts of 10 to 30 seconds, with per-item provenance, licence and attribution.
+
+#### D. Define a separate metric protocol per track
+
+- Diagnostic: paired metrics plus per-class AAE.
+- Blind-Synthetic: paired metrics, AAE over the degradation chain, plus an over-restoration measure on the clean items.
+- Blind-Real: no-reference and perceptual metrics only, with documented limits. No similarity to clean, since none exists, and no input-to-output similarity as a primary metric.
 
 ### 4. Implement Metrics And Reports
 
@@ -645,14 +823,14 @@ Keep optional infrastructure optional. RenkuLab, DaSCH, or other preservation pl
 
 - Add the no-restoration baseline and publish its scores.
 - Add the simple DSP baseline and publish its scores by degradation family.
-- Train or adapt a small learned baseline using only the public OpenRestore training split.
+- Train or adapt a small learned baseline using only the public OpenRestor training split.
 - Package baselines as runnable code or containers so users can reproduce the scores.
 - Use baseline results to sanity-check metrics, degradation recipes, and leaderboard aggregation.
 
 ### 6. Build Container Evaluation
 
 - Publish the reusable validation/evaluation package (`openrestor-score`, configurations, schemas, templates, and documentation) through versioned repository and release artifacts so users can run the benchmark tools from any inference pipeline.
-- Freeze a container interface with fixed organizer mounts and environment variables: hidden degraded manifest `/input/degraded/index.jsonl` (`OPENRESTORE_INPUT_MANIFEST`), hidden degraded audio `/input/degraded/audio` (`OPENRESTORE_INPUT_ROOT`), restored WAV root `/output/audio` (`OPENRESTORE_OUTPUT_ROOT`), and restoration manifest `/output/restoration_outputs.jsonl` (`OPENRESTORE_OUTPUT_MANIFEST`).
+- Freeze a container interface with fixed organizer mounts and environment variables: hidden degraded manifest `/input/degraded/index.jsonl` (`OPENRESTOR_INPUT_MANIFEST`), hidden degraded audio `/input/degraded/audio` (`OPENRESTOR_INPUT_ROOT`), restored WAV root `/output/audio` (`OPENRESTOR_OUTPUT_ROOT`), and restoration manifest `/output/restoration_outputs.jsonl` (`OPENRESTOR_OUTPUT_MANIFEST`).
 - Require the participant `inference_command` to consume that interface and write one canonical 44.1 kHz stereo restored WAV and one `restoration_outputs.jsonl` row per hidden degraded item. Do not expose clean references or their paths to the container.
 - Implement submission manifest validation, including immutable container digest, build recipe reference, training-data declaration, weight URL/checksum, inference command, and hardware request.
 - Implement organizer-side evaluation: validate metadata, smoke-test the image on fixtures, run inference with hidden input read-only and network disabled, validate all outputs, attach private clean references only to the scorer, compute CPU and approved perceptual metrics, then store logs/checksums and trusted metadata.
@@ -680,27 +858,27 @@ Keep optional infrastructure optional. RenkuLab, DaSCH, or other preservation pl
 | --- | --- |
 | Dataset licensing ambiguity | Maintain a source-license table and filter the default release to the selected open licenses. |
 | Metrics disagree with human perception | Use multiple metric families, publish per-degradation breakdowns, and add listening tests before making strong perceptual claims. |
-| Closed tooling harms reproducibility | Core degradations and metrics must use open-source implementations, open assets, and versioned parameters. |
+| Restricted tooling harms reproducibility | Core degradations and metrics must be inspectable under the approved terms, use rights-cleared assets, and expose versioned parameters. |
 | Storage and bandwidth cost | Use shards, compression where appropriate, mirrors, checksums, and staged releases. |
 | Leaderboard gaming | Require runnable containers, training-data disclosure, container digests, fixed weight checksums, output validation, audit logs, and per-family reporting. |
 
 ## Positioning And Related Work
 
-OpenRestore should learn from related benchmarks without duplicating them.
+OpenRestor should learn from related benchmarks without duplicating them.
 
-| Project | What It Contributes | Implication For OpenRestore |
+| Project | What It Contributes | Implication For OpenRestor |
 | --- | --- | --- |
-| [Music Source Restoration / RawStems](https://arxiv.org/abs/2505.21827) | Defines music source restoration as recovery of unprocessed sources from degraded or professionally processed mixtures; introduces RawStems annotations. | Use its degradation families, instrument grouping, and evaluation ideas as references, while keeping OpenRestore focused on one input signal and one restored output. |
-| [MSRBench](https://arxiv.org/abs/2510.10995) and [MSR Challenge](https://msrchallenge.com/) | Provides a benchmark for music source restoration with raw-processed pairs and real-world degradations; challenge reports use metrics such as Multi-Mel-SNR, Zimtohrli, and FAD-CLAP. | Treat as the closest music-restoration benchmark. OpenRestore should be simpler: single musical clip in, restored musical clip out. |
-| [SonicMaster](https://arxiv.org/abs/2508.03448) and [SonicMaster Dataset](https://huggingface.co/datasets/amaai-lab/SonicMasterDataset) | Trains an all-in-one music restoration and mastering model using paired degraded/high-quality music generated with degradation groups such as equalization, dynamics, reverb, amplitude, and stereo. | Use its taxonomy, prompt-conditioned restoration framing, and AAE-style degradation diagnostics as starting points, while keeping OpenRestore recipes transparent and reproducible. |
+| [Music Source Restoration / RawStems](https://arxiv.org/abs/2505.21827) | Defines music source restoration as recovery of unprocessed sources from degraded or professionally processed mixtures; introduces RawStems annotations. | Use its degradation families, instrument grouping, and evaluation ideas as references, while keeping OpenRestor focused on one input signal and one restored output. |
+| [MSRBench](https://arxiv.org/abs/2510.10995) and [MSR Challenge](https://msrchallenge.com/) | Provides a benchmark for music source restoration with raw-processed pairs and real-world degradations; challenge reports use metrics such as Multi-Mel-SNR, Zimtohrli, and FAD-CLAP. | Treat as the closest music-restoration benchmark. OpenRestor should be simpler: single musical clip in, restored musical clip out. |
+| [SonicMaster](https://arxiv.org/abs/2508.03448) and [SonicMaster Dataset](https://huggingface.co/datasets/amaai-lab/SonicMasterDataset) | Trains an all-in-one music restoration and mastering model using paired degraded/high-quality music generated with degradation groups such as equalization, dynamics, reverb, amplitude, and stereo. | Use its taxonomy, prompt-conditioned restoration framing, and AAE-style degradation diagnostics as starting points, while keeping OpenRestor recipes transparent and reproducible. |
 | [Audio Degradation Toolbox](https://qmro.qmul.ac.uk/xmlui/handle/123456789/6061) | Provides an early open toolbox for controlled music degradations, including chained degradations intended to mimic real-world conditions. | Directly supports deterministic modules plus organic multi-step chains. Reimplement or modernize concepts in Python rather than depending on the original Matlab stack. |
 | [ODAQ: Open Dataset of Audio Quality](https://arxiv.org/abs/2401.00197) and [expanded ODAQ](https://arxiv.org/abs/2504.00742) | Provides open audio stimuli with expert and later expanded listener quality ratings across controlled processing classes. | Useful for validating perceptual metrics and for designing listening-test protocols; not a restoration benchmark by itself. |
 | [A2SB](https://arxiv.org/abs/2501.11311) | A high-resolution music restoration model for 44.1 kHz bandwidth extension and audio inpainting. | Important baseline family for bandwidth loss, missing segments, and long-audio restoration behavior. |
 | [Apollo](https://arxiv.org/abs/2409.08514) and [Stochastic Restoration GAN](https://arxiv.org/abs/2207.01667) | Focus on restoring heavily compressed musical audio and codec artifacts. | Useful references for the codec-loss track, especially where reconstruction and perceptual quality may disagree. |
-| [AudioSR](https://arxiv.org/abs/2309.07314), [FlashSR](https://arxiv.org/abs/2501.10807), and [UniverSR](https://arxiv.org/abs/2510.00771) | Versatile audio super-resolution systems that target music, speech, and sound effects across low sample rates. | Useful baseline candidates for bandwidth-extension degradations, though OpenRestore should report music-specific results separately. |
-| [Smule Renaissance Small / Extreme Degradation Bench](https://arxiv.org/abs/2510.21659) | Introduces an efficient vocal restoration model and a benchmark of singing and speech recordings captured under severe multi-degradation conditions. | Relevant for organic degradation design and singing/vocal subsets, while OpenRestore remains broader than vocals. |
+| [AudioSR](https://arxiv.org/abs/2309.07314), [FlashSR](https://arxiv.org/abs/2501.10807), and [UniverSR](https://arxiv.org/abs/2510.00771) | Versatile audio super-resolution systems that target music, speech, and sound effects across low sample rates. | Useful baseline candidates for bandwidth-extension degradations, though OpenRestor should report music-specific results separately. |
+| [Smule Renaissance Small / Extreme Degradation Bench](https://arxiv.org/abs/2510.21659) | Introduces an efficient vocal restoration model and a benchmark of singing and speech recordings captured under severe multi-degradation conditions. | Relevant for organic degradation design and singing/vocal subsets, while OpenRestor remains broader than vocals. |
 | [Microsoft DNS Challenge](https://github.com/microsoft/DNS-Challenge) | Mature challenge infrastructure for speech enhancement, with datasets, baselines, and subjective evaluation protocols. | Borrow challenge mechanics, submission discipline, and subjective-test thinking. Speech restoration can be a later track. |
-| [Clarity Challenge](https://claritychallenge.org/) | Hearing-aid enhancement challenges with structured train/dev/eval splits and perceptual/intelligibility metrics. | Borrow split discipline and clear task definitions, especially if OpenRestore adds speech or hearing-aid tracks. |
+| [Clarity Challenge](https://claritychallenge.org/) | Hearing-aid enhancement challenges with structured train/dev/eval splits and perceptual/intelligibility metrics. | Borrow split discipline and clear task definitions, especially if OpenRestor adds speech or hearing-aid tracks. |
 | [Stable Audio 3](https://arxiv.org/abs/2605.17991), [ACE-Step](https://arxiv.org/abs/2506.00045), [ACE-Step 1.5](https://arxiv.org/abs/2602.00744) | Modern open or partially open music/audio generation and editing systems. | Useful for source selection, evaluation precedent, and future baselines, but not part of the core restoration benchmark. |
 
 ## References
@@ -738,6 +916,7 @@ OpenRestore should learn from related benchmarks without duplicating them.
 - MUSHRA listening test recommendation ITU-R BS.1534: <https://www.itu.int/rec/R-REC-BS.1534>
 - Zimtohrli: <https://arxiv.org/abs/2509.26133>
 - Stable Audio 3: <https://arxiv.org/abs/2605.17991>
+- Internet Archive Music Dataset (IAMD): <https://adasp.telecom-paris.fr/resources/2026-08-01-iamd-dataset/>
 - Song Describer Dataset: <https://github.com/mulab-mir/song-describer-dataset>
 - Song Describer Dataset paper: <https://arxiv.org/abs/2311.10057>
 - BBC Sound Effects: <https://sound-effects.bbcrewind.co.uk/>

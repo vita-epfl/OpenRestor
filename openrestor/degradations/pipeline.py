@@ -24,52 +24,21 @@ from .core import (
 from .effects import apply_operation
 
 CANONICAL_DEGRADATION_IDS = (
-    "spectral_eq",
-    "mic",
-    "lowpass",
-    "highpass",
-    "telephone_band",
-    "low_sample_rate",
-    "compression",
-    "clipping",
-    "saturation_overdrive",
-    "reverb_small",
-    "reverb_big",
-    "reverb_mix",
-    "reverb_real",
-    "distant_mic_capture",
-    "noise",
-    "hum",
-    "clicks_crackle",
-    "dropouts_glitches",
-    "codec",
-    "neural_codec",
-    "transcode_chain",
-    "stereo_collapse",
-    "channel_damage",
-    "pitch_speed_instability",
+    "spectral_eq", "smartphone_capture", "lowpass", "highpass", "compression", "clipping",
+    "saturation_overdrive", "reverb_small", "reverb_big", "reverb_mix", "reverb_real",
+    "distant_mic_capture", "noise", "hum", "clicks_crackle", "dropouts_glitches", "codec",
+    "neural_codec", "stereo_collapse", "channel_damage", "pitch_speed_instability",
 )
 
 LEGACY_DEGRADATION_ALIASES = {
-    "comp": "compression",
-    "punch": "compression",
-    "xband": "spectral_eq",
-    "bright": "spectral_eq",
-    "dark": "spectral_eq",
-    "airy": "spectral_eq",
-    "boom": "spectral_eq",
-    "clarity": "lowpass",
-    "mud": "spectral_eq",
-    "warm": "spectral_eq",
-    "vocal": "spectral_eq",
-    "small": "reverb_small",
-    "big": "reverb_big",
-    "mix": "reverb_mix",
-    "real": "reverb_real",
-    "stereo": "stereo_collapse",
-    "clip": "clipping",
-    "volume": "legacy_volume",
-    "bandwidth": "lowpass",
+    "comp": "compression", "punch": "compression", "xband": "spectral_eq",
+    "bright": "spectral_eq", "dark": "spectral_eq", "airy": "spectral_eq",
+    "boom": "spectral_eq", "clarity": "lowpass", "mud": "spectral_eq",
+    "warm": "spectral_eq", "vocal": "spectral_eq", "small": "reverb_small",
+    "big": "reverb_big", "mix": "reverb_mix", "real": "reverb_real",
+    "stereo": "stereo_collapse", "clip": "clipping", "volume": "legacy_volume",
+    "bandwidth": "lowpass", "telephone_band": "lowpass",
+    "low_sample_rate": "lowpass", "transcode_chain": "codec",
 }
 
 REQUIRED_PRIMITIVES = {
@@ -86,7 +55,6 @@ REQUIRED_PRIMITIVES = {
     "device_mic_response",
     "codec_resampling",
     "spectral_eq",
-    "microphone_response",
     "compression",
     "clipping",
     "saturation_overdrive",
@@ -126,9 +94,7 @@ def validate_config(config: dict[str, Any]) -> None:
     if config.get("canonical_registry"):
         configured = tuple(recipe["id"] for recipe in recipes)
         if configured != CANONICAL_DEGRADATION_IDS:
-            raise ValueError(
-                "Canonical degradation config must contain exactly the ordered 24 benchmark IDs"
-            )
+            raise ValueError("Canonical degradation config must contain exactly the ordered 21 benchmark IDs")
 
 
 def list_recipes(config: dict[str, Any]) -> list[dict[str, Any]]:
@@ -168,14 +134,10 @@ def render_degradations(
             raise ValueError(f"Expected {CANONICAL_SAMPLE_RATE} Hz input: {clean_path}")
         for recipe in config["recipes"]:
             processed += 1
-            degraded, operation_params = apply_recipe(
-                audio, sample_rate, clean_row["id"], recipe, seed
-            )
+            degraded, operation_params = apply_recipe(audio, sample_rate, clean_row["id"], recipe, seed)
             recipe_id = recipe["id"]
             degraded_id = f"{clean_row['id']}--{recipe_id}"
-            relative_path = (
-                Path(clean_row["split"]) / clean_row["dataset"] / recipe_id / f"{degraded_id}.wav"
-            )
+            relative_path = Path(clean_row["split"]) / clean_row["dataset"] / recipe_id / f"{degraded_id}.wav"
             degraded_path = output_root / relative_path
             write_audio(degraded_path, degraded, sample_rate)
             digest = sha256_file(degraded_path)
@@ -292,38 +254,37 @@ def write_hdf5_shards(
 
     for shard_number, start in enumerate(range(0, len(rows), shard_size)):
         chunk = rows[start : start + shard_size]
-        decoded = [read_audio(output_root / row["degraded_path"])[0] for row in chunk]
-        first_shape = decoded[0].shape if decoded else (0, 2)
-        if any(audio.shape != first_shape for audio in decoded):
-            raise ValueError("HDF5 sharding requires canonical equal-length degraded audio")
+        # One clip is read at a time and written straight into the dataset. Buffering a
+        # whole shard first would cost shard_size x 10 MB of float32 twice over, which is
+        # ~18 GB at a shard size of 840 and is what a memory limit kills without a trace.
+        first_shape = read_audio(output_root / chunk[0]["degraded_path"])[0].shape if chunk else (0, 2)
         shard_path = shards_dir / f"degraded-{shard_number:05d}.h5"
         with h5py.File(shard_path, "w") as shard:
-            shard.attrs["format"] = "openrestor.degraded.v0.1"
+            # Former spelling kept deliberately; see the note in release.py.
+            shard.attrs["format"] = "openrestore.degraded.v0.1"
             shard.attrs["sample_rate"] = CANONICAL_SAMPLE_RATE
             shard.attrs["samples"] = first_shape[0]
             shard.attrs["channels"] = first_shape[1]
-            shard.create_dataset("audio", data=np.stack(decoded), compression="gzip", shuffle=True)
+            audio_set = shard.create_dataset(
+                "audio",
+                shape=(len(chunk), *first_shape),
+                dtype="float32",
+                chunks=(1, *first_shape) if chunk else None,
+                compression="gzip",
+                shuffle=True,
+            )
+            for offset, row in enumerate(chunk):
+                clip = read_audio(output_root / row["degraded_path"])[0]
+                if clip.shape != first_shape:
+                    raise ValueError("HDF5 sharding requires canonical equal-length degraded audio")
+                audio_set[offset] = clip
             shard.create_dataset("item_id", data=[str(row["id"]) for row in chunk], dtype=text_type)
-            shard.create_dataset(
-                "clean_id", data=[str(row["clean_id"]) for row in chunk], dtype=text_type
-            )
-            shard.create_dataset(
-                "degraded_path", data=[str(row["degraded_path"]) for row in chunk], dtype=text_type
-            )
-            shard.create_dataset(
-                "manifest_json",
-                data=[json.dumps(row, sort_keys=True) for row in chunk],
-                dtype=text_type,
-            )
+            shard.create_dataset("clean_id", data=[str(row["clean_id"]) for row in chunk], dtype=text_type)
+            shard.create_dataset("degraded_path", data=[str(row["degraded_path"]) for row in chunk], dtype=text_type)
+            shard.create_dataset("manifest_json", data=[json.dumps(row, sort_keys=True) for row in chunk], dtype=text_type)
         shard_reference = os.path.relpath(shard_path, output_index.parent).replace(os.sep, "/")
         for offset, row in enumerate(chunk):
-            indexed_rows.append(
-                {
-                    **row,
-                    "degraded_audio_shard": shard_reference,
-                    "degraded_audio_shard_index": offset,
-                }
-            )
+            indexed_rows.append({**row, "degraded_audio_shard": shard_reference, "degraded_audio_shard_index": offset})
         _log(progress, f"[degrade-shard] wrote {shard_number + 1}/{shard_total}: {shard_path}")
 
     write_jsonl(output_index, indexed_rows)

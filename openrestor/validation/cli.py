@@ -1,30 +1,20 @@
-"""CLI for validating OpenRestore JSON and JSONL artifacts."""
+"""CLI for validating OpenRestor JSON and JSONL artifacts."""
 
 from __future__ import annotations
 
 import argparse
 from pathlib import Path
 
-from .core import validate_file
+from .core import validate_clean_manifest, validate_file
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(prog="openrestor-validate")
-    parser.add_argument(
-        "kind",
-        choices=[
-            "index",
-            "degradation_tracking",
-            "submission_manifest",
-            "restoration_outputs",
-            "restoration_metadata",
-            "scores",
-            "leaderboard_entry",
-        ],
-    )
+    parser.add_argument("kind", choices=["index", "clean_manifest", "degradation_tracking", "submission_manifest", "restoration_outputs", "restoration_metadata", "scores", "leaderboard_entry"])
     parser.add_argument("--input", type=Path, required=True)
     args = parser.parse_args()
-    count = validate_file(args.kind, args.input)
+    count = (validate_clean_manifest(args.input) if args.kind == "clean_manifest"
+             else validate_file(args.kind, args.input))
     print(f"Validated {count} document(s) against {args.kind}.schema.json")
 
 

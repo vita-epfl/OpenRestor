@@ -7,15 +7,15 @@
 - Reviewer: project owner
 - Sample size: informal random sample
 - Listening path: `/tmp/openrestor-listening/sdd`
-- Final quality status: pass as public transfer-evaluation, high-quality reference material
+- Final quality status: pass as local-only transfer-evaluation, high-quality reference material
 
 ## Aggregate Notes
 
 - Overall quality: very high
 - Common issue tags: none noted in the sampled clips
-- Recommended filtering changes: keep SDD as a separately reported public transfer-evaluation set under the current benchmark policy, but describe it as the strongest quality reference among the audited public datasets.
+- Recommended filtering changes: keep SDD as a separately reported local-only transfer-evaluation set, but describe it as the strongest quality reference among the audited datasets.
 
 ## Decision
 
 SDD is excellent source material and is suitable as a high-quality generation reference. For the
-current OpenRestore main-track policy, it remains a separately reported public transfer-evaluation source so the primary training pool and model-selection validation stay limited to SonicMaster clean originals. SDD instead provides a clean, high-quality target for robustness diagnostics.
+current OpenRestor main-track policy, it remains a separately reported local-only transfer-evaluation source so the primary training pool and model-selection validation stay limited to SonicMaster clean originals. SDD instead provides a clean, high-quality target for robustness diagnostics when the user lawfully holds the source audio.

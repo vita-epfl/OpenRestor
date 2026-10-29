@@ -3,13 +3,6 @@ __pycache__/
 *.py[cod]
 *.egg-info/
 build/
-assets/degradations/
 tmp
-
-# uv / tooling artifacts
 .venv/
-.mypy_cache/
-.ruff_cache/
-.pytest_cache/
-dist/
-code-docs/site/
+.python-runtime/

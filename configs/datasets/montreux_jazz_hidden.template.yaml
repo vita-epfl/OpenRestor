@@ -1,0 +1,16 @@
+dataset: montreux_jazz_hidden
+version: candidate-until-rights-approved
+source_root: /secure/path/to/authorised-montreux-jazz-masters
+role: hidden-evaluation-only
+fixed_split: hidden
+license: written agreement with all required rightsholders; TTO review before ingestion
+redistribution: never public
+rights_record: /secure/path/to/montreux-jazz-rights-register.jsonl
+rights_status: approval-required
+contamination_status: review-required
+source_visibility: organizer-only
+participant_access: server-side container execution only
+network_access: disabled
+result_disclosure: aggregate metrics only
+quality_notes: Candidate source only. Prefer unreleased archival masters supplied through an authorised channel, never scraped YouTube audio. Exclude public versions from the official generalisation score. Keep concert, artist, track, excerpt, fingerprint, contamination review and degradation identities secret.
+min_source_seconds: 30

@@ -16,7 +16,7 @@
 ```bash
 mkdir -p /tmp/openrestor-listening/<dataset>
 
-find /mnt/ssd2/datasets/OpenRestoreDataset/<source-root> \
+find /mnt/ssd2/datasets/OpenRestorDataset/<source-root> \
   -type f -name '<extension>' \
   | shuf -n 20 \
   | while IFS= read -r f; do
@@ -85,5 +85,5 @@ Listen for:
 ## Decision
 
 ```text
-State whether the dataset passes for its intended OpenRestore role, and list any filtering or follow-up required before release.
+State whether the dataset passes for its intended OpenRestor role, and list any filtering or follow-up required before release.
 ```

@@ -8,7 +8,7 @@
 - Reviewer:
 - Local path:
 - Access URL:
-- Intended OpenRestore role:
+- Intended OpenRestor role:
 - Final status: accepted / accepted with filtering / internal-only / rejected
 
 ## Role Decision
@@ -36,7 +36,7 @@ Write the short rationale here.
 - Model-training restrictions:
 - Public redistribution allowed: yes / no / unclear
 - Derived degraded clips redistribution allowed: yes / no / unclear
-- OpenRestore release mode: public audio / manifests only / internal only / rejected
+- OpenRestor release mode: public audio / manifests only / internal only / rejected
 
 Open questions:
 

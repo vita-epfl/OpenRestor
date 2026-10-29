@@ -1,0 +1,217 @@
+# Dataset-level triage only. This file never grants rights to an individual track.
+# Per-asset licence, provenance and redistribution approval remain mandatory.
+schema_version: clean-corpus-rights-v1
+reviewed_at: '2026-10-29'
+default_item_level_review: required
+pools:
+  public_research:
+    requires: [approved_provenance, allow_redistribution, allow_derivatives]
+    notes: May include non-commercial-only media when the actual use and notice satisfy the licence.
+  public_commercial:
+    requires: [approved_provenance, allow_redistribution, allow_derivatives, allow_commercial]
+    excludes: [NC, ND, unknown_rights]
+  internal_research:
+    requires: [lawful_local_access]
+    notes: No public audio or derived-audio redistribution implied.
+  blocked:
+    triggers: [unknown_rights, contradictory_licence, provenance_suspect, ND_for_degraded_derivative]
+datasets:
+  iamd_archive:
+    display_name: IAMD / Internet Archive originals
+    official_urls:
+      - https://archive.org/
+      - https://huggingface.co/datasets/amaai-lab/SonicMasterDataset
+    default_pool: needs_permission
+    training_ml: plausible
+    redistribute_originals: unclear
+    redistribute_derivatives: unclear
+    commercial_use: unclear
+    format_expectation: WAV/FLAC/AIFF candidates only; IAMD catalogue is not proof of source format
+    diversity: multi-genre catalogue; must be measured after filtering
+    evidence: Archive metadata and per-item licence/provenance review required
+    notes: Exclude Blind-Real identifiers; do not treat Hugging Face MP3/re-encoded FLAC as clean lossless.
+  albumdb:
+    display_name: AlbumDB
+    official_urls:
+      - https://research.aalto.fi/en/datasets/albumdb-a-multitrack-dataset-of-a-ten-song-album-with-stereo-and-immersive-714-masters/
+      - https://zenodo.org/records/19683000
+    default_pool: public_research_candidate
+    training_ml: plausible
+    redistribute_originals: needs_item_review
+    redistribute_derivatives: needs_item_review
+    commercial_use: plausible_under_cc_by
+    format_expectation: 16-bit 44.1 kHz PCM WAV; raw, mixed-dry and mixed stems plus stereo and 7.1.4 masters
+    diversity: narrow indie rock/folk album; ten songs, useful production supplement rather than generalist pool
+    scale: 10 songs, 13-35 stems per song, stereo and immersive masters
+    evidence: Aalto research portal record states CC BY 4.0, PCM WAV format and DOI 10.5281/zenodo.19683000; verify member-level scope and attribution before release.
+    notes: Strong small technical candidate; record licence is a provenance signal, not asset-level approval. No audio downloaded in this audit.
+  musicnet:
+    display_name: MusicNet
+    official_urls:
+      - https://zenodo.org/records/5120004
+      - https://github.com/jthickstun/musicnet
+    default_pool: public_research_candidate
+    training_ml: plausible
+    redistribute_originals: needs_item_review
+    redistribute_derivatives: needs_item_review
+    commercial_use: needs_item_review
+    format_expectation: PCM WAV in the official archive
+    diversity: classical-dominant, limited genre breadth
+    scale: 330 recordings; official archive is 11.1 GB of PCM WAV plus metadata/MIDI
+    evidence: Zenodo record 5120004 metadata resolves to CC BY 4.0; verify archive members, per-recording attribution and scope before release.
+    notes: Candidate for a later classical supplement, not the generalist pool by itself.
+  urmp:
+    display_name: URMP
+    official_urls:
+      - https://labsites.rochester.edu/airlab/urmp/
+      - https://datadryad.org/
+    default_pool: needs_permission
+    training_ml: plausible
+    redistribute_originals: needs_item_review
+    redistribute_derivatives: needs_item_review
+    commercial_use: unclear
+    format_expectation: multitrack WAV plus MIDI/score material
+    diversity: chamber/classical, small corpus
+    evidence: Original host and deposit terms must be checked directly before use.
+    notes: Useful instrument diversity, not sufficient volume for the main pool.
+  guitarset:
+    display_name: GuitarSet
+    official_urls:
+      - https://zenodo.org/records/3371780
+      - https://guitarset.weebly.com/
+    default_pool: public_research_candidate
+    training_ml: plausible
+    redistribute_originals: needs_item_review
+    redistribute_derivatives: needs_item_review
+    commercial_use: unclear
+    format_expectation: high-quality multichannel guitar audio
+    diversity: acoustic guitar only
+    scale: Zenodo v1.1.0 lists 8.2 GB total files; audio archives include hex-pickup and microphone variants
+    evidence: Zenodo record 3371780 metadata resolves to CC BY 4.0; verify archive members, attribution and scope before release.
+    notes: Strong technical pilot candidate once exact audio/annotation terms are pinned.
+  guitar_techs:
+    display_name: Guitar-TECHS
+    official_urls:
+      - https://zenodo.org/records/14963133
+      - https://guitar-techs.github.io/
+    default_pool: public_research_candidate
+    training_ml: plausible
+    redistribute_originals: needs_item_review
+    redistribute_derivatives: needs_item_review
+    commercial_use: unclear
+    format_expectation: WAV multitrack/DI/microphone captures
+    diversity: electric guitar and capture conditions; not a generalist pool
+    scale: Zenodo v1 lists approximately 4.1 GB of files; three performers and multiple capture modes
+    evidence: Zenodo record 14963133 metadata resolves to CC BY 4.0; verify archive members, attribution and scope before release.
+    notes: Small instrument-specific supplement.
+  choralebricks:
+    display_name: ChoraleBricks
+    official_urls:
+      - https://www.audiolabs-erlangen.de/resources/MIR/2025-ChoraleBricks
+      - https://doi.org/10.5281/zenodo.15081740
+    default_pool: public_research_candidate
+    training_ml: yes
+    redistribute_originals: likely_yes
+    redistribute_derivatives: likely_yes
+    commercial_use: likely_yes_under_cc_by
+    format_expectation: multitrack recordings; verify archive files
+    diversity: wind/chorale; narrow but valuable acoustic capture supplement
+    scale: 10 chorales, four-part modular recordings, with listed works of roughly 16–59 seconds
+    evidence: Official website states CC BY 4.0 for the data.
+    notes: Still require exact attribution, checksum and record-level notice before publication.
+  musdb18_hq:
+    display_name: MUSDB18-HQ
+    official_urls:
+      - https://sigsep.github.io/datasets/musdb.html
+    default_pool: internal_research
+    training_ml: academic_only
+    redistribute_originals: no
+    redistribute_derivatives: no
+    commercial_use: no
+    format_expectation: WAV mixtures; source terms are mixed
+    diversity: broad music styles, useful local transfer evaluation
+    evidence: Official project page restricts use to academic purposes; underlying sources have mixed terms.
+    notes: Never include source or degraded audio in a public OpenRestore corpus.
+  medleydb:
+    display_name: MedleyDB
+    official_urls:
+      - https://zenodo.org/records/1649325
+      - https://medleydb.weebly.com/
+    default_pool: internal_research
+    training_ml: noncommercial_research
+    redistribute_originals: no_public_audio
+    redistribute_derivatives: no_public_audio
+    commercial_use: no
+    format_expectation: multitrack audio
+    diversity: broad multitrack music; access restricted
+    evidence: Zenodo terms state CC BY-NC-SA 4.0 and non-commercial research only.
+    notes: Request access only if needed; do not publish derivatives.
+  moisesdb:
+    display_name: MoisesDB
+    official_urls:
+      - https://zenodo.org/records/10265363
+    default_pool: internal_research
+    training_ml: noncommercial_research
+    redistribute_originals: no_public_audio
+    redistribute_derivatives: no_public_audio
+    commercial_use: no
+    format_expectation: multitrack audio
+    diversity: 240 tracks, multiple genres, over 14 hours
+    scale: 240 tracks and over 14 hours according to the dataset paper
+    evidence: Dataset paper states free of charge for non-commercial research only.
+    notes: Local-only supplement unless written permission changes the terms.
+  maestro:
+    display_name: MAESTRO v3
+    official_urls:
+      - https://magenta.withgoogle.com/datasets/maestro
+    default_pool: internal_research
+    training_ml: yes_noncommercial
+    redistribute_originals: noncommercial_only
+    redistribute_derivatives: noncommercial_only_sa
+    commercial_use: no
+    format_expectation: 44.1/48 kHz 16-bit PCM stereo WAV
+    diversity: approximately 200 hours, overwhelmingly classical piano
+    scale: 'v3.0.0 official statistics: 1,276 performances, 198.7 hours, 120.2 GB uncompressed'
+    evidence: Official page states CC BY-NC-SA 4.0 and provides v3 checksum.
+    notes: Excellent technical quality but cannot be in commercial-compatible pool and is not genre-generalist.
+  mtg_jamendo:
+    display_name: MTG-Jamendo
+    official_urls:
+      - https://mtg.github.io/mtg-jamendo-dataset/
+    default_pool: needs_permission
+    training_ml: plausible
+    redistribute_originals: item_dependent
+    redistribute_derivatives: item_dependent
+    commercial_use: item_dependent
+    format_expectation: source files vary; verify actual downloads
+    diversity: broad tag taxonomy
+    evidence: Track-level Creative Commons terms must be retained; dataset availability is not a blanket licence.
+    notes: Do not use as a shortcut for SonicMaster rights; audit source and historical terms separately.
+  fma:
+    display_name: Free Music Archive (FMA)
+    official_urls:
+      - https://github.com/mdeff/fma
+    default_pool: needs_permission
+    training_ml: plausible
+    redistribute_originals: item_dependent
+    redistribute_derivatives: item_dependent
+    commercial_use: item_dependent
+    format_expectation: MP3; not clean_lossless
+    diversity: 106574 tracks, 161 genres, artist-level CC terms
+    scale: 106,574 tracks and approximately 343 days of audio in the official catalogue
+    evidence: Official README says each MP3 is licensed by its artist; the repository does not turn this into one dataset-wide licence.
+    notes: Candidate for clean_lossy_hq only after per-track licence filtering, not for the lossless pool.
+  sdd:
+    display_name: Song Describer Dataset
+    official_urls:
+      - https://huggingface.co/datasets/amaai-lab/SongDescriber
+      - https://zenodo.org/records/10072001
+    default_pool: internal_research
+    training_ml: item_dependent
+    redistribute_originals: no_public_audio
+    redistribute_derivatives: item_dependent_but_blocked_for_nd
+    commercial_use: item_dependent
+    format_expectation: MP3 source; decoded WAV is not lossless
+    diversity: broad song collection; verify content quality
+    evidence: Existing per-track licence table contains NC/ND restrictions and is retained in build/sdd_track_licences.json.
+    notes: Never count decoded WAV transfers as clean_lossless.

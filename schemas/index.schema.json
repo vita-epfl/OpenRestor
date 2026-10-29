@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "OpenRestore index row",
+  "title": "OpenRestor index row",
   "type": "object",
   "required": ["id", "dataset", "split", "clean_path"],
   "properties": {

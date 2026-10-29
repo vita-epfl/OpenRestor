@@ -1,4 +1,4 @@
-"""Deterministic degradation generation for OpenRestore."""
+"""Deterministic degradation generation for OpenRestor."""
 
 from .pipeline import render_degradations, validate_config, write_hdf5_shards
 

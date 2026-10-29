@@ -1,0 +1,81 @@
+# Frozen corpus locations and historical dataset-level audit context.
+# IMPORTANT: `sources` below is NOT an authorization table. The publication builder
+# uses build/rights/media_registry.jsonl and per-source_id approval exclusively.
+#
+# The frozen release is immutable: its plan records a SHA-256 of its own config, and the
+# 648 shards carry hashes of their contents. Nothing here edits it. This policy instead
+# derives a publishable subset from it, so the internal record stays complete and
+# auditable while the published artifact carries only audio we are permitted to
+# redistribute.
+#
+# Both sides of a pair are governed by the same source licence. The clean side is not
+# untouched material: it is a 30-second excerpt with loudness normalisation applied
+# (loudnorm I=-18 LRA=11 TP=-1.0), so it is a derivative too, just a mild one. The
+# degraded side is a stronger derivative. A NoDerivatives term therefore bars both.
+
+policy_id: openrestor-paired-v0.1-publication
+derived_from: configs/releases/private_v0_1.yaml
+frozen_release_root: build/private-releases/openrestore-paired-v0.1
+
+# The same three sources feed Blind-Synthetic. Both indexes are filtered against the
+# same private per-media rights register, never by copying whole partitions.
+corpora:
+  diagnostic:
+    index: build/private-releases/openrestore-paired-v0.1/index.jsonl
+    partition_field: degraded_audio_shard
+  blind_synthetic:
+    index: build/blind-synthetic/manifest.jsonl
+    partition_field: null
+
+sources:
+  sonicmaster_clean:
+    licence: "collection labelled CC BY 2.0; underlying Jamendo track terms unverified"
+    evidence: >-
+      The Hugging Face dataset card labels SonicMaster CC BY 2.0, while the project page
+      says the recordings came from Jamendo under Creative Commons licences. Jamendo
+      licences vary by track. The 2026-10-16 API audit found 856 CC BY, 1,623 BY-SA,
+      13,638 NC and/or ND, 27 missing/other licence records, and 8,856 IDs not returned.
+      The collection label is not sufficient evidence for the underlying audio without
+      written clarification. See docs/reports/sonicmaster_jamendo_licence_audit_2026-10-16.md.
+    permits_derivatives: null
+    permits_commercial: null
+    share_alike: null
+    decision: withhold_pending_audit
+    rationale: >-
+      Do not publish on the basis of the API snapshot alone. Seek written AMAAI/Jamendo
+      clarification or independent, source-specific artist evidence for any future
+      subset; avoid new bulk API acquisition without agreement on API/offline terms.
+
+  sdd:
+    licence: "per track; dataset page claims CC BY-SA 4.0"
+    evidence: >-
+      Zenodo record 10072001, audio_licenses.txt, verified 2026-10-15. Matched all 705
+      tracks used here: 209 carry NoDerivatives, 301 carry NonCommercial without
+      NoDerivatives, and 195 carry neither. The dataset-level CC BY-SA 4.0 label and the
+      paper's "permissively licensed" wording do not describe the audio.
+    permits_derivatives: false   # for 209 of 705 tracks
+    permits_commercial: false    # for 510 of 705 tracks
+    decision: withhold
+    rationale: >-
+      A NoDerivatives track may not have a degraded version distributed at all, and a
+      NonCommercial track cannot sit in a release that permits commercial use. Only 195
+      of 705 tracks are unrestricted, split across CC BY and CC BY-SA, so retaining them
+      would add a share-alike component and require splitting shards, for a secondary
+      transfer set worth 2.7% of the corpus.
+
+  musdb18_hq:
+    licence: "none stated for the collection; academic use only"
+    evidence: >-
+      sigsep.github.io/datasets/musdb.html, verified 2026-10-15: "the tracks can only be
+      used for academic purposes". Per-track terms are mixed CC BY-NC-SA 4.0 and 3.0 from
+      MedleyDB, and the 100 DSD100-derived tracks refer rights questions to the Mixing
+      Secrets library.
+    permits_derivatives: false
+    permits_commercial: false
+    decision: withhold
+    rationale: >-
+      Academic-use-only does not permit publishing derived audio. Anyone holding
+      MUSDB18-HQ already may regenerate this part locally with the released degradation
+      tools.
+
+withheld_remain_usable_locally: true

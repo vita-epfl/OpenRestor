@@ -15,7 +15,6 @@ import numpy as np
 import soundfile as sf
 
 from openrestor.degradations.core import load_yaml, sha256_file, write_jsonl
-
 from .core import category_for_row, effect_name
 from .pipeline import _audio, _resolve, restoration_metadata, validate_restored_manifest
 
@@ -62,8 +61,7 @@ def _verify_cache(cache: Path) -> dict[str, Any]:
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     if manifest.get("cache_sha256") != _sha256_tree(cache):
         raise RuntimeError(
-            "Perceptual model cache does not match its verified setup manifest; "
-            "run setup-perceptual again"
+            "Perceptual model cache does not match its verified setup manifest; run setup-perceptual again"
         )
     return manifest
 
@@ -73,7 +71,7 @@ def _require_gpu(device: str) -> Any:
         import torch
     except ImportError as error:
         raise RuntimeError(
-            "Install OpenRestore perceptual dependencies: pip install '.[perceptual]'"
+            "Install OpenRestor perceptual dependencies: pip install '.[perceptual]'"
         ) from error
     if not device.startswith("cuda") or not torch.cuda.is_available():
         raise RuntimeError("Perceptual scoring is GPU-only and requires an available CUDA device")
@@ -111,7 +109,7 @@ class LearnedBackends:
             from laion_clap import CLAP_Module
         except ImportError as error:
             raise RuntimeError(
-                "Install OpenRestore perceptual dependencies: pip install '.[perceptual]'"
+                "Install OpenRestor perceptual dependencies: pip install '.[perceptual]'"
             ) from error
         self._calc_embd_statistics = calc_embd_statistics
         self._calc_frechet_distance = calc_frechet_distance
@@ -216,7 +214,7 @@ def _cached_embedding(
     sample_rate: int,
 ) -> np.ndarray:
     key = hashlib.sha256(
-        f"{sha256_file(audio_path)}:{backend.identifier}:{backend_name}:v0_1".encode()
+        f"{sha256_file(audio_path)}:{backend.identifier}:{backend_name}:v0_1".encode("utf-8")
     ).hexdigest()
     path = _embedding_cache_path(cache_dir, backend_name, key)
     if path.is_file():
@@ -237,7 +235,7 @@ def _cached_aesthetics(
     sample_rate: int,
 ) -> dict[str, float]:
     key = hashlib.sha256(
-        f"{sha256_file(audio_path)}:{backend.identifier}:aesthetics:v0_1".encode()
+        f"{sha256_file(audio_path)}:{backend.identifier}:aesthetics:v0_1".encode("utf-8")
     ).hexdigest()
     path = _embedding_cache_path(cache_dir, "aesthetics", key)
     if path.is_file():
@@ -308,12 +306,11 @@ def _summaries(rows: list[dict[str, Any]], backend: PerceptualBackend) -> dict[s
 def _write_markdown(report: dict[str, Any], path: Path) -> None:
     overall = report["overall"]
     lines = [
-        "# OpenRestore Perceptual Metric Report",
+        "# OpenRestor Perceptual Metric Report",
         "",
         "This report is diagnostic only. It defines no leaderboard aggregate or rank.",
         "",
-        "Higher is better for CLAP cosine and Audiobox CE/CU/PC/PQ. Lower is better for FADTK. "
-        "Improvements are oriented so positive means better than degraded audio.",
+        "Higher is better for CLAP cosine and Audiobox CE/CU/PC/PQ. Lower is better for FADTK. Improvements are oriented so positive means better than degraded audio.",
         "",
         f"Scored items: {report['items']['scored']}",
         "",
@@ -334,8 +331,7 @@ def _write_markdown(report: dict[str, Any], path: Path) -> None:
         if name in overall:
             metric = overall[name]
             lines.append(
-                f"| {name} | {metric['degraded']:.6f} | {metric['restored']:.6f} | "
-                f"{metric['improvement']:.6f} |"
+                f"| {name} | {metric['degraded']:.6f} | {metric['restored']:.6f} | {metric['improvement']:.6f} |"
             )
     lines.extend(
         [
@@ -463,8 +459,7 @@ def perceptual_score(
     )
     if failures:
         raise ValueError(
-            f"Perceptual scoring rejected {len(failures)} failures; see "
-            f"{output_dir / 'perceptual_failures.json'}"
+            f"Perceptual scoring rejected {len(failures)} failures; see {output_dir / 'perceptual_failures.json'}"
         )
     report = {
         "benchmark_version": config["benchmark_version"],

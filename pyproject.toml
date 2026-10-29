@@ -5,18 +5,23 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "openrestor"
 version = "0.1.0"
-description = "Reproducible dataset preparation for the OpenRestore benchmark"
+description = "Reproducible dataset preparation for the OpenRestor benchmark"
 requires-python = ">=3.11"
 dependencies = ["PyYAML>=6.0", "numpy>=1.24", "scipy>=1.10", "soundfile>=0.12", "librosa>=0.10", "pyloudnorm>=0.1", "pyroomacoustics>=0.7,<0.10", "jsonschema>=4.0", "matplotlib>=3.7", "h5py>=3.10"]
 
 [project.optional-dependencies]
+# Blind-Real discovery reads only metadata columns from remote IAMD parquet shards.
+catalogue = ["pyarrow>=15", "fsspec>=2024.2", "aiohttp>=3.9"]
 perceptual = ["torch>=2.9,<2.10", "torchaudio>=2.9,<2.10", "laion-clap==1.1.7", "fadtk", "audiobox-aesthetics==0.0.4"]
+# Local/offline AST + CLAP + Audiobox probes and the optional logistic diagnostic.
+curation = ["torch>=2.5,<3", "torchaudio>=2.5,<3", "transformers==4.46.3", "audiobox-aesthetics==0.0.4", "scikit-learn>=1.3,<2"]
 
 [project.scripts]
 openrestor-data = "openrestor.data.cli:main"
 openrestor-degrade = "openrestor.degradations.cli:main"
 openrestor-score = "openrestor.metrics.cli:main"
 openrestor-validate = "openrestor.validation.cli:main"
+openrestor-curate = "openrestor.curation.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["openrestor*"]
@@ -24,47 +29,3 @@ include = ["openrestor*"]
 [tool.ruff]
 line-length = 100
 target-version = "py311"
-
-[tool.ruff.lint]
-select = ["E", "F", "I", "B", "UP", "W"]
-
-[tool.mypy]
-python_version = "3.11"
-ignore_missing_imports = true
-check_untyped_defs = true
-exclude = ["tests/"]
-
-[[tool.mypy.overrides]]
-module = "openrestor.metrics.perceptual"
-# self.fadtk is both an instance attribute (FrechetAudioDistance) and a method name;
-# the collision is intentional (ARIEL workaround), so these two codes are suppressed here.
-disable_error_code = ["method-assign", "attr-defined"]
-
-[[tool.mypy.overrides]]
-module = "openrestor.degradations.ariel_effects"
-# `threshold`, `reduction`, and `absorption` are assigned under mutually exclusive
-# effect branches with different types; on a real run each branch uses only its own type.
-disable_error_code = ["assignment"]
-
-[dependency-groups]
-dev = [
-    "codespell>=2.4.3",
-    "commitizen>=4.18.0",
-    "lefthook>=2.1.12",
-    "mypy>=2.3.1",
-    "pytest>=9.1.1",
-    "pytest-cov>=7.1.0",
-    "ruff>=0.16.6",
-]
-doc = [
-    "zensical>=0.0.66",
-    "mkdocstrings[python]",
-]
-
-[tool.commitizen]
-name = "cz_conventional_commits"
-version = "0.1.0"
-tag_format = "v$version"
-
-[tool.codespell]
-skip = "./uv.lock,./site,./tests,./scripts,./code-docs"

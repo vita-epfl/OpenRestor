@@ -200,6 +200,12 @@ def create_partition_plan(
                     "clean_manifest_sha256": _sha256_json(chunk),
                 }
             )
+    # The "openrestore.*.v0.1" format identifiers below keep the project's former
+    # spelling on purpose. They are not branding: they are written into the 648 HDF5
+    # shards of the frozen v0.1 corpus and into every receipt, and the shard check
+    # compares against them literally. Renaming them would make 2.3 TB of already
+    # rendered audio fail validation. A future format revision can correct the
+    # spelling along with its version.
     frozen_inputs = {
         "git_revision": _git_revision(),
         "clean_manifest_sha256": sha256_file(clean_manifest),
@@ -213,7 +219,7 @@ def create_partition_plan(
         "recipe_ids": [item["id"] for item in recipe["recipes"]],
     }
     plan = {
-        "format": "openrestor.release-plan.v0.1",
+        "format": "openrestore.release-plan.v0.1",
         "release_id": config["release_id"],
         "frozen_inputs": frozen_inputs,
         "partitions": partitions,
@@ -233,7 +239,7 @@ def _validate_shard(shard_path: Path, expected_outputs: int) -> None:
     if not shard_path.is_file():
         raise ValueError(f"Missing degraded HDF5 shard: {shard_path}")
     with h5py.File(shard_path, "r") as shard:
-        if shard.attrs.get("format") != "openrestor.degraded.v0.1":
+        if shard.attrs.get("format") != "openrestore.degraded.v0.1":
             raise ValueError(f"Invalid degraded HDF5 format: {shard_path}")
         if (
             int(shard.attrs.get("sample_rate", 0)) != 44_100
@@ -356,7 +362,7 @@ def _render_partition(
     shutil.copy2(checksums, retained_checksums)
     shard_relative = shard_path.relative_to(release_root).as_posix()
     receipt = {
-        "format": "openrestor.partition-receipt.v0.1",
+        "format": "openrestore.partition-receipt.v0.1",
         "status": "complete",
         "partition_id": partition_id,
         "plan_sha256": _sha256_json(plan),
@@ -410,7 +416,7 @@ def render_partition(
             _write_json_atomic(
                 release_root / "receipts" / f"{partition_id}.json",
                 {
-                    "format": "openrestor.partition-receipt.v0.1",
+                    "format": "openrestore.partition-receipt.v0.1",
                     "status": "failed",
                     "partition_id": partition["id"],
                     "plan_sha256": _sha256_json(plan),
@@ -465,7 +471,7 @@ def merge_release(
         raise ValueError(f"Expected {expected_outputs} release rows, got {len(rows)}")
     write_jsonl(output_index, rows)
     receipt = {
-        "format": "openrestor.release-receipt.v0.1",
+        "format": "openrestore.release-receipt.v0.1",
         "status": "complete",
         "release_id": plan["release_id"],
         "plan_sha256": _sha256_json(plan),

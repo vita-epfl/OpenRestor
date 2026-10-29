@@ -10,14 +10,14 @@ Phase 1 owns the clean side of the benchmark. Its output is the reference materi
 
 ## Dataset Allocation
 
-This is the Phase 1 implementation of the dataset strategy defined in `OpenRestore.md`. Every benchmark item is a clean 30-second music clip and an OpenRestore-generated degraded counterpart; naturally degraded SonicMaster pairs are not reused.
+This is the Phase 1 implementation of the dataset strategy defined in `OpenRestor.md`. Every benchmark item is a clean 30-second music clip and an OpenRestor-generated degraded counterpart; naturally degraded SonicMaster pairs are not reused.
 
-| Dataset | OpenRestore use | Explicit exclusions |
+| Dataset | OpenRestor use | Explicit exclusions |
 | --- | --- | --- |
-| SonicMaster clean originals | The only default main-track training source. Source-separated held-out items also supply in-distribution validation and the public test split. | Do not use SonicMaster degraded pairs as benchmark or leaderboard data. |
-| Song Describer Dataset (SDD) | Separately reported public transfer/local evaluation, for transfer to curated captioned music. | Never use for main-track training or the in-distribution public test. |
-| MUSDB18-HQ mixture audio | Separately reported public transfer/local evaluation, as a real mixed-music robustness check. | Never use for main-track training, the in-distribution public test, or stems. |
-| Secret custom music dataset | Organizer-only hidden official evaluation. | Never release publicly or expose to participants. |
+| SonicMaster clean originals | Historical default main-track source in the frozen benchmark contract; its audio is currently withheld from redistribution pending track-level rights clarification. Source-separated held-out items remain the contract's validation/public-test roles when lawfully available to the organizer. | Do not use SonicMaster degraded pairs as benchmark or leaderboard data. Do not treat the local mirror as a public Clean v0.1 release. |
+| Song Describer Dataset (SDD) | Separately reported local-only transfer evaluation, for transfer to curated captioned music. | Never redistribute or use for main-track training or the in-distribution public test. |
+| MUSDB18-HQ mixture audio | Separately reported local-only academic transfer evaluation, as a real mixed-music robustness check. | Never redistribute or use for main-track training, the in-distribution public test, or stems. |
+| Rights-cleared private concert masters | Organizer-only hidden official evaluation; Montreux Jazz Festival archives are a candidate pending written permission and contamination review. | Never release publicly or expose to participants. |
 | BBC Sound Effects, Freesound, FSD50K, MUSAN | Optional source material for Phase 2 organic degradation layers. | Never use as clean benchmark music. |
 
 Any other training data belongs to the external-data track unless the benchmark contract is explicitly revised. FMA is not a Phase 1 benchmark source.
@@ -49,21 +49,21 @@ The current on-disk contract is WAV plus JSONL. A clean manifest row is the join
 
 ## Primary Commands
 
-Run the following sequence for an auditable local build. The commands use the current `openrestor-data` interface; replace `build/` paths with the release workspace used by IT.
+Run the following sequence for an auditable canonical build. The commands use the current
+`openrestor-data` interface; replace `build/` paths with the release workspace used by IT.
+Add `--source-root` to `audit` and `ingest` when SonicMaster is mounted somewhere other than
+the path recorded in the config. SDD and MUSDB18-HQ are deliberately absent from this build.
 
 ```bash
 # 1. Inspect candidate source trees and write auditable source summaries.
 openrestor-data audit --config configs/datasets/sonicmaster_clean.yaml --output build/audits/sonicmaster_clean.json
-openrestor-data audit --config configs/datasets/sdd_transfer.yaml --output build/audits/sdd.json
-openrestor-data audit --config configs/datasets/musdb18_hq_transfer.yaml --output build/audits/musdb18_hq.json
 
 # 2. Index approved source files with media metadata and source checksums.
 openrestor-data ingest --config configs/datasets/sonicmaster_clean.yaml --output build/indexes/sonicmaster.jsonl
-openrestor-data ingest --config configs/datasets/sdd_transfer.yaml --output build/indexes/sdd.jsonl
-openrestor-data ingest --config configs/datasets/musdb18_hq_transfer.yaml --output build/indexes/musdb18_hq.jsonl
 
-# 3. Deterministically split SonicMaster and combine the fixed public transfer-evaluation sources.
-openrestor-data split --indexes build/indexes/sonicmaster.jsonl build/indexes/sdd.jsonl build/indexes/musdb18_hq.jsonl --output build/sources.jsonl
+# 3. Apply the authoritative frozen SonicMaster split.
+#    Omitting --sonicmaster-split-manifest falls back to the legacy seeded-hash split.
+openrestor-data split --indexes build/indexes/sonicmaster.jsonl --output build/sources.jsonl --sonicmaster-split-manifest configs/datasets/sonicmaster_original_split.jsonl
 
 # 4. Render canonical clean clips and write their manifest and checksums.
 openrestor-data segment --sources build/sources.jsonl --output-root build/clean --manifest build/index.jsonl --checksums build/checksums.jsonl
@@ -79,11 +79,18 @@ openrestor-data stats --manifest build/index.jsonl --output build/statistics.jso
 
 - `audit` discovers supported audio files below a configured source root and records a bounded media-quality sample. It is the first check that the expected local dataset is present and plausible.
 - `ingest` writes one JSONL source row per eligible file, including source path, source ID, duration, sample rate, channel count, split role, and SHA-256. It does not render or modify audio.
-- `split` applies the authoritative frozen original SonicMaster manifest to SonicMaster, with ARIEL and seeded-hash modes retained only for legacy reproduction, then combines it with SDD and MUSDB18-HQ, which remain fixed `transfer` sources by policy. It rejects split leakage.
+- `audit` and `ingest` accept `--source-root` to override the config's `source_root` when the same dataset is mounted at a different path on a given machine. The committed configs stay unchanged.
+- `split` applies the authoritative frozen original SonicMaster manifest, with ARIEL and
+  seeded-hash modes retained only for legacy reproduction. It rejects split leakage.
 - `segment` selects deterministic 30-second windows, invokes FFmpeg to produce 44.1 kHz stereo PCM WAV, applies the configured loudness normalization, rejects invalid or silent clips, and writes the clean manifest plus checksums.
 - `shard` packages the rendered WAVs and manifest records into fixed-size TAR archives for transfer or hosted storage. The canonical WAV/JSONL contract remains unchanged.
 - `verify` recomputes each rendered WAV checksum and fails on missing or altered files.
 - `source-stats` and `stats` summarize, respectively, the source index and finished clean manifest for release auditing.
+
+Users who independently and lawfully hold SDD or MUSDB18-HQ may build isolated local
+diagnostic packs with `scripts/build_optional_local_transfer_pack.sh`; see
+`docs/optional_local_data.md`. Those packs must not be combined with the canonical corpus,
+published, or used for the official leaderboard score.
 
 ## Verification In Place
 

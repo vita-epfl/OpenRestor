@@ -3,7 +3,13 @@ version: organizer-private
 source_root: /secure/path/to/private/music
 role: hidden-evaluation-only
 fixed_split: hidden
-license: record internally before use
+license: written permission or contract required before ingestion
 redistribution: never public
-quality_notes: Keep source paths, manifests, clips, and checksums in organizer-controlled storage.
+rights_record: /secure/path/to/rights-register.jsonl
+rights_status: approval-required
+source_visibility: organizer-only
+participant_access: server-side container execution only
+network_access: disabled
+result_disclosure: aggregate metrics only
+quality_notes: Keep source identities, paths, manifests, clips, degradation metadata, outputs and checksums in organizer-controlled storage. Access to files is not evidence of evaluation rights.
 min_source_seconds: 30

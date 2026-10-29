@@ -1,9 +1,9 @@
 dataset: sdd
 version: local-audio-release
-source_root: /mnt/ssd2/datasets/OpenRestoreDataset/SDD/audio
-role: public-transfer-evaluation
+source_root: /mnt/ssd2/datasets/OpenRestorDataset/SDD/audio
+role: optional-local-transfer-evaluation
 fixed_split: transfer
-license: verify against the SDD release before redistribution
-redistribution: do not redistribute source audio until license review is complete
-quality_notes: MP3 source material; decode and render only canonical transfer-evaluation clips. Never include in main-track training or the in-distribution public test.
+license: per-track terms; includes NonCommercial and NoDerivatives material
+redistribution: local processing only; never include source or derived audio in an OpenRestor release
+quality_notes: MP3 source material. Optional local diagnostic for lawful source holders; never include in canonical training, public artifacts, the main score, or the in-distribution public test.
 min_source_seconds: 30

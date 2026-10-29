@@ -1,4 +1,4 @@
-"""Command-line interface for OpenRestore degradation rendering."""
+"""Command-line interface for OpenRestor degradation rendering."""
 
 from __future__ import annotations
 
@@ -8,13 +8,8 @@ from pathlib import Path
 
 from .core import load_yaml
 from .pipeline import list_recipes, render_degradations, validate_config, write_hdf5_shards
-from .release import (
-    create_partition_plan,
-    merge_release,
-    render_partition,
-    validate_clean_release,
-    validate_release,
-)
+from .blind import chain_statistics, render_blind_synthetic, withhold_degradation_metadata
+from .release import create_partition_plan, merge_release, render_partition, validate_clean_release, validate_release
 
 
 def _path(value: str) -> Path:
@@ -33,6 +28,27 @@ def build_parser() -> argparse.ArgumentParser:
     render.add_argument("--checksums", type=_path, required=True)
     render.add_argument("--seed", type=int, default=20260714)
     render.add_argument("--quiet", action="store_true")
+    blind = commands.add_parser("render-blind-synthetic")
+    blind.add_argument("--manifest", type=_path, required=True)
+    blind.add_argument("--clean-root", type=_path, required=True)
+    blind.add_argument("--output-root", type=_path, required=True)
+    blind.add_argument("--config", type=_path, required=True)
+    blind.add_argument("--output-manifest", type=_path, required=True)
+    blind.add_argument("--checksums", type=_path, required=True)
+    blind.add_argument("--seed", type=int, default=20260714)
+    blind.add_argument("--slice-index", type=int, default=0, help="Render only this slice of the manifest")
+    blind.add_argument("--slice-count", type=int, default=1, help="Total number of slices the manifest is split into")
+    blind.add_argument("--quiet", action="store_true")
+
+    withhold = commands.add_parser("withhold-blind-metadata")
+    withhold.add_argument("--manifest", type=_path, required=True, help="Full blind-synthetic manifest")
+    withhold.add_argument("--output", type=_path, required=True, help="Participant-facing manifest with the chain removed")
+    withhold.add_argument("--withhold-clean", action="store_true", help="Also drop the clean reference, for an inference-time manifest")
+
+    blind_stats = commands.add_parser("blind-stats")
+    blind_stats.add_argument("--manifest", type=_path, required=True)
+    blind_stats.add_argument("--output", type=_path)
+
     shard = commands.add_parser("shard")
     shard.add_argument("--output-root", type=_path, required=True)
     shard.add_argument("--manifest", type=_path, required=True)
@@ -80,7 +96,26 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> None:
     args = build_parser().parse_args()
-    if args.command == "render":
+    if args.command == "render-blind-synthetic":
+        render_blind_synthetic(
+            args.manifest, args.clean_root, args.output_root, args.config,
+            args.output_manifest, args.checksums, args.seed,
+            args.slice_index, args.slice_count, progress=not args.quiet,
+        )
+    elif args.command == "withhold-blind-metadata":
+        from .core import read_jsonl, write_jsonl
+        rows = withhold_degradation_metadata(read_jsonl(args.manifest), args.withhold_clean)
+        write_jsonl(args.output, rows)
+        print(f"wrote {len(rows)} rows without degradation metadata to {args.output}")
+    elif args.command == "blind-stats":
+        from .core import read_jsonl
+        stats = chain_statistics(read_jsonl(args.manifest))
+        text = json.dumps(stats, indent=2, sort_keys=True)
+        if args.output:
+            args.output.parent.mkdir(parents=True, exist_ok=True)
+            args.output.write_text(text + "\n", encoding="utf-8")
+        print(text)
+    elif args.command == "render":
         render_degradations(
             args.manifest,
             args.clean_root,
@@ -93,67 +128,22 @@ def main() -> None:
         )
     elif args.command == "shard":
         write_hdf5_shards(
-            args.output_root,
-            args.manifest,
-            args.shards_dir,
-            args.output_index,
-            args.shard_size,
-            progress=not args.quiet,
+            args.output_root, args.manifest, args.shards_dir, args.output_index, args.shard_size, progress=not args.quiet
         )
     elif args.command == "validate-config":
         validate_config(load_yaml(args.config))
     elif args.command == "list-recipes":
         print(json.dumps(list_recipes(load_yaml(args.config)), indent=2, sort_keys=True))
     elif args.command == "validate-clean-release":
-        print(
-            json.dumps(
-                validate_clean_release(args.clean_manifest, args.clean_root, args.release_config),
-                indent=2,
-                sort_keys=True,
-            )
-        )
+        print(json.dumps(validate_clean_release(args.clean_manifest, args.clean_root, args.release_config), indent=2, sort_keys=True))
     elif args.command == "plan-release":
-        print(
-            json.dumps(
-                create_partition_plan(
-                    args.clean_manifest, args.release_config, args.output, args.clean_root
-                ),
-                indent=2,
-                sort_keys=True,
-            )
-        )
+        print(json.dumps(create_partition_plan(args.clean_manifest, args.release_config, args.output, args.clean_root), indent=2, sort_keys=True))
     elif args.command == "render-partition":
-        print(
-            json.dumps(
-                render_partition(
-                    args.plan,
-                    args.partition_id,
-                    args.clean_manifest,
-                    args.clean_root,
-                    args.release_config,
-                    args.work_root,
-                    args.release_root,
-                ),
-                indent=2,
-                sort_keys=True,
-            )
-        )
+        print(json.dumps(render_partition(args.plan, args.partition_id, args.clean_manifest, args.clean_root, args.release_config, args.work_root, args.release_root), indent=2, sort_keys=True))
     elif args.command == "merge-release":
-        print(
-            json.dumps(
-                merge_release(args.plan, args.release_root, args.output_index, args.receipt),
-                indent=2,
-                sort_keys=True,
-            )
-        )
+        print(json.dumps(merge_release(args.plan, args.release_root, args.output_index, args.receipt), indent=2, sort_keys=True))
     elif args.command == "validate-release":
-        print(
-            json.dumps(
-                validate_release(args.plan, args.release_root, args.receipt),
-                indent=2,
-                sort_keys=True,
-            )
-        )
+        print(json.dumps(validate_release(args.plan, args.release_root, args.receipt), indent=2, sort_keys=True))
 
 
 if __name__ == "__main__":

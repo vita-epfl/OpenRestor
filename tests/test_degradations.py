@@ -41,12 +41,12 @@ def _band_energy(audio: np.ndarray, low: float, high: float) -> float:
 
 
 class DegradationPrimitiveTests(TestCase):
-    def test_canonical_registry_has_exactly_24_ids(self) -> None:
+    def test_canonical_registry_has_exactly_21_ids(self) -> None:
         config = load_yaml(Path("configs/degradations/single/v0_1.yaml"))
         validate_config(config)
         self.assertEqual(tuple(recipe["id"] for recipe in config["recipes"]), CANONICAL_DEGRADATION_IDS)
         self.assertNotIn("volume", CANONICAL_DEGRADATION_IDS)
-        self.assertEqual(len(CANONICAL_DEGRADATION_IDS), 24)
+        self.assertEqual(len(CANONICAL_DEGRADATION_IDS), 21)
 
     def test_new_canonical_effects_are_audible_and_deterministic(self) -> None:
         audio = _fixture_audio(0.25)
@@ -81,6 +81,7 @@ class DegradationPrimitiveTests(TestCase):
             ("noise_interference", "broadband", {"snr_db": {"min": 18, "max": 24}}),
             ("noise_interference", "clicks_crackle", {"click_rate_hz": {"min": 1, "max": 3}, "crackle_rate_hz": {"min": 8, "max": 20}, "click_level_db": -8, "crackle_level_db": -26}),
             ("device_mic_response", "consumer_mic", {"high_hz": 6_000, "self_noise_snr_db": 28}),
+            ("device_mic_response", "smartphone_capture", {"highpass_hz": {"min": 90, "max": 250}, "resonance_hz": {"min": 2_500, "max": 5_000}, "lowpass_hz": {"min": 7_000, "max": 14_000}}),
             ("codec_resampling", "resampling", {"intermediate_sample_rate": {"min": 12_000, "max": 18_000}}),
         ]
         for primitive, variant, params in recipes:
@@ -141,6 +142,31 @@ class DegradationPrimitiveTests(TestCase):
         self.assertEqual(distant.shape, audio.shape)
         self.assertGreaterEqual(distant_params["room_noise_snr_db"], 100)
 
+        # A handset loses its low end, which is precisely what a distant capture keeps.
+        phone, phone_params = apply_operation(audio, SAMPLE_RATE, "device_mic_response", "smartphone_capture", {"highpass_hz": 200, "lowpass_hz": 9_000}, np.random.default_rng(3))
+        self.assertEqual(phone.shape, audio.shape)
+        self.assertEqual(phone_params["variant"], "smartphone_capture")
+
+        # The shared fixture carries almost nothing below 150 Hz, so this needs its own
+        # signal: a 60 Hz tone under a 3 kHz one.
+        samples = np.arange(int(SAMPLE_RATE * 0.5), dtype=np.float32) / SAMPLE_RATE
+        tone = 0.3 * np.sin(2 * math.pi * 60 * samples) + 0.1 * np.sin(2 * math.pi * 3_000 * samples)
+        bass_fixture = np.column_stack([tone, tone]).astype(np.float32)
+
+        def _low_band_energy(signal_array: np.ndarray) -> float:
+            spectrum = np.abs(np.fft.rfft(signal_array.mean(axis=1)))
+            frequencies = np.fft.rfftfreq(len(signal_array), 1 / SAMPLE_RATE)
+            low = spectrum[(frequencies >= 40) & (frequencies < 150)].sum()
+            return float(low / (spectrum.sum() + 1e-12))
+
+        phone_bass, _ = apply_operation(bass_fixture, SAMPLE_RATE, "device_mic_response", "smartphone_capture", {"highpass_hz": 200, "lowpass_hz": 9_000}, np.random.default_rng(3))
+        distant_bass, _ = apply_operation(bass_fixture, SAMPLE_RATE, "distant_mic_capture", "room_capture", {"distance_m": 1.5, "absorption": 0.45, "air_absorption_cutoff_hz": 12_000}, np.random.default_rng(2))
+        self.assertLess(_low_band_energy(phone_bass), _low_band_energy(bass_fixture) * 0.5)
+        self.assertGreater(_low_band_energy(distant_bass), _low_band_energy(phone_bass))
+
+        with self.assertRaises(ValueError):
+            apply_operation(audio, SAMPLE_RATE, "device_mic_response", "smartphone_capture", {"highpass_hz": 9_000, "lowpass_hz": 500}, np.random.default_rng(4))
+
     def test_ariel_effect_registry_is_deterministic_and_tracks_effects(self) -> None:
         audio = _fixture_audio(0.25)
         effects = (
@@ -174,8 +200,6 @@ class DegradationPrimitiveTests(TestCase):
 
     def test_asset_and_external_tool_failures_are_actionable(self) -> None:
         audio = _fixture_audio(0.1)
-        with self.assertRaisesRegex(FileNotFoundError, "mic_ir_dir"):
-            apply_operation(audio, SAMPLE_RATE, "ariel", "mic", {}, np.random.default_rng(1))
         with self.assertRaisesRegex(FileNotFoundError, "real_rir_dir"):
             apply_operation(audio, SAMPLE_RATE, "ariel", "real", {}, np.random.default_rng(1))
         with TemporaryDirectory() as directory:
@@ -370,3 +394,153 @@ recipes:
             index_rows = read_jsonl(release_root / "index.jsonl")
             self.assertEqual(index_rows[0]["degraded_audio_shard"], "shards/degraded-00000.h5")
             self.assertTrue((release_root / index_rows[0]["degraded_audio_shard"]).is_file())
+
+
+class BlindSyntheticTests(TestCase):
+    CONFIG = Path("configs/degradations/blind_synthetic/v0_1.yaml")
+
+    def test_chains_are_deterministic_compatible_and_sometimes_empty(self) -> None:
+        from openrestor.degradations.blind import load_blind_config, sample_chain
+
+        config, recipes = load_blind_config(self.CONFIG)
+        self.assertEqual(len(recipes), 21)
+
+        chains = [sample_chain(f"item-{i:05d}", 20260714, config, recipes) for i in range(1500)]
+
+        # Deterministic for a fixed seed, and responsive to a changed one.
+        self.assertEqual(sample_chain("item-00000", 20260714, config, recipes), chains[0])
+        self.assertNotEqual(sample_chain("item-00000", 7, config, recipes), chains[0])
+
+        # The count stays inside the configured range and genuinely varies.
+        lengths = {len(c) for c in chains}
+        self.assertTrue(lengths <= {0, 1, 2, 3}, lengths)
+        self.assertGreater(len(lengths), 2, "the chain length should not be near-constant")
+        self.assertIn(0, lengths, "some items must stay clean, to measure over-restoration")
+
+        # No class repeats inside one chain.
+        for chain in chains:
+            self.assertEqual(len(set(chain)), len(chain), chain)
+
+        # The compatibility matrix actually holds.
+        for members in (config.get("exclusive_groups") or {}).values():
+            for chain in chains:
+                self.assertLessEqual(sum(1 for c in chain if c in members), 1, chain)
+        for first, second in config.get("incompatible_pairs") or []:
+            for chain in chains:
+                self.assertFalse(first in chain and second in chain, chain)
+
+    @skipUnless(shutil.which("ffmpeg") is not None, "ffmpeg is required for blind codec recipes")
+    def test_render_records_the_ordered_chain_and_metadata_can_be_withheld(self) -> None:
+        from openrestor.degradations.blind import (
+            CLEAN_REFERENCE_FIELDS,
+            REVEALING_FIELDS,
+            render_blind_synthetic,
+            withhold_degradation_metadata,
+        )
+
+        audio = _fixture_audio(1.0)
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            clean_root = root / "clean"
+            rows = []
+            for index in range(6):
+                item = f"sonicmaster_clean--src{index}--00"
+                relative = Path("train") / "sonicmaster_clean" / f"{item}.wav"
+                _write_audio(clean_root / relative, audio)
+                rows.append({
+                    "id": item, "dataset": "sonicmaster_clean", "split": "train",
+                    "source_id": f"src{index}", "clean_path": relative.as_posix(),
+                    "duration_seconds": 1.0, "sample_rate": SAMPLE_RATE, "channels": 2,
+                    "audio_sha256": "0" * 64, "quality": {"rms": 0.1},
+                })
+            manifest = root / "clean.jsonl"
+            write_jsonl(manifest, rows)
+
+            out = render_blind_synthetic(
+                manifest, clean_root, root / "degraded", self.CONFIG,
+                root / "blind.jsonl", root / "blind_ck.jsonl", 20260714,
+            )
+            self.assertEqual(len(out), len(rows))
+            for row in out:
+                self.assertEqual(row["degradation_count"], len(row["degradation_chain"]))
+                # One recorded operation per link in the chain, in the same order.
+                self.assertEqual(len(row["degradation_params"]), len(row["degradation_chain"]))
+                self.assertEqual(row["degradation_tracking"]["chain"], row["degradation_chain"])
+                self.assertTrue((root / "degraded" / row["degraded_path"]).is_file())
+
+            withheld = withhold_degradation_metadata(out)
+            for row in withheld:
+                for field in REVEALING_FIELDS:
+                    self.assertNotIn(field, row)
+                self.assertIn("clean_path", row)  # clean targets stay published
+
+            inference = withhold_degradation_metadata(out, withhold_clean=True)
+            for row in inference:
+                for field in tuple(REVEALING_FIELDS) + tuple(CLEAN_REFERENCE_FIELDS):
+                    self.assertNotIn(field, row)
+                self.assertIn("degraded_path", row)
+
+    @skipUnless(shutil.which("ffmpeg") is not None, "ffmpeg is required for blind codec recipes")
+    def test_slicing_does_not_change_any_output(self) -> None:
+        """A sliced render must be identical to a whole one: nothing depends on position."""
+        from openrestor.degradations.blind import render_blind_synthetic
+
+        audio = _fixture_audio(1.0)
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            clean_root = root / "clean"
+            rows = []
+            for index in range(11):
+                item = f"sonicmaster_clean--src{index}--00"
+                relative = Path("train") / "sonicmaster_clean" / f"{item}.wav"
+                _write_audio(clean_root / relative, audio)
+                rows.append({
+                    "id": item, "dataset": "sonicmaster_clean", "split": "train",
+                    "source_id": f"src{index}", "clean_path": relative.as_posix(),
+                    "duration_seconds": 1.0, "sample_rate": SAMPLE_RATE, "channels": 2,
+                })
+            manifest = root / "clean.jsonl"
+            write_jsonl(manifest, rows)
+
+            whole = render_blind_synthetic(
+                manifest, clean_root, root / "whole", self.CONFIG,
+                root / "whole.jsonl", root / "whole_ck.jsonl", 20260714,
+            )
+            sliced: list = []
+            for index in range(4):
+                sliced += render_blind_synthetic(
+                    manifest, clean_root, root / "sliced", self.CONFIG,
+                    root / f"s{index}.jsonl", root / f"s{index}_ck.jsonl", 20260714,
+                    slice_index=index, slice_count=4,
+                )
+            self.assertEqual(len(sliced), len(whole))
+            by_id = {r["id"]: r for r in sliced}
+            self.assertEqual(set(by_id), {r["id"] for r in whole})
+            for row in whole:
+                other = by_id[row["id"]]
+                self.assertEqual(other["degradation_chain"], row["degradation_chain"])
+                self.assertEqual(other["degraded_audio_sha256"], row["degraded_audio_sha256"])
+
+            with self.assertRaises(ValueError):
+                render_blind_synthetic(
+                    manifest, clean_root, root / "bad", self.CONFIG,
+                    root / "bad.jsonl", root / "bad_ck.jsonl", 1, slice_index=4, slice_count=4,
+                )
+
+    def test_invalid_blind_configs_are_rejected(self) -> None:
+        from openrestor.degradations.blind import load_blind_config
+
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "bad.yaml"
+            path.write_text("blind_synthetic: true\n", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "source_recipe_config"):
+                load_blind_config(path)
+
+            path.write_text(
+                "source_recipe_config: configs/degradations/single/v0_1.yaml\n"
+                "degradation_count:\n  weights:\n    0: 1.0\n"
+                "exclusive_groups:\n  room: [reverb_small, not_a_class]\n",
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "unknown classes"):
+                load_blind_config(path)

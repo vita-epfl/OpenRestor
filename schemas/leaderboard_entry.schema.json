@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "OpenRestore leaderboard entry",
+  "title": "OpenRestor leaderboard entry",
   "type": "object",
   "required": ["submission_id", "track", "status"],
   "properties": {

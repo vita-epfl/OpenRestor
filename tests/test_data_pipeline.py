@@ -5,7 +5,9 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import TestCase
 
-from openrestor.data.core import read_jsonl, sha256_file, write_jsonl
+from unittest.mock import patch
+
+from openrestor.data.core import probe_audio, read_jsonl, sha256_file, write_jsonl
 from openrestor.data.pipeline import (
     ariel_split_membership,
     sonicmaster_split_membership,
@@ -35,7 +37,7 @@ def _config(dataset: str, root: Path, fixed_split: str) -> dict[str, str | int]:
     return {
         "dataset": dataset,
         "source_root": str(root),
-        "role": "public-transfer-evaluation" if fixed_split == "transfer" else "main-track-training-and-public-evaluation",
+        "role": "optional-local-transfer-evaluation" if fixed_split == "transfer" else "main-track-training-and-public-evaluation",
         "fixed_split": fixed_split,
         "min_source_seconds": 30,
         "license": "test",
@@ -45,6 +47,30 @@ def _config(dataset: str, root: Path, fixed_split: str) -> dict[str, str | int]:
 
 
 class PhaseOnePipelineTests(TestCase):
+    def test_lossless_probe_falls_back_to_libsndfile_without_ffprobe(self) -> None:
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "source.wav"
+            _write_tone(path, seconds=1)
+            with patch("openrestor.data.core.shutil.which", return_value=None):
+                metadata = probe_audio(path)
+            self.assertEqual(metadata["sample_rate"], 44_100)
+            self.assertEqual(metadata["channels"], 2)
+            self.assertAlmostEqual(metadata["duration_seconds"], 1.0, places=3)
+
+    def test_ingest_can_restrict_a_dataset_to_mixture_files(self) -> None:
+        with TemporaryDirectory() as directory:
+            tmp_path = Path(directory)
+            root = tmp_path / "musdb"
+            _write_tone(root / "song" / "mixture.wav")
+            _write_tone(root / "song" / "vocals.wav")
+            config = _config("musdb18_hq", root, "transfer")
+            config["include_basename"] = "mixture.wav"
+
+            rows = ingest(config, tmp_path / "index.jsonl")
+
+            self.assertEqual(len(rows), 1)
+            self.assertTrue(rows[0]["audio_path"].endswith("mixture.wav"))
+
     def test_ariel_manifest_split_keeps_exact_source_sets(self) -> None:
         with TemporaryDirectory() as directory:
             tmp_path = Path(directory)

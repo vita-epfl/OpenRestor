@@ -4,24 +4,21 @@ from __future__ import annotations
 
 import json
 import math
+import shutil
 import subprocess
 import sys
 import tarfile
 import wave
 from collections import Counter, defaultdict
-from collections.abc import Iterable
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
 
-from .core import (
-    SourceItem,
-    audio_files,
-    probe_audio,
-    read_jsonl,
-    sha256_file,
-    stable_fraction,
-    write_jsonl,
-)
+import numpy as np
+import soundfile as sf
+from scipy.signal import resample_poly
+
+from .core import SourceItem, audio_files, probe_audio, read_jsonl, sha256_file, stable_fraction, write_jsonl
+
 
 CANONICAL_SAMPLE_RATE = 44_100
 CLIP_SECONDS = 30
@@ -36,6 +33,15 @@ def _source_id(root: Path, audio_path: Path) -> str:
     return audio_path.relative_to(root).with_suffix("").as_posix().replace("/", "--")
 
 
+def _configured_audio_files(config: dict[str, Any]) -> list[Path]:
+    root = Path(config["source_root"])
+    files = audio_files(root)
+    include_basename = str(config.get("include_basename") or "").strip().lower()
+    if include_basename:
+        files = [path for path in files if path.name.lower() == include_basename]
+    return files
+
+
 def ingest(
     config: dict[str, Any],
     output: Path,
@@ -47,19 +53,13 @@ def ingest(
     if not root.is_dir():
         raise FileNotFoundError(f"Source root does not exist: {root}")
     dataset = config["dataset"]
-    files = audio_files(root)
+    files = _configured_audio_files(config)
     _log(progress, f"[{dataset}] found {len(files)} audio files under {root}")
     items: list[dict[str, Any]] = []
     skipped_short = 0
     for index, audio_path in enumerate(files, start=1):
-        metadata = (
-            probe_audio(audio_path)
-            if probe
-            else {"duration_seconds": 0.0, "sample_rate": 0, "channels": 0}
-        )
-        if probe and metadata["duration_seconds"] < float(
-            config.get("min_source_seconds", CLIP_SECONDS)
-        ):
+        metadata = probe_audio(audio_path) if probe else {"duration_seconds": 0.0, "sample_rate": 0, "channels": 0}
+        if probe and metadata["duration_seconds"] < float(config.get("min_source_seconds", CLIP_SECONDS)):
             skipped_short += 1
         else:
             item = SourceItem(
@@ -83,26 +83,14 @@ def ingest(
     return items
 
 
-def split_sonicmaster(
-    rows: Iterable[dict[str, Any]], seed: int, train_fraction: float, validation_fraction: float
-) -> list[dict[str, Any]]:
-    """Assign a reproducible OpenRestore-native hash split."""
-    if (
-        not 0 < train_fraction < 1
-        or not 0 <= validation_fraction < 1
-        or train_fraction + validation_fraction >= 1
-    ):
+def split_sonicmaster(rows: Iterable[dict[str, Any]], seed: int, train_fraction: float, validation_fraction: float) -> list[dict[str, Any]]:
+    """Assign a reproducible OpenRestor-native hash split."""
+    if not 0 < train_fraction < 1 or not 0 <= validation_fraction < 1 or train_fraction + validation_fraction >= 1:
         raise ValueError("Split fractions must leave a non-empty public test fraction")
     assigned: list[dict[str, Any]] = []
     for row in rows:
         value = stable_fraction(row["source_id"], seed)
-        split = (
-            "train"
-            if value < train_fraction
-            else "validation"
-            if value < train_fraction + validation_fraction
-            else "test"
-        )
+        split = "train" if value < train_fraction else "validation" if value < train_fraction + validation_fraction else "test"
         assigned.append({**row, "split": split})
     return assigned
 
@@ -117,15 +105,10 @@ def ariel_split_membership(train_manifest: Path, test_manifest: Path) -> dict[st
         for line_number, row in enumerate(rows, start=1):
             source_id = str(row.get("source_id", "")).strip()
             if not source_id:
-                raise ValueError(
-                    f"ARIEL {split} manifest has no source_id at line {line_number}: {manifest}"
-                )
+                raise ValueError(f"ARIEL {split} manifest has no source_id at line {line_number}: {manifest}")
             previous = membership.get(source_id)
             if previous is not None:
-                raise ValueError(
-                    f"ARIEL manifests assign source {source_id!r} to both "
-                    f"{previous!r} and {split!r}"
-                )
+                raise ValueError(f"ARIEL manifests assign source {source_id!r} to both {previous!r} and {split!r}")
             membership[source_id] = split
     return membership
 
@@ -147,9 +130,7 @@ def sonicmaster_split_membership(manifest: Path) -> dict[str, str]:
     return membership
 
 
-def split_sonicmaster_from_manifest(
-    rows: Iterable[dict[str, Any]], manifest: Path
-) -> list[dict[str, Any]]:
+def split_sonicmaster_from_manifest(rows: Iterable[dict[str, Any]], manifest: Path) -> list[dict[str, Any]]:
     """Apply the exact frozen SonicMaster split and reject missing sources."""
     membership = sonicmaster_split_membership(manifest)
     row_list = list(rows)
@@ -158,24 +139,16 @@ def split_sonicmaster_from_manifest(
     if missing:
         preview = ", ".join(missing[:10])
         suffix = "..." if len(missing) > 10 else ""
-        raise ValueError(
-            f"Frozen SonicMaster split sources are absent from the "
-            f"OpenRestore input ({len(missing)}): {preview}{suffix}"
-        )
+        raise ValueError(f"Frozen SonicMaster split sources are absent from the OpenRestor input ({len(missing)}): {preview}{suffix}")
     unexpected = sorted(found - set(membership))
     if unexpected:
         preview = ", ".join(unexpected[:10])
         suffix = "..." if len(unexpected) > 10 else ""
-        raise ValueError(
-            f"OpenRestore input contains sources outside the frozen "
-            f"SonicMaster split ({len(unexpected)}): {preview}{suffix}"
-        )
+        raise ValueError(f"OpenRestor input contains sources outside the frozen SonicMaster split ({len(unexpected)}): {preview}{suffix}")
     return [{**row, "split": membership[row["source_id"]]} for row in row_list]
 
 
-def split_sonicmaster_from_ariel(
-    rows: Iterable[dict[str, Any]], train_manifest: Path, test_manifest: Path
-) -> list[dict[str, Any]]:
+def split_sonicmaster_from_ariel(rows: Iterable[dict[str, Any]], train_manifest: Path, test_manifest: Path) -> list[dict[str, Any]]:
     """Preserve ARIEL membership and assign local-only SonicMaster sources to train."""
     membership = ariel_split_membership(train_manifest, test_manifest)
     assigned = [{**row, "split": membership.get(row["source_id"], "train")} for row in rows]
@@ -184,10 +157,7 @@ def split_sonicmaster_from_ariel(
     if missing:
         preview = ", ".join(missing[:10])
         suffix = "..." if len(missing) > 10 else ""
-        raise ValueError(
-            f"ARIEL split sources are absent from the OpenRestore "
-            f"input ({len(missing)}): {preview}{suffix}"
-        )
+        raise ValueError(f"ARIEL split sources are absent from the OpenRestor input ({len(missing)}): {preview}{suffix}")
     return assigned
 
 
@@ -202,7 +172,7 @@ def validate_split_policy(rows: Iterable[dict[str, Any]]) -> None:
         if dataset == "sonicmaster_clean" and split not in {"train", "validation", "test"}:
             raise ValueError(f"Invalid SonicMaster split: {split}")
         if dataset in {"sdd", "musdb18_hq"} and split != "transfer":
-            raise ValueError(f"{dataset} is public-transfer-only, got {split}")
+            raise ValueError(f"{dataset} is optional-local-transfer-only, got {split}")
 
 
 def combine_and_split(
@@ -230,23 +200,11 @@ def combine_and_split(
         _log(progress, f"[split] assigning {len(group)} rows for {dataset}")
         if dataset == "sonicmaster_clean" and sonicmaster_split_manifest is not None:
             assigned = split_sonicmaster_from_manifest(group, sonicmaster_split_manifest)
-            _log(
-                progress,
-                f"[split] applied frozen SonicMaster assignment to {len(assigned)} sources",
-            )
+            _log(progress, f"[split] applied frozen SonicMaster assignment to {len(assigned)} sources")
             output_rows.extend(assigned)
-        elif (
-            dataset == "sonicmaster_clean"
-            and ariel_train_manifest is not None
-            and ariel_test_manifest is not None
-        ):
-            assigned = split_sonicmaster_from_ariel(
-                group, ariel_train_manifest, ariel_test_manifest
-            )
-            _log(
-                progress,
-                f"[split] assigned {len(assigned)}/{len(group)} SonicMaster rows; {len(group) - len(ariel_split_membership(ariel_train_manifest, ariel_test_manifest))} local-only rows added to train",  # noqa: E501  # un-splittable f-string interpolation
-            )
+        elif dataset == "sonicmaster_clean" and ariel_train_manifest is not None and ariel_test_manifest is not None:
+            assigned = split_sonicmaster_from_ariel(group, ariel_train_manifest, ariel_test_manifest)
+            _log(progress, f"[split] assigned {len(assigned)}/{len(group)} SonicMaster rows; {len(group) - len(ariel_split_membership(ariel_train_manifest, ariel_test_manifest))} local-only rows added to train")
             output_rows.extend(assigned)
         elif dataset == "sonicmaster_clean":
             output_rows.extend(split_sonicmaster(group, seed, train_fraction, validation_fraction))
@@ -269,34 +227,71 @@ def _group_by_dataset(rows: Iterable[dict[str, Any]]) -> dict[str, list[dict[str
     return groups
 
 
-def _clip_start(source_id: str, source_duration: float, clip_index: int, seed: int) -> float:
+def _clip_start(source_id: str, source_duration: float, clip_index: int, seed: int, attempt: int = 0) -> float:
+    """Pick a deterministic clip window. attempt 0 is the original assignment."""
     available = math.floor(source_duration) - CLIP_SECONDS
     if available < 0:
         raise ValueError(f"Source shorter than {CLIP_SECONDS}s: {source_id}")
-    return float(math.floor(stable_fraction(f"{source_id}:{clip_index}", seed) * (available + 1)))
+    key = f"{source_id}:{clip_index}" if attempt == 0 else f"{source_id}:{clip_index}:attempt{attempt}"
+    return float(math.floor(stable_fraction(key, seed) * (available + 1)))
 
 
 def _render_clip(source: Path, output: Path, start_seconds: float, normalize: bool) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
-    command = [
-        "ffmpeg",
-        "-nostdin",
-        "-v",
-        "error",
-        "-y",
-        "-ss",
-        str(start_seconds),
-        "-i",
-        str(source),
-        "-t",
-        str(CLIP_SECONDS),
-    ]
+    if shutil.which("ffmpeg") is None:
+        if normalize:
+            raise RuntimeError("FFmpeg is required for loudnorm clip rendering")
+        try:
+            info = sf.info(str(source))
+            start_frame = max(0, round(start_seconds * info.samplerate))
+            frames = round(CLIP_SECONDS * info.samplerate)
+            audio, sample_rate = sf.read(str(source), start=start_frame, frames=frames,
+                                         always_2d=True, dtype="float32")
+        except Exception as error:
+            raise RuntimeError(
+                f"FFmpeg is unavailable and libsndfile cannot render {source}; "
+                "install FFmpeg for this format"
+            ) from error
+        if audio.shape[1] == 1:
+            audio = np.repeat(audio, 2, axis=1)
+        elif audio.shape[1] > 2:
+            audio = audio[:, :2]
+        if int(sample_rate) != CANONICAL_SAMPLE_RATE:
+            divisor = math.gcd(int(sample_rate), CANONICAL_SAMPLE_RATE)
+            audio = resample_poly(audio, CANONICAL_SAMPLE_RATE // divisor,
+                                  int(sample_rate) // divisor, axis=0).astype(np.float32)
+        target_frames = CLIP_SECONDS * CANONICAL_SAMPLE_RATE
+        if len(audio) < target_frames:
+            audio = np.vstack([audio, np.zeros((target_frames - len(audio), 2), dtype=np.float32)])
+        else:
+            audio = audio[:target_frames]
+        sf.write(str(output), audio, CANONICAL_SAMPLE_RATE, subtype="PCM_16")
+        return
+    command = ["ffmpeg", "-nostdin", "-v", "error", "-y", "-ss", str(start_seconds), "-i", str(source), "-t", str(CLIP_SECONDS)]
     if normalize:
         command.extend(["-af", "loudnorm=I=-18:LRA=11:TP=-1.0"])
-    command.extend(
-        ["-ar", str(CANONICAL_SAMPLE_RATE), "-ac", "2", "-c:a", "pcm_s16le", str(output)]
-    )
+    command.extend(["-ar", str(CANONICAL_SAMPLE_RATE), "-ac", "2", "-c:a", "pcm_s16le", str(output)])
     subprocess.run(command, check=True)
+
+
+def _pad_clip_to_exact(path: Path, max_pad_seconds: float) -> float:
+    """Top a marginally short render up to exactly CLIP_SECONDS and report the padding.
+
+    The loudnorm filter consumes a few milliseconds of output, and a handful of
+    sources decode slightly shorter than their probed duration. Both leave a clip a
+    few milliseconds under the canonical length, which the duration check rejects.
+    """
+    with wave.open(str(path), "rb") as handle:
+        params = handle.getparams()
+        frames = handle.readframes(handle.getnframes())
+    target = CLIP_SECONDS * params.framerate
+    missing = target - params.nframes
+    if missing <= 0 or missing > max_pad_seconds * params.framerate:
+        return 0.0
+    with wave.open(str(path), "wb") as handle:
+        handle.setparams(params)
+        handle.writeframes(frames + b"\x00" * (missing * params.nchannels * params.sampwidth))
+    return missing / params.framerate
 
 
 def _wave_quality(path: Path) -> dict[str, float | int]:
@@ -306,9 +301,12 @@ def _wave_quality(path: Path) -> dict[str, float | int]:
         samples = handle.readframes(handle.getnframes())
         if handle.getsampwidth() != 2:
             raise ValueError(f"Expected 16-bit PCM output: {path}")
-    values = memoryview(samples).cast("h")
-    peak = max((abs(value) for value in values), default=0) / 32768
-    rms = math.sqrt(sum(value * value for value in values) / max(len(values), 1)) / 32768
+    # A Python loop over 2.6 million samples per clip costs four times what numpy does
+    # for the identical result.
+    values = np.frombuffer(samples, dtype="<i2")
+    peak = (float(np.abs(values).max()) if values.size else 0.0) / 32768
+    squared = np.asarray(values, dtype=np.float64)
+    rms = math.sqrt(float(np.mean(squared * squared)) if values.size else 0.0) / 32768
     duration = len(values) / (2 * CANONICAL_SAMPLE_RATE)
     return {"peak": peak, "rms": rms, "duration_seconds": duration}
 
@@ -322,6 +320,8 @@ def segment(
     clips_per_source: int,
     normalize: bool,
     min_rms: float,
+    clip_attempts: int = 3,
+    max_pad_seconds: float = 0.25,
     progress: bool = False,
     progress_interval: int = 50,
 ) -> list[dict[str, Any]]:
@@ -335,17 +335,20 @@ def segment(
     for source in sources:
         for clip_index in range(clips_per_source):
             processed += 1
-            start = _clip_start(source["source_id"], source["duration_seconds"], clip_index, seed)
             item_id = f"{source['dataset']}--{source['source_id']}--{clip_index:02d}"
             relative_path = Path(source["split"]) / source["dataset"] / f"{item_id}.wav"
             output_path = output_root / relative_path
-            _render_clip(Path(source["audio_path"]), output_path, start, normalize)
-            quality = _wave_quality(output_path)
-            if (
-                abs(float(quality["duration_seconds"]) - CLIP_SECONDS) > 0.01
-                or float(quality["rms"]) < min_rms
-            ):
+            start, quality, padded = 0.0, None, 0.0
+            for attempt in range(max(1, clip_attempts)):
+                start = _clip_start(source["source_id"], source["duration_seconds"], clip_index, seed, attempt)
+                _render_clip(Path(source["audio_path"]), output_path, start, normalize)
+                padded = _pad_clip_to_exact(output_path, max_pad_seconds)
+                quality = _wave_quality(output_path)
+                if abs(float(quality["duration_seconds"]) - CLIP_SECONDS) <= 0.01 and float(quality["rms"]) >= min_rms:
+                    break
                 output_path.unlink(missing_ok=True)
+                quality = None
+            if quality is None:
                 rejected += 1
                 if progress and (processed % progress_interval == 0 or processed == total):
                     _log(
@@ -355,26 +358,22 @@ def segment(
                     )
                 continue
             checksum = sha256_file(output_path)
-            result.append(
-                {
-                    "id": item_id,
-                    "dataset": source["dataset"],
-                    "split": source["split"],
-                    "source_id": source["source_id"],
-                    "clean_path": relative_path.as_posix(),
-                    "start_seconds": start,
-                    "duration_seconds": CLIP_SECONDS,
-                    "sample_rate": CANONICAL_SAMPLE_RATE,
-                    "channels": 2,
-                    "normalization": "loudnorm I=-18 LRA=11 TP=-1.0" if normalize else "none",
-                    "quality": quality,
-                    "audio_sha256": checksum,
-                }
-            )
+            result.append({
+                "id": item_id,
+                "dataset": source["dataset"],
+                "split": source["split"],
+                "source_id": source["source_id"],
+                "clean_path": relative_path.as_posix(),
+                "start_seconds": start,
+                "duration_seconds": CLIP_SECONDS,
+                "sample_rate": CANONICAL_SAMPLE_RATE,
+                "channels": 2,
+                "normalization": "loudnorm I=-18 LRA=11 TP=-1.0" if normalize else "none",
+                "quality": {**quality, "padded_seconds": round(padded, 6)},
+                "audio_sha256": checksum,
+            })
             checksum_rows.append({"path": relative_path.as_posix(), "sha256": checksum})
-            if progress and (
-                processed == 1 or processed % progress_interval == 0 or processed == total
-            ):
+            if progress and (processed == 1 or processed % progress_interval == 0 or processed == total):
                 _log(
                     progress,
                     f"[segment] {processed}/{total} processed, "
@@ -438,14 +437,8 @@ def statistics(manifest_rows: Iterable[dict[str, Any]]) -> dict[str, Any]:
         "items": len(rows),
         "total_hours": round(sum(float(row["duration_seconds"]) for row in rows) / 3600, 3),
         "by_split": dict(sorted(Counter(row["split"] for row in rows).items())),
-        "by_dataset_and_split": {
-            f"{dataset}/{split}": count for (split, dataset), count in sorted(groups.items())
-        },
-        "canonical_format": {
-            "sample_rate": CANONICAL_SAMPLE_RATE,
-            "channels": 2,
-            "duration_seconds": CLIP_SECONDS,
-        },
+        "by_dataset_and_split": {f"{dataset}/{split}": count for (split, dataset), count in sorted(groups.items())},
+        "canonical_format": {"sample_rate": CANONICAL_SAMPLE_RATE, "channels": 2, "duration_seconds": CLIP_SECONDS},
     }
 
 
@@ -454,7 +447,8 @@ def source_statistics(source_rows: Iterable[dict[str, Any]]) -> dict[str, Any]:
     groups = Counter((row["split"], row["dataset"]) for row in rows)
     source_seconds = sum(float(row.get("duration_seconds", 0.0)) for row in rows)
     clip_capacity = sum(
-        max(math.floor(float(row.get("duration_seconds", 0.0)) / CLIP_SECONDS), 0) for row in rows
+        max(math.floor(float(row.get("duration_seconds", 0.0)) / CLIP_SECONDS), 0)
+        for row in rows
     )
     hours_by_dataset_and_split: dict[str, float] = {}
     for split, dataset in sorted(groups):
@@ -483,9 +477,7 @@ def source_statistics(source_rows: Iterable[dict[str, Any]]) -> dict[str, Any]:
         },
         "channels": {
             str(key): value
-            for key, value in sorted(
-                Counter(row.get("channels", "unknown") for row in rows).items()
-            )
+            for key, value in sorted(Counter(row.get("channels", "unknown") for row in rows).items())
         },
         "source_manifest_schema": "source-index-v1",
     }
@@ -511,7 +503,7 @@ def audit(
     config: dict[str, Any], output: Path, probe_limit: int = 25, progress: bool = False
 ) -> dict[str, Any]:
     root = Path(config["source_root"])
-    files = audio_files(root)
+    files = _configured_audio_files(config)
     _log(progress, f"[{config['dataset']}] found {len(files)} audio files under {root}")
     sample_paths = files[:probe_limit]
     sampled = []
@@ -525,11 +517,10 @@ def audit(
         "role": config["role"],
         "license": config["license"],
         "redistribution": config["redistribution"],
+        "include_basename": config.get("include_basename"),
         "audio_file_count": len(files),
         "probed_file_count": len(sampled),
-        "sampled_sample_rates": dict(
-            sorted(Counter(item["sample_rate"] for item in sampled).items())
-        ),
+        "sampled_sample_rates": dict(sorted(Counter(item["sample_rate"] for item in sampled).items())),
         "sampled_channels": dict(sorted(Counter(item["channels"] for item in sampled).items())),
         "quality_notes": config["quality_notes"],
     }

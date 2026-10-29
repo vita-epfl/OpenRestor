@@ -1,0 +1,34 @@
+blind_synthetic: true
+canonical_registry: false
+
+# Operations and their parameter ranges are read from the Diagnostic registry, so an
+# intensity means the same thing in both tracks and is declared in exactly one place.
+source_recipe_config: configs/degradations/single/v0_1.yaml
+
+# How many degradations an item receives. The zero bucket is deliberate: it leaves the
+# item clean, which is what makes over-restoration measurable. Counts are genuinely
+# variable rather than always three.
+degradation_count:
+  weights:
+    0: 0.08
+    1: 0.32
+    2: 0.34
+    3: 0.26
+
+# A small compatibility matrix, not a library of predefined recipes. Two kinds of rule:
+# at most one member of a group, and specific forbidden pairs.
+exclusive_groups:
+  # Two rooms at once is not a thing. distant_mic_capture belongs here because it
+  # already simulates a room.
+  room: [reverb_small, reverb_big, reverb_mix, reverb_real, distant_mic_capture]
+  # One codec generation at a time; chaining two just means the harsher one.
+  codec: [codec, neural_codec]
+  # Both are overload nonlinearity; stacking them is redundant rather than realistic.
+  overload: [clipping, saturation_overdrive]
+  # One stereo fault per item: a collapsed image cannot also be an asymmetric channel.
+  stereo: [stereo_collapse, channel_damage]
+
+incompatible_pairs:
+  # smartphone_capture already imposes a 7-14 kHz ceiling, so adding lowpass only
+  # applies whichever cutoff is stricter and teaches nothing new.
+  - [smartphone_capture, lowpass]

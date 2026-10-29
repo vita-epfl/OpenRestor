@@ -1,14 +1,17 @@
-"""Core, dependency-light utilities for the OpenRestore dataset pipeline."""
+"""Core, dependency-light utilities for the OpenRestor dataset pipeline."""
 
 from __future__ import annotations
 
 import hashlib
 import json
+import shutil
 import subprocess
-from collections.abc import Iterable
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
+
+import soundfile as sf
+
 
 AUDIO_EXTENSIONS = {".flac", ".wav", ".mp3", ".m4a", ".ogg", ".aiff", ".aif"}
 
@@ -30,7 +33,7 @@ class SourceItem:
 
 
 def stable_fraction(value: str, seed: int) -> float:
-    digest = hashlib.sha256(f"{seed}:{value}".encode()).digest()
+    digest = hashlib.sha256(f"{seed}:{value}".encode("utf-8")).digest()
     return int.from_bytes(digest[:8], "big") / 2**64
 
 
@@ -71,6 +74,22 @@ def audio_files(root: Path) -> list[Path]:
 
 
 def probe_audio(path: Path) -> dict[str, Any]:
+    # WAV/FLAC/AIFF are the formats used by the lossless Clean candidates.
+    # Keep ingestion usable on minimal cluster images where ffprobe is absent,
+    # while retaining ffprobe for codecs that libsndfile cannot inspect.
+    if shutil.which("ffprobe") is None:
+        try:
+            info = sf.info(str(path))
+        except Exception as error:
+            raise RuntimeError(
+                f"ffprobe is unavailable and libsndfile cannot inspect {path}; "
+                "install FFmpeg/ffprobe for this format"
+            ) from error
+        return {
+            "duration_seconds": float(info.duration),
+            "sample_rate": int(info.samplerate),
+            "channels": int(info.channels),
+        }
     command = [
         "ffprobe",
         "-v",
@@ -83,9 +102,7 @@ def probe_audio(path: Path) -> dict[str, Any]:
     ]
     result = subprocess.run(command, check=True, capture_output=True, text=True)
     payload = json.loads(result.stdout)
-    stream = next(
-        (item for item in payload.get("streams", []) if item.get("codec_type") == "audio"), None
-    )
+    stream = next((item for item in payload.get("streams", []) if item.get("codec_type") == "audio"), None)
     if stream is None:
         raise ValueError(f"No audio stream: {path}")
     return {

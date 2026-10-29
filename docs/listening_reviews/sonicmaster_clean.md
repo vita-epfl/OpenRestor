@@ -17,7 +17,7 @@
 
 ## Decision
 
-SonicMaster clean originals remain acceptable for OpenRestore restoration training, validation, and
+SonicMaster clean originals remain acceptable for OpenRestor restoration training, validation, and
 public test splits because the task is to recover clean references after controlled degradations.
 However, the sampled audio has audible compression and should not be presented as a high-quality
 music generation dataset or used as the quality target for generation-oriented evaluation.

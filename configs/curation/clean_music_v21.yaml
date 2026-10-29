@@ -1,0 +1,12 @@
+# Conservative acceptance layer. Acoustic/content scoring remains independent of rights.
+v2_auto_accept_score: 0.76
+v2_auto_reject_score: 0.28
+v2_max_severe_clipped_ratio: 0.02
+v2_min_bandwidth_hz_at_44100: 7000
+v21_auto_accept_score: 0.82
+v21_min_pq: 7.0
+v21_min_clap_degraded_margin: 0.08
+v21_max_hiss_proxy: 0.25
+v21_max_spectral_flatness: 0.35
+v21_enable_metadata_guard: 1.0
+v21_enable_acoustic_guard: 1.0

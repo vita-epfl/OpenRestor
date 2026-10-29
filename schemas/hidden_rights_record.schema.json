@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OpenRestor private hidden-audio rights record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "asset_id",
+    "provider",
+    "agreement_reference",
+    "rights_status",
+    "source_sha256",
+    "permitted_uses",
+    "contamination_review",
+    "reviewed_by",
+    "review_date"
+  ],
+  "properties": {
+    "asset_id": {"type": "string", "minLength": 1},
+    "provider": {"type": "string", "minLength": 1},
+    "collection": {"type": "string"},
+    "recording_title_internal": {"type": "string"},
+    "performers_internal": {"type": "array", "items": {"type": "string"}},
+    "master_rightsholder": {"type": "string"},
+    "agreement_reference": {"type": "string", "minLength": 1},
+    "rights_status": {"enum": ["approved", "rejected", "expired", "approval-required"]},
+    "performer_rights_status": {"enum": ["approved", "not-required", "approval-required"]},
+    "composition_rights_status": {"enum": ["approved", "not-required", "approval-required"]},
+    "neighbouring_rights_status": {"enum": ["approved", "not-required", "approval-required"]},
+    "source_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "permitted_uses": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "private_storage",
+        "excerpting",
+        "degraded_derivatives",
+        "ml_evaluation",
+        "server_side_submissions",
+        "aggregate_metric_publication"
+      ],
+      "properties": {
+        "private_storage": {"const": true},
+        "excerpting": {"const": true},
+        "degraded_derivatives": {"const": true},
+        "ml_evaluation": {"const": true},
+        "server_side_submissions": {"const": true},
+        "aggregate_metric_publication": {"const": true}
+      }
+    },
+    "contamination_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "review_date", "reviewed_by", "public_catalogues_checked"],
+      "properties": {
+        "status": {"enum": ["eligible", "excluded", "review-required"]},
+        "review_date": {"type": "string", "format": "date"},
+        "reviewed_by": {"type": "string", "minLength": 1},
+        "public_catalogues_checked": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "known_public_versions": {"type": "array", "items": {"type": "string"}},
+        "fingerprint_method": {"type": "string"},
+        "notes": {"type": "string"}
+      }
+    },
+    "valid_from": {"type": "string", "format": "date"},
+    "valid_until": {"type": ["string", "null"], "format": "date"},
+    "restrictions": {"type": "array", "items": {"type": "string"}},
+    "reviewed_by": {"type": "string", "minLength": 1},
+    "review_date": {"type": "string", "format": "date"},
+    "notes": {"type": "string"}
+  }
+}

@@ -1,9 +1,10 @@
 dataset: musdb18_hq
 version: local-HQ-mixtures
-source_root: /mnt/ssd2/datasets/OpenRestoreDataset/musdb18hq
-role: public-transfer-evaluation
+source_root: /mnt/ssd2/datasets/OpenRestorDataset/musdb18hq
+include_basename: mixture.wav
+role: optional-local-academic-transfer-evaluation
 fixed_split: transfer
-license: CC BY-NC-SA 4.0; confirm the local distribution and release terms before publishing derived clips
-redistribution: restricted; publish manifests and build instructions unless redistribution approval is documented
-quality_notes: Use full-song mixture WAVs only. Never use stems, main-track training, or the in-distribution public test.
+license: academic-use-only collection with mixed per-track terms
+redistribution: local academic processing only; never include source or derived audio in an OpenRestor release
+quality_notes: Use full-song mixture WAVs only. Optional local academic diagnostic for lawful dataset holders; never use stems, canonical training, public artifacts, the main score, or the in-distribution public test.
 min_source_seconds: 30

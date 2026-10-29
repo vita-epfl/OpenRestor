@@ -5,7 +5,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import TestCase
 
-from openrestor.validation.core import validate_file
+from openrestor.validation.core import validate_clean_manifest, validate_file
 
 
 class SchemaValidationTests(TestCase):
@@ -21,6 +21,14 @@ class SchemaValidationTests(TestCase):
                 "dataset": "clean",
                 "split": "train",
                 "clean_path": "train/item.wav",
+            },
+            "clean_manifest": {
+                "dataset": "clean",
+                "source_id": "item",
+                "source_key": "clean:item",
+                "audio_path": None,
+                "metadata": {},
+                "rights": {"review_status": "pending"},
             },
             "degradation_tracking": {
                 "recipe_id": "single_noise",
@@ -66,9 +74,24 @@ class SchemaValidationTests(TestCase):
         with TemporaryDirectory() as directory:
             root = Path(directory)
             for kind, document in documents.items():
-                self.assertEqual(
-                    validate_file(kind, self._write(root, f"{kind}.json", document)), 1
-                )
+                path = self._write(root, f"{kind}.json", document)
+                count = (validate_clean_manifest(path) if kind == "clean_manifest"
+                         else validate_file(kind, path))
+                self.assertEqual(count, 1)
+
+    def test_clean_manifest_requires_consistent_source_key_and_unique_rows(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            path = root / "manifest.jsonl"
+            rows = [
+                {"dataset": "clean", "source_id": "one", "source_key": "wrong:one",
+                 "audio_path": None, "metadata": {}, "rights": {}},
+                {"dataset": "clean", "source_id": "one", "source_key": "clean:one",
+                 "audio_path": None, "metadata": {}, "rights": {}},
+            ]
+            path.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "source_key"):
+                validate_clean_manifest(path)
 
     def test_invalid_document_reports_schema_error(self) -> None:
         with TemporaryDirectory() as directory:

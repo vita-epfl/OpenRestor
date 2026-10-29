@@ -1,0 +1,91 @@
+{
+  "schema_version": "curation-adjudication-lineage-v1",
+  "dataset": "IAMD",
+  "evaluation": "independent_v21",
+  "annotation_version": "iamd-independent-v1-definitive-2026-10-28",
+  "source_count": 120,
+  "correction_count": 7,
+  "unresolved_count": 7,
+  "scope": "primary_clip_labels_with_source_decision_control",
+  "artifacts": {
+    "raw_reviews": "build/curation/iamd/evaluation/independent_v21/independent_validation_reviews.jsonl",
+    "definitive_reviews": "build/curation/iamd/evaluation/independent_v21/independent_validation_reviews_definitive_v2.jsonl",
+    "adjudication": "build/curation/iamd/evaluation/independent_v21/error_review/post_listening_adjudication.json",
+    "annotation_history": "build/curation/iamd/evaluation/independent_v21/error_review/annotation_history.jsonl",
+    "annotation_lock": "build/curation/iamd/evaluation/independent_v21/independent_validation_reviews_definitive_v2.jsonl.lock.json",
+    "metrics_before_correction": "build/curation/iamd/evaluation/independent_v21/evaluation/independent_evaluation.json",
+    "metrics_after_correction": "build/curation/iamd/evaluation/independent_v21/evaluation_corrected/independent_evaluation.json",
+    "pipeline_judgments_v2": "build/curation/iamd/evaluation/independent_v21/pipeline_judgments_v2.jsonl",
+    "pipeline_judgments_v21": "build/curation/iamd/evaluation/independent_v21/pipeline_judgments_v21.jsonl"
+  },
+  "sha256": {
+    "raw_reviews": "980fb691f29f60ff1cdb9cd885c04c16c268b2968a20b35b5cafcec5fb58f4f2",
+    "definitive_reviews": "c658f0b2c98d922079d70d37c4b37ddcf37031001b4add4dc81108e32b64749b",
+    "adjudication": "2b81921f1b27777cb4896e2a85a86c0b783137dc61ee3e43972114ce117cabe5",
+    "annotation_history": "861d2c8d615f78b539e1faca8fd7cb42743b0712d796588d08b24b3f244142c9",
+    "metrics_before_correction": "56073b6a4fa03a28ccabba773a38c309bc6c47ba5b5383e1de65dd3da1860ad5",
+    "metrics_after_correction": "22f07b96642114299ae76864e9c09db96709b71af18417002b10baa4a2da42cf"
+  },
+  "correction_source_keys": [
+    "iamd:80ssynthpop",
+    "iamd:7-impromptus-piano-eye-filmmuseum",
+    "iamd:AeolianDrift",
+    "iamd:TheSleepingMoth",
+    "iamd:AJazzConstruct",
+    "iamd:ER34struggle",
+    "iamd:TheVoyageOfTheTalisman"
+  ],
+  "metrics_after_correction": {
+    "v2_primary_passage": {
+      "auto_accept_precision": "21/32",
+      "bad_clip_auto_accept_rate": "11/65",
+      "good_clip_auto_reject_rate": "0/48",
+      "manual_review": "54/113"
+    },
+    "v21_primary_passage": {
+      "auto_accept_precision": "10/11",
+      "bad_clip_auto_accept_rate": "1/65",
+      "good_clip_auto_reject_rate": "0/48",
+      "manual_review": "75/113"
+    },
+    "v2_source_decision_control": {
+      "auto_accept_precision": "11/15",
+      "bad_clip_auto_accept_rate": "4/65",
+      "good_clip_auto_reject_rate": "0/48",
+      "manual_review": "75/113"
+    },
+    "v21_source_decision_control": {
+      "auto_accept_precision": "5/5",
+      "bad_clip_auto_accept_rate": "0/65",
+      "good_clip_auto_reject_rate": "0/48",
+      "manual_review": "85/113"
+    }
+  },
+  "residual_errors_after_adjudication": {
+    "v2_primary_passage_bad_auto_accept": [
+      "iamd:01-gean-bittencourt-mancha-azul",
+      "iamd:71-mirando-el-firmamento",
+      "iamd:ATMPKThoughtCloud",
+      "iamd:GalacticOrbit",
+      "iamd:GjestarHybridBlackOutGjestarReWork",
+      "iamd:JonahDempcyAutumninNewYork_jazzstandard_",
+      "iamd:ReggaePlaygroundSelectaBobFigurante_CasadaMusicaReggaeFest_0",
+      "iamd:SRS05312",
+      "iamd:SimonSlator_TheLake",
+      "iamd:TheVoyageOfTheTalisman",
+      "iamd:ThisIsNotAConspiracyTheory"
+    ],
+    "v21_primary_passage_bad_auto_accept": [
+      "iamd:TheVoyageOfTheTalisman"
+    ],
+    "v2_source_decision_bad_auto_accept": [
+      "iamd:01-gean-bittencourt-mancha-azul",
+      "iamd:71-mirando-el-firmamento",
+      "iamd:SimonSlator_TheLake",
+      "iamd:TheVoyageOfTheTalisman"
+    ],
+    "v21_source_decision_bad_auto_accept": [],
+    "good_auto_reject": []
+  },
+  "interpretation": "Post-adjudication metrics are traceability diagnostics, not independent validation: the corrections were made after reviewing frozen predictions. Unresolved annotations remain outside binary denominators. A primary passage label never certifies the complete source."
+}
