@@ -1,5 +1,12 @@
 # OpenRestor Split Implementation Roadmap
 
+> **Status note (30 October 2026):** the current priority is a multi-dataset,
+> redistributable OpenRestor Clean train/validation corpus. This roadmap also
+> records historical SonicMaster-only decisions for the frozen paired benchmark;
+> its unchecked boxes are not all equally urgent for the Clean milestone. See
+> the [current project handoff](docs/reports/handoff_2026-10-30.md) for status,
+> blockers and priorities.
+
 This roadmap splits the OpenRestor implementation into the runnable research/audio pipeline and the hosted Information Technology ("IT") platform around it. It is written for a small collaborative team where the research engineer owns what will be hosted: the scientific validity, audio processing, dataset generation, degradation code, metric code, baselines, schemas, command-line tools, and reproducible local pipeline. IT/software engineers own how that runnable pipeline is hosted, secured, deployed, monitored, scaled, stored, and exposed to users.
 
 OpenRestor is a benchmark rather than a single restoration model. It has three evaluation tracks, built and released in order:

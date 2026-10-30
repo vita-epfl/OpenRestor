@@ -1,5 +1,12 @@
 # OpenRestor
 
+> **État courant (30 octobre 2026) :** la priorité est désormais un corpus Clean
+> multi-datasets pour train/validation. Les passages ci-dessous qui décrivent
+> SonicMaster comme source unique sont le contrat historique du benchmark
+> apparié gelé, pas une autorisation de publier ces audios ni la stratégie
+> exclusive du nouveau corpus. Voir la
+> [passation globale](docs/reports/handoff_2026-10-30.md).
+
 OpenRestor is an open, reproducible benchmark for musical audio restoration. It curates high-quality clean audio, generates controlled single degradations, evaluates restoration systems with reconstruction and perceptual metrics, and publishes datasets, baselines, reports, and a public leaderboard.
 
 Internal application link: [CHORD-VITA application](https://docs.google.com/document/d/1jHbahFTKmkAgQGIGbRLSNHwxb-EY-tgN)
